@@ -1,0 +1,21 @@
+{% extends "base/layout.html" %}
+{% block title %}پیشنهادات{% endblock %}
+{% block breadcrumb %}
+<li class="active">پیشنهادات</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-lightbulb"></i> ثبت پیشنهاد<small>نظرات و پیشنهادات شما برای ما مهم است</small></h1></div>
+    <div class="card" style="max-width: 600px;">
+        <div class="card-body-padded">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3"><label class="form-label">موضوع</label><input type="text" name="subject" class="form-control" required></div>
+                <div class="mb-3"><label class="form-label">توضیحات</label><textarea name="body" class="form-control" rows="5" required></textarea></div>
+                <button type="submit" class="btn btn-success"><i class="bi bi-send me-1"></i> ارسال پیشنهاد</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

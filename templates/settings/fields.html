@@ -1,0 +1,40 @@
+{% extends "base/layout.html" %}
+{% block title %}رشته‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('settings.fields') }}">تنظیمات</a></li>
+<li class="active">رشته‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-bookmark me-2 text-success"></i>رشته‌های آموزشی</h1></div>
+    <div class="card-custom mb-4">
+        <div class="card-body-custom">
+            <form method="POST" action="{{ url_for('settings.add_field') }}" class="row g-3 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-4"><label class="form-label">نام رشته</label><input type="text" name="name" class="form-control" required></div>
+                <div class="col-md-3"><label class="form-label">کد</label><input type="text" name="code" class="form-control" required></div>
+                <div class="col-md-3"><label class="form-label">توضیحات</label><input type="text" name="description" class="form-control"></div>
+                <div class="col-md-2"><button type="submit" class="btn btn-success-custom w-100"><i class="bi bi-plus me-1"></i> افزودن</button></div>
+            </form>
+        </div>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>کد</th><th>نام</th><th>دوره‌ها</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for f in fields %}
+                    <tr>
+                        <td><code>{{ f.code }}</code></td>
+                        <td>{{ f.name }}</td>
+                        <td>{{ f.courses.count() }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if f.is_active else 'inactive' }}">{{ 'فعال' if f.is_active else 'غیرفعال' }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

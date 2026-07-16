@@ -1,0 +1,54 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ entry.entry_number }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('accounting.journal') }}">روزنامه</a></li>
+<li class="active">{{ entry.entry_number }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-journal-bookmark me-2 text-primary"></i>سند {{ entry.entry_number }}<small>{{ entry.entry_date|to_jalali }}</small></h1>
+        <div class="d-flex gap-2">
+            {% if entry.status == 'draft' %}
+            <form method="POST" action="{{ url_for('accounting.confirm_entry', id=entry.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-success-custom"><i class="bi bi-check me-1"></i> تایید</button>
+            </form>
+            {% endif %}
+            {% if entry.status == 'confirmed' %}
+            <form method="POST" action="{{ url_for('accounting.approve_entry', id=entry.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary-custom"><i class="bi bi-check-circle me-1"></i> تصویب</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>#</th><th>حساب</th><th>بدهکار</th><th>بستانکار</th><th>شرح</th></tr></thead>
+                <tbody>
+                    {% for item in entry.items.all() %}
+                    <tr>
+                        <td>{{ item.row_number }}</td>
+                        <td>{{ item.account.name if item.account else '-' }}</td>
+                        <td>{{ item.debit|currency }}</td>
+                        <td>{{ item.credit|currency }}</td>
+                        <td>{{ item.description or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight: 700; background: #f8f9fa;">
+                        <td colspan="2">جمع</td>
+                        <td>{{ entry.total_debit|currency }}</td>
+                        <td>{{ entry.total_credit|currency }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

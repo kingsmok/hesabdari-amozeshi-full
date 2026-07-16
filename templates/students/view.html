@@ -1,0 +1,145 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ student.full_name }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('students.index') }}">هنرجویان</a></li>
+<li class="active">{{ student.full_name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1>
+            <div class="d-flex align-items-center gap-3">
+                <div style="width: 48px; height: 48px; border-radius: 12px; background: {% if student.gender == 'female' %}#fce4ec{% else %}#e3f2fd{% endif %}; display: flex; align-items: center; justify-content: center; font-size: 22px;">
+                    <i class="bi bi-person{% if student.gender == 'female' %}-fill{% endif %}" style="color: {% if student.gender == 'female' %}#e91e63{% else %}#2196f3{% endif %};"></i>
+                </div>
+                <div>
+                    {{ student.full_name }}
+                    <small>کد: {{ student.student_code }} | {{ student.mobile }}</small>
+                </div>
+            </div>
+        </h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('students.edit', id=student.id) }}" class="btn btn-warning"><i class="bi bi-pencil me-1"></i> ویرایش</a>
+            <a href="{{ url_for('registration.add') }}" class="btn btn-success-custom"><i class="bi bi-plus-circle me-1"></i> ثبت‌نام</a>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- Info Cards -->
+        <div class="col-lg-4">
+            <div class="card-custom">
+                <div class="card-header-custom">
+                    <h5><i class="bi bi-person-lines-fill me-2"></i>اطلاعات شخصی</h5>
+                </div>
+                <div class="card-body-custom">
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 12.5px;">
+                        <tr><td style="color: #888; width: 100px;">نام پدر</td><td><strong>{{ student.father_name or '-' }}</strong></td></tr>
+                        <tr><td style="color: #888;">کد ملی</td><td><strong>{{ student.national_code or '-' }}</strong></td></tr>
+                        <tr><td style="color: #888;">تاریخ تولد</td><td>{{ student.birth_date|to_jalali if student.birth_date else '-' }}</td></tr>
+                        <tr><td style="color: #888;">جنسیت</td><td>{{ 'مرد' if student.gender == 'male' else ('زن' if student.gender == 'female' else '-') }}</td></tr>
+                        <tr><td style="color: #888;">تحصیلات</td><td>{{ student.education_level or '-' }}</td></tr>
+                        <tr><td style="color: #888;">شغل</td><td>{{ student.job or '-' }}</td></tr>
+                        <tr><td style="color: #888;">دسته‌بندی</td><td><span class="badge-status badge-active">{{ student.category or '-' }}</span></td></tr>
+                        <tr><td style="color: #888;">وضعیت</td><td>
+                            <span class="badge-status badge-{{ 'active' if student.status == 'active' else 'inactive' }}">
+                                {% if student.status == 'active' %}فعال{% elif student.status == 'graduated' %}فارغ‌التحصیل{% elif student.status == 'withdrawn' %}انصرافی{% else %}{{ student.status }}{% endif %}
+                            </span>
+                        </td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card-custom">
+                <div class="card-header-custom">
+                    <h5><i class="bi bi-telephone me-2"></i>اطلاعات تماس</h5>
+                </div>
+                <div class="card-body-custom">
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 12.5px;">
+                        <tr><td style="color: #888; width: 100px;">موبایل</td><td><strong>{{ student.mobile }}</strong></td></tr>
+                        <tr><td style="color: #888;">موبایل ۲</td><td>{{ student.mobile2 or '-' }}</td></tr>
+                        <tr><td style="color: #888;">تلفن</td><td>{{ student.phone or '-' }}</td></tr>
+                        <tr><td style="color: #888;">ایمیل</td><td>{{ student.email or '-' }}</td></tr>
+                        <tr><td style="color: #888;">آدرس</td><td>{{ student.address or '-' }}</td></tr>
+                        <tr><td style="color: #888;">کدپستی</td><td>{{ student.postal_code or '-' }}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card-custom">
+                <div class="card-header-custom">
+                    <h5><i class="bi bi-bar-chart me-2"></i>خلاصه وضعیت</h5>
+                </div>
+                <div class="card-body-custom">
+                    <div class="row g-2 text-center">
+                        <div class="col-6">
+                            <div style="background: #eaf2f8; border-radius: 10px; padding: 12px;">
+                                <div style="font-size: 22px; font-weight: 800; color: #2980b9;">{{ registrations|length }}</div>
+                                <div style="font-size: 11px; color: #888;">ثبت‌نام</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div style="background: #eafaf1; border-radius: 10px; padding: 12px;">
+                                <div style="font-size: 22px; font-weight: 800; color: #27ae60;">{{ student.certificates|length }}</div>
+                                <div style="font-size: 11px; color: #888;">مدرک</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Registrations -->
+        <div class="col-12">
+            <div class="card-custom">
+                <div class="card-header-custom">
+                    <h5><i class="bi bi-pencil-square me-2 text-success"></i>سوابق ثبت‌نام</h5>
+                    <a href="{{ url_for('registration.add') }}" class="btn btn-sm-custom btn-success-custom"><i class="bi bi-plus"></i> ثبت‌نام جدید</a>
+                </div>
+                <div class="card-body-custom" style="padding: 0;">
+                    {% if registrations %}
+                    <table class="table table-custom mb-0">
+                        <thead>
+                            <tr>
+                                <th>کد ثبت‌نام</th>
+                                <th>دوره</th>
+                                <th>کلاس</th>
+                                <th>شهریه</th>
+                                <th>پرداختی</th>
+                                <th>مانده</th>
+                                <th>وضعیت</th>
+                                <th>عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reg in registrations %}
+                            <tr>
+                                <td><code>{{ reg.reg_code }}</code></td>
+                                <td>{{ reg.course.title if reg.course else '-' }}</td>
+                                <td>{{ reg.class_group.name if reg.class_group else '-' }}</td>
+                                <td>{{ reg.total_fee|currency }} ت</td>
+                                <td style="color: #27ae60;">{{ reg.paid_amount|currency }} ت</td>
+                                <td style="color: {{ '#e74c3c' if reg.remaining_amount > 0 else '#27ae60' }};">{{ reg.remaining_amount|currency }} ت</td>
+                                <td><span class="badge-status badge-{{ 'active' if reg.status == 'active' else 'inactive' }}">{{ reg.status }}</span></td>
+                                <td>
+                                    <a href="{{ url_for('registration.view', id=reg.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #aaa;">
+                        <p>هنوز ثبت‌نامی انجام نشده</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

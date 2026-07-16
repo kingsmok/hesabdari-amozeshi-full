@@ -1,0 +1,36 @@
+{% extends "base/layout.html" %}
+{% block title %}لیست انتظار{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('students.index') }}">هنرجویان</a></li>
+<li class="active">لیست انتظار</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-hourglass-split me-2 text-warning"></i>لیست انتظار<small>هنرجویان در انتظار ثبت‌نام</small></h1>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if entries %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>هنرجو</th><th>دوره</th><th>اولویت</th><th>تاریخ</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>{{ entry.student.full_name if entry.student else '-' }}</td>
+                        <td>{{ entry.course.title if entry.course else '-' }}</td>
+                        <td>{{ entry.priority }}</td>
+                        <td>{{ entry.request_date|to_jalali }}</td>
+                        <td><span class="badge-status badge-pending">{{ entry.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;"><p>لیست انتظار خالی است</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

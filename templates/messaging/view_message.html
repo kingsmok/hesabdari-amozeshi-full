@@ -1,0 +1,22 @@
+{% extends "base/layout.html" %}
+{% block title %}مشاهده پیام{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('messaging.inbox') }}">صندوق ورودی</a></li>
+<li class="active">مشاهده پیام</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-envelope me-2 text-primary"></i>{{ message.subject or '(بدون موضوع)' }}</h1></div>
+    <div class="card-custom" style="max-width: 700px;">
+        <div class="card-body-custom">
+            <div class="d-flex justify-content-between mb-3">
+                <div><strong>فرستنده:</strong> {{ message.sender.full_name if message.sender else '-' }}</div>
+                <div style="color: #888; font-size: 12px;">{{ message.created_at|to_jalali }}</div>
+            </div>
+            <hr>
+            <div style="line-height: 2;">{{ message.body }}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base/layout.html" %}
+{% block title %}نتایج {{ survey.title }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('surveys.index') }}">نظرسنجی‌ها</a></li>
+<li class="active">نتایج</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-bar-chart me-2 text-primary"></i>نتایج: {{ survey.title }}</h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-card"><div class="stat-label">پاسخ‌ها</div><div class="stat-value">{{ responses|length }}</div></div></div>
+        <div class="col-md-4"><div class="stat-card"><div class="stat-label">میانگین امتیاز</div><div class="stat-value">{{ avg_score }}</div></div></div>
+    </div>
+</div>
+{% endblock %}

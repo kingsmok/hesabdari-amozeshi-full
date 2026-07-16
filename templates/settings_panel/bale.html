@@ -1,0 +1,87 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات بله{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('settings_panel.control_panel') }}">پنل</a></li><li class="active">بله</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-chat-dots" style="color: #0081ff;"></i> تنظیمات ربات بله<small>پیام‌رسان ایرانی</small></h1>
+        {% if bot_info %}
+        <span class="badge-status badge-active" style="font-size: 13px; padding: 6px 16px;">
+            <i class="bi bi-check-circle me-1"></i> متصل — @{{ bot_info.username }}
+        </span>
+        {% endif %}
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-key"></i> تنظیمات اتصال</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">توکن بات بله <span class="text-danger">*</span></label>
+                            <input type="text" name="bale_bot_token" class="form-control" value="{{ settings.bale_bot_token or '' }}" placeholder="توکن از @bale_bot">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">آدرس وب‌هوک</label>
+                            <input type="text" name="bale_webhook_url" class="form-control" value="{{ settings.bale_webhook_url or '' }}" placeholder="https://your-domain.com/webhook/bale">
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ذخیره و تست</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-link-45deg"></i> تنظیم وب‌هوک</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST" action="{{ url_for('settings_panel.set_bale_webhook') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">آدرس وب‌هوک</label>
+                            <input type="text" name="webhook_url" class="form-control" value="{{ settings.bale_webhook_url or '' }}">
+                        </div>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-link-45deg me-1"></i> تنظیم</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-send"></i> تست ارسال</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST" action="{{ url_for('settings_panel.test_bale_message') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3"><label class="form-label">Chat ID</label><input type="text" name="chat_id" class="form-control"></div>
+                        <div class="mb-3"><label class="form-label">متن</label><input type="text" name="message" class="form-control" value="تست اتصال ✓"></div>
+                        <button type="submit" class="btn btn-info text-white"><i class="bi bi-send me-1"></i> ارسال</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            {% if bot_info %}
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-info-circle"></i> اطلاعات بات</h5></div>
+                <div class="card-body-padded">
+                    <table class="table table-borderless mb-0">
+                        <tr><td style="color: #78909c; width: 100px;">نام</td><td><strong>{{ bot_info.first_name }}</strong></td></tr>
+                        <tr><td style="color: #78909c;">یوزرنیم</td><td><code>@{{ bot_info.username }}</code></td></tr>
+                        <tr><td style="color: #78909c;">شناسه</td><td>{{ bot_info.id }}</td></tr>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-question-circle"></i> راهنما</h5></div>
+                <div class="card-body-padded" style="font-size: 12px;">
+                    <ol>
+                        <li>به <a href="https://ble.ir/BaleBot" target="_blank">@BaleBot</a> در بله پیام دهید</li>
+                        <li>دستور <code>/newbot</code> را بزنید</li>
+                        <li>توکن را کپی کنید</li>
+                        <li>در فیلد بالا وارد کنید</li>
+                        <li>وب‌هوک را تنظیم کنید</li>
+                    </ol>
+                    <p class="mt-2">API بله: <code>https://tapi.bale.ai/bot{TOKEN}/</code></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

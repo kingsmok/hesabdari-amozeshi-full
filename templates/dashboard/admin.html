@@ -1,0 +1,108 @@
+{% extends "base/layout.html" %}
+{% block title %}داشبورد{% endblock %}
+{% block breadcrumb %}<li class="active">داشبورد</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="welcome-banner mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2><i class="bi bi-sun-fill me-2"></i> خوش آمدید، {{ current_user.full_name }}</h2>
+                <p>امروز {{ "now"|to_jalali }} | {{ app_name }}</p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{{ url_for('students.add') }}" class="quick-btn"><i class="bi bi-person-plus"></i> هنرجو جدید</a>
+                <a href="{{ url_for('registration.add') }}" class="quick-btn"><i class="bi bi-pencil-square"></i> ثبت‌نام</a>
+                <a href="{{ url_for('finance.add_payment') }}" class="quick-btn"><i class="bi bi-cash"></i> دریافت وجه</a>
+                <a href="{{ url_for('analytics.smart_dashboard') }}" class="quick-btn"><i class="bi bi-robot"></i> تحلیل هوشمند</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-sm-6">
+            <div class="stat-box">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label">هنرجویان فعال</div>
+                        <div class="stat-val">{{ stats.total_students }}</div>
+                    </div>
+                    <div class="stat-icon" style="background: #e3f2fd; color: #1565c0;"><i class="bi bi-people-fill"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6">
+            <div class="stat-box">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label">کلاس‌های فعال</div>
+                        <div class="stat-val">{{ stats.active_classes }}</div>
+                    </div>
+                    <div class="stat-icon" style="background: #e8f5e9; color: #2e7d32;"><i class="bi bi-easel2-fill"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6">
+            <div class="stat-box">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label">درآمد ماه</div>
+                        <div class="stat-val" style="font-size: 18px;">{{ stats.month_income|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div>
+                    </div>
+                    <div class="stat-icon" style="background: #fff3e0; color: #e65100;"><i class="bi bi-cash-stack"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-sm-6">
+            <div class="stat-box">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="stat-label">صندوق</div>
+                        <div class="stat-val" style="font-size: 18px;">{{ stats.cashbox_balance|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div>
+                    </div>
+                    <div class="stat-icon" style="background: #fce4ec; color: #c62828;"><i class="bi bi-wallet2"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-calendar-event" style="color: #1565c0;"></i> کلاس‌های امروز</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    {% if today_classes %}
+                    <table class="table mb-0">
+                        <thead><tr><th>کلاس</th><th>ساعت</th><th>مدرس</th></tr></thead>
+                        <tbody>
+                            {% for cls in today_classes %}
+                            <tr><td><strong>{{ cls.name }}</strong></td><td>{{ cls.start_time }} - {{ cls.end_time }}</td><td>{{ cls.teacher.full_name if cls.teacher else '-' }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #b0bec5;"><p>کلاسی برای امروز نیست</p></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-clock-history" style="color: #00838f;"></i> آخرین فعالیت‌ها</h5></div>
+                <div class="card-body-padded" style="max-height: 300px; overflow-y: auto;">
+                    {% for a in recent_activities[:10] %}
+                    <div class="d-flex align-items-center gap-2 py-2 {% if not loop.last %}border-bottom{% endif %}" style="border-color: #f0f0f0 !important;">
+                        <div style="width: 30px; height: 30px; border-radius: 8px; background: #e3f2fd; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-activity" style="font-size: 12px; color: #1565c0;"></i>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-size: 12px;">{{ a.description or a.action }}</div>
+                            <div style="font-size: 10px; color: #b0bec5;">{{ a.created_at|to_jalali }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base/layout.html" %}
+{% block title %}بانک{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.bank') }}">مالی</a></li>
+<li class="active">بانک</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-bank me-2 text-primary"></i>حساب‌های بانکی</h1>
+        <a href="{{ url_for('finance.add_bank_account') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>حساب جدید</a>
+    </div>
+    <div class="row g-3">
+        {% for acc in accounts %}
+        <div class="col-md-4">
+            <div class="card-custom">
+                <div class="card-body-custom">
+                    <h6 style="font-weight: 700;">{{ acc.bank_name }}</h6>
+                    <p style="font-size: 12px; color: #888;">{{ acc.account_number or '-' }}</p>
+                    <div style="font-size: 20px; font-weight: 800; color: #27ae60;">{{ acc.balance|currency }} ت</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

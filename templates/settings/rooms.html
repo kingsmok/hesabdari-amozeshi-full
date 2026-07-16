@@ -1,0 +1,38 @@
+{% extends "base/layout.html" %}
+{% block title %}اتاق‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('settings.rooms') }}">تنظیمات</a></li>
+<li class="active">اتاق‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-door-open me-2 text-info"></i>اتاق‌ها و کلاس‌های فیزیکی</h1></div>
+    <div class="card-custom mb-4">
+        <div class="card-body-custom">
+            <form method="POST" action="{{ url_for('settings.add_room') }}" class="row g-3 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-3"><label class="form-label">نام</label><input type="text" name="name" class="form-control" required></div>
+                <div class="col-md-2"><label class="form-label">کد</label><input type="text" name="code" class="form-control"></div>
+                <div class="col-md-2"><label class="form-label">ظرفیت</label><input type="number" name="capacity" class="form-control" value="20"></div>
+                <div class="col-md-3"><label class="form-label">امکانات</label><input type="text" name="facilities" class="form-control" placeholder="ویدئو پروژکتور، کامپیوتر..."></div>
+                <div class="col-md-2"><button type="submit" class="btn btn-success-custom w-100"><i class="bi bi-plus me-1"></i> افزودن</button></div>
+            </form>
+        </div>
+    </div>
+    <div class="row g-3">
+        {% for r in rooms %}
+        <div class="col-md-3">
+            <div class="card-custom">
+                <div class="card-body-custom text-center">
+                    <i class="bi bi-door-open" style="font-size: 28px; color: #3498db;"></i>
+                    <h6 style="font-weight: 700; margin-top: 8px;">{{ r.name }}</h6>
+                    <p style="font-size: 12px; color: #888;">ظرفیت: {{ r.capacity }} نفر</p>
+                    <span class="badge-status badge-{{ 'active' if r.status == 'available' else 'inactive' }}">{{ r.status }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

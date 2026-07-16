@@ -1,0 +1,17 @@
+{% extends "base/layout.html" %}
+{% block title %}رأی‌گیری{% endblock %}
+{% block breadcrumb %}<li>ابزارها</li><li class="active">رأی‌گیری</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-hand-thumbs-up"></i> رأی‌گیری داخلی</h1></div>
+    <div class="card" style="max-width: 600px;">
+        <div class="card-body-padded">
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3"><label class="form-label">موضوع</label><input type="text" name="title" class="form-control" required></div>
+                <div class="mb-3"><label class="form-label">گزینه‌ها (هر خط یک گزینه)</label><textarea name="options" class="form-control" rows="4" placeholder="گزینه ۱&#10;گزینه ۲&#10;گزینه ۳"></textarea></div>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ایجاد رأی‌گیری</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,86 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ class_group.name }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('classes.index') }}">کلاس‌ها</a></li>
+<li class="active">{{ class_group.name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-easel me-2 text-success"></i>{{ class_group.name }}<small>{{ class_group.class_code }} | {{ class_group.course.title if class_group.course else '' }}</small></h1>
+        <div class="d-flex gap-2">
+            <form method="POST" action="{{ url_for('classes.generate_sessions', id=class_group.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-info text-white"><i class="bi bi-calendar-plus me-1"></i> تولید جلسات</button>
+            </form>
+            <a href="{{ url_for('attendance.class_attendance', class_id=class_group.id) }}" class="btn btn-primary-custom"><i class="bi bi-clipboard-check me-1"></i> حضور و غیاب</a>
+        </div>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5>اطلاعات کلاس</h5></div>
+                <div class="card-body-custom">
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 12.5px;">
+                        <tr><td style="color: #888;">دوره</td><td><strong>{{ class_group.course.title if class_group.course else '-' }}</strong></td></tr>
+                        <tr><td style="color: #888;">مدرس</td><td>{{ class_group.teacher.full_name if class_group.teacher else '-' }}</td></tr>
+                        <tr><td style="color: #888;">اتاق</td><td>{{ class_group.room.name if class_group.room else '-' }}</td></tr>
+                        <tr><td style="color: #888;">ظرفیت</td><td>{{ class_group.current_count }}/{{ class_group.max_capacity }}</td></tr>
+                        <tr><td style="color: #888;">ساعت</td><td>{{ class_group.start_time or '-' }} - {{ class_group.end_time or '-' }}</td></tr>
+                        <tr><td style="color: #888;">تاریخ شروع</td><td>{{ class_group.start_date|to_jalali if class_group.start_date else '-' }}</td></tr>
+                        <tr><td style="color: #888;">جلسات</td><td>{{ class_group.completed_sessions_count }}/{{ class_group.total_sessions_count }}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card-custom mb-3">
+                <div class="card-header-custom"><h5>هنرجویان ({{ students|length }})</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    {% if students %}
+                    <table class="table table-custom mb-0">
+                        <thead><tr><th>#</th><th>نام</th><th>کد</th><th>موبایل</th><th>وضعیت مالی</th></tr></thead>
+                        <tbody>
+                            {% for s in students %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td><a href="{{ url_for('students.view', id=s.id) }}">{{ s.full_name }}</a></td>
+                                <td><code>{{ s.student_code }}</code></td>
+                                <td>{{ s.mobile }}</td>
+                                <td>-</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #aaa;">هنرجویی ثبت‌نام نکرده</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-custom">
+                <div class="card-header-custom"><h5>جلسات ({{ sessions|length }})</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    {% if sessions %}
+                    <table class="table table-custom mb-0">
+                        <thead><tr><th>#</th><th>تاریخ</th><th>موضوع</th><th>وضعیت</th></tr></thead>
+                        <tbody>
+                            {% for s in sessions[:10] %}
+                            <tr>
+                                <td>{{ s.session_number }}</td>
+                                <td>{{ s.session_date|to_jalali }}</td>
+                                <td>{{ s.topic or '-' }}</td>
+                                <td><span class="badge-status badge-{{ 'completed' if s.status == 'completed' else 'pending' }}">{{ s.status }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #aaa;">جلسه‌ای تولید نشده</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base/layout.html" %}
+{% block title %}سوال جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('exams.index') }}">آزمون‌ها</a></li>
+<li><a href="{{ url_for('exams.question_bank') }}">بانک سوالات</a></li>
+<li class="active">سوال جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-primary"></i>افزودن سوال</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-12"><label class="form-label">متن سوال <span class="text-danger">*</span></label><textarea name="question_text" class="form-control" rows="3" required></textarea></div>
+                    <div class="col-md-3"><label class="form-label">نوع سوال</label>
+                        <select name="question_type" class="form-select">
+                            <option value="multiple_choice">چهارگزینه‌ای</option>
+                            <option value="true_false">درست/غلط</option>
+                            <option value="descriptive">تشریحی</option>
+                            <option value="fill_blank">جای خالی</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">دوره</label>
+                        <select name="course_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                            <option value="">انتخاب...</option>
+                            {% for c in courses %}<option value="{{ c.id }}">{{ c.title }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2"><label class="form-label">سختی</label>
+                        <select name="difficulty" class="form-select">
+                            <option value="easy">آسان</option>
+                            <option value="medium" selected>متوسط</option>
+                            <option value="hard">سخت</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2"><label class="form-label">نمره</label><input type="number" name="marks" class="form-control" value="1"></div>
+                    <div class="col-md-6"><label class="form-label">گزینه الف</label><input type="text" name="option_a" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">گزینه ب</label><input type="text" name="option_b" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">گزینه ج</label><input type="text" name="option_c" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">گزینه د</label><input type="text" name="option_d" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">پاسخ صحیح</label>
+                        <select name="correct_answer" class="form-select">
+                            <option value="a">الف</option><option value="b">ب</option><option value="c">ج</option><option value="d">د</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('exams.question_bank') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ذخیره</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

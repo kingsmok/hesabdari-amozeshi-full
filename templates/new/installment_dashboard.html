@@ -1,0 +1,105 @@
+{% extends "base/layout.html" %}
+{% block title %}مدیریت اقساط{% endblock %}
+{% block breadcrumb %}<li>مالی</li><li class="active">اقساط</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-calendar-check"></i> سیستم مدیریت اقساط<small>پیگیری، یادآوری و جریمه</small></h1>
+        <div class="d-flex gap-2">
+            <form method="POST" action="{{ url_for('new_features.auto_late_fee') }}" style="display: inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-warning"><i class="bi bi-calculator me-1"></i> محاسبه جریمه</button></form>
+            <form method="POST" action="{{ url_for('new_features.batch_reminders') }}" style="display: inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline-info"><i class="bi bi-bell me-1"></i> یادآوری گروهی</button></form>
+            <a href="{{ url_for('new_features.installment_report') }}" class="btn btn-outline-primary"><i class="bi bi-file-bar-graph me-1"></i> گزارش</a>
+        </div>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-xl-2 col-md-4"><div class="stat-box"><div class="stat-label">اقساط در انتظار</div><div class="stat-val">{{ stats.total_pending }}</div></div></div>
+        <div class="col-xl-2 col-md-4"><div class="stat-box"><div class="stat-label">معوقه</div><div class="stat-val" style="color: #c62828;">{{ stats.total_overdue }}</div></div></div>
+        <div class="col-xl-2 col-md-4"><div class="stat-box"><div class="stat-label">پرداخت شده</div><div class="stat-val" style="color: #2e7d32;">{{ stats.total_paid }}</div></div></div>
+        <div class="col-xl-2 col-md-4"><div class="stat-box"><div class="stat-label">مانده کل</div><div class="stat-val" style="font-size: 16px; color: #e65100;">{{ stats.total_pending_amount|currency }} <small>ت</small></div></div></div>
+        <div class="col-xl-2 col-md-4"><div class="stat-box"><div class="stat-label">معوقه</div><div class="stat-val" style="font-size: 16px; color: #c62828;">{{ stats.total_overdue_amount|currency }} <small>ت</small></div></div></div>
+        <div class="col-xl-2 col-md-4"><div class="stat-box"><div class="stat-label">نرخ وصول</div><div class="stat-val" style="color: {{ '#2e7d32' if stats.collection_rate >= 70 else '#e65100' }};">{{ stats.collection_rate }}٪</div></div></div>
+    </div>
+    {% if overdue_list %}
+    <div class="card mb-4">
+        <div class="card-head" style="background: #ffebee;"><h5 style="color: #c62828;"><i class="bi bi-exclamation-triangle"></i> اقساط معوقه ({{ overdue_list|length }})</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>هنرجو</th><th>قسط</th><th>مبلغ</th><th>مانده</th><th>سررسید</th><th>تأخیر</th><th>جریمه</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for inst in overdue_list %}
+                    <tr>
+                        <td><a href="{{ url_for('students.view', id=inst.registration.student_id) }}">{{ inst.registration.student.full_name if inst.registration and inst.registration.student else '-' }}</a></td>
+                        <td>#{{ inst.installment_number }}</td>
+                        <td>{{ inst.amount|currency }} ت</td>
+                        <td style="color: #c62828; font-weight: 700;">{{ inst.remaining|currency }} ت</td>
+                        <td>{{ inst.due_date|to_jalali }}</td>
+                        <td><span class="badge-status badge-inactive">{{ inst.late_days }} روز</span></td>
+                        <td style="color: #e65100;">{{ inst.calculated_late_fee|currency }} ت</td>
+                        <td>
+                            <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payModal{{ inst.id }}"><i class="bi bi-cash"></i></button>
+                            <div class="modal fade" id="payModal{{ inst.id }}" tabindex="-1">
+                                <div class="modal-dialog"><div class="modal-content">
+                                    <div class="modal-header"><h6 class="modal-title">پرداخت قسط #{{ inst.installment_number }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                                    <form method="POST" action="{{ url_for('new_features.pay_installment', id=inst.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <div class="modal-body">
+                                            <div class="mb-3"><label class="form-label">مبلغ پرداختی</label><input type="number" name="amount" class="form-control" value="{{ inst.remaining|int }}" required></div>
+                                            <div class="mb-3"><label class="form-label">جریمه</label><input type="number" name="late_fee" class="form-control" value="{{ inst.calculated_late_fee }}"></div>
+                                            <div class="mb-3"><label class="form-label">روش پرداخت</label>
+                                                <select name="method" class="form-select"><option value="cash">نقدی</option><option value="card">کارت</option><option value="online">آنلاین</option></select>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer"><button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> ثبت پرداخت</button></div>
+                                    </form>
+                                </div></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% if upcoming %}
+    <div class="card mb-4">
+        <div class="card-head" style="background: #fff8e1;"><h5 style="color: #ff8f00;"><i class="bi bi-clock"></i> اقساط نزدیک سررسید ({{ upcoming|length }})</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>هنرجو</th><th>قسط</th><th>مبلغ</th><th>سررسید</th></tr></thead>
+                <tbody>
+                    {% for inst in upcoming %}
+                    <tr>
+                        <td>{{ inst.registration.student.full_name if inst.registration and inst.registration.student else '-' }}</td>
+                        <td>#{{ inst.installment_number }}</td>
+                        <td>{{ inst.amount|currency }} ت</td>
+                        <td>{{ inst.due_date|to_jalali }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% if recent_paid %}
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-check-circle"></i> آخرین پرداخت‌ها</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>هنرجو</th><th>قسط</th><th>مبلغ</th><th>تاریخ</th></tr></thead>
+                <tbody>
+                    {% for inst in recent_paid %}
+                    <tr>
+                        <td>{{ inst.registration.student.full_name if inst.registration and inst.registration.student else '-' }}</td>
+                        <td>#{{ inst.installment_number }}</td>
+                        <td style="color: #2e7d32;">{{ inst.paid_amount|currency }} ت</td>
+                        <td>{{ inst.paid_date|to_jalali if inst.paid_date else '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

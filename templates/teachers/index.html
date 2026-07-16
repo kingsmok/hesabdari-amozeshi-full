@@ -1,0 +1,72 @@
+{% extends "base/layout.html" %}
+{% block title %}لیست مدرسین{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('teachers.index') }}">مدرسین</a></li>
+<li class="active">لیست مدرسین</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-person-workspace me-2 text-primary"></i>لیست مدرسین<small>مدیریت اطلاعات مدرسین آموزشگاه</small></h1>
+        <a href="{{ url_for('teachers.add') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>مدرس جدید</a>
+    </div>
+    <div class="card-custom mb-4">
+        <div class="card-body-custom">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-6">
+                    <label class="form-label">جستجو</label>
+                    <div class="search-box">
+                        <i class="bi bi-search"></i>
+                        <input type="text" name="search" class="form-control" placeholder="نام، کد، تخصص..." value="{{ search }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary-custom w-100"><i class="bi bi-funnel me-1"></i> فیلتر</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if teachers.items %}
+            <table class="table table-custom mb-0">
+                <thead>
+                    <tr><th>کد</th><th>نام</th><th>موبایل</th><th>تخصص</th><th>سطح</th><th>نوع قرارداد</th><th>وضعیت</th><th>عملیات</th></tr>
+                </thead>
+                <tbody>
+                    {% for t in teachers.items %}
+                    <tr>
+                        <td><code>{{ t.teacher_code }}</code></td>
+                        <td><strong>{{ t.full_name }}</strong></td>
+                        <td>{{ t.mobile }}</td>
+                        <td>{{ t.specialization or '-' }}</td>
+                        <td><span class="badge-status badge-active">{{ t.level or '-' }}</span></td>
+                        <td>{{ t.contract_type or '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if t.is_active else 'inactive' }}">{{ 'فعال' if t.is_active else 'غیرفعال' }}</span></td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('teachers.view', id=t.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a>
+                                <a href="{{ url_for('teachers.edit', id=t.id) }}" class="btn btn-sm-custom btn-outline-warning"><i class="bi bi-pencil"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if teachers.pages > 1 %}
+            <div class="d-flex justify-content-center py-3">
+                <nav><ul class="pagination pagination-sm mb-0">
+                    {% if teachers.has_prev %}<li class="page-item"><a class="page-link" href="?page={{ teachers.prev_num }}">قبلی</a></li>{% endif %}
+                    {% for p in teachers.iter_pages() %}{% if p %}<li class="page-item {{ 'active' if p == teachers.page }}"><a class="page-link" href="?page={{ p }}">{{ p }}</a></li>{% endif %}{% endfor %}
+                    {% if teachers.has_next %}<li class="page-item"><a class="page-link" href="?page={{ teachers.next_num }}">بعدی</a></li>{% endif %}
+                </ul></nav>
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;"><i class="bi bi-person-workspace" style="font-size: 48px;"></i><p class="mt-3">مدرسی یافت نشد</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

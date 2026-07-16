@@ -1,0 +1,53 @@
+{% extends "base/layout.html" %}
+{% block title %}صندوق{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.cashbox') }}">مالی</a></li>
+<li class="active">صندوق</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-box me-2 text-primary"></i>مدیریت صندوق</h1></div>
+    <div class="row g-3 mb-4">
+        {% for cb in cashboxes %}
+        <div class="col-md-4">
+            <div class="stat-card">
+                <div class="stat-label">{{ cb.name }}</div>
+                <div class="stat-value" style="font-size: 20px;">{{ cb.balance|currency }} <small style="font-size: 11px;">تومان</small></div>
+                <form method="POST" action="{{ url_for('finance.cashbox_transaction', id=cb.id) }}" class="mt-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="input-group input-group-sm">
+                        <input type="number" name="amount" class="form-control" placeholder="مبلغ">
+                        <select name="trans_type" class="form-select" style="max-width: 80px;"><option value="in">دریافت</option><option value="out">پرداخت</option></select>
+                        <button type="submit" class="btn btn-success-custom btn-sm">ثبت</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="card-custom">
+        <div class="card-header-custom"><h5>تراکنش‌های امروز</h5></div>
+        <div class="card-body-custom" style="padding: 0;">
+            {% if today_tx %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>صندوق</th><th>نوع</th><th>مبلغ</th><th>توضیح</th><th>ساعت</th></tr></thead>
+                <tbody>
+                    {% for tx in today_tx %}
+                    <tr>
+                        <td>{{ tx.cashbox.name if tx.cashbox else '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if tx.trans_type == 'in' else 'inactive' }}">{{ 'دریافت' if tx.trans_type == 'in' else 'پرداخت' }}</span></td>
+                        <td>{{ tx.amount|currency }} ت</td>
+                        <td>{{ tx.description or '-' }}</td>
+                        <td>{{ tx.transaction_date|to_jalali }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-4" style="color: #aaa;">تراکنشی ثبت نشده</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

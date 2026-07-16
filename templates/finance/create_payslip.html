@@ -1,0 +1,59 @@
+{% extends "base/layout.html" %}
+{% block title %}صدور فیش حقوقی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.salary') }}">حقوق</a></li>
+<li class="active">فیش جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-warning"></i>صدور فیش حقوقی</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-header-custom"><h5>اطلاعات پایه</h5></div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">نوع</label>
+                        <select name="person_type" class="form-select"><option value="teacher">مدرس</option><option value="employee">کارمند</option></select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">شخص</label>
+                        <select name="person_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                            {% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">دوره</label><input type="text" name="period" class="form-control" placeholder="1405/01"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card-custom mb-4">
+            <div class="card-header-custom"><h5>دریافتی‌ها</h5></div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-2"><label class="form-label">پایه</label><input type="number" name="base_amount" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">ساعات تدریس</label><input type="number" name="teaching_hours" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">مبلغ تدریس</label><input type="number" name="teaching_amount" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">پورسانت</label><input type="number" name="commission_amount" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">پاداش</label><input type="number" name="bonus" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">اضافه‌کاری</label><input type="number" name="overtime" class="form-control" value="0"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card-custom mb-4">
+            <div class="card-header-custom"><h5>کسورات</h5></div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">مساعده</label><input type="number" name="deductions" class="form-control" value="0"></div>
+                    <div class="col-md-3"><label class="form-label">بیمه</label><input type="number" name="insurance" class="form-control" value="0"></div>
+                    <div class="col-md-3"><label class="form-label">مالیات</label><input type="number" name="tax" class="form-control" value="0"></div>
+                    <div class="col-md-3"><label class="form-label">جریمه</label><input type="number" name="penalty" class="form-control" value="0"></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('finance.salary') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>صدور فیش</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

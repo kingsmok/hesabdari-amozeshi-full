@@ -1,0 +1,18 @@
+/* استایل تقویم شمسی */
+.jalali-picker-wrapper {
+    font-family: Vazirmatn, Tahoma, sans-serif !important;
+    animation: jpIn 0.2s ease-out;
+    z-index: 9999 !important;
+}
+
+@keyframes jpIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.jalali-picker-wrapper .jp-day:hover {
+    transform: scale(1.08);
+    background: #f0f4f8 !important;
+}
+
+input.jalali-date { cursor: pointer; }

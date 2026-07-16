@@ -1,0 +1,30 @@
+{% extends "base/layout.html" %}
+{% block title %}سود و زیان{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('reports.profit_loss') }}">گزارش‌ها</a></li>
+<li class="active">سود و زیان</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-graph-up-arrow me-2 text-success"></i>صورت سود و زیان</h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-card"><div class="stat-label">کل درآمد</div><div class="stat-value" style="color: #27ae60;">{{ total_income|currency }} ت</div></div></div>
+        <div class="col-md-4"><div class="stat-card"><div class="stat-label">کل هزینه</div><div class="stat-value" style="color: #e74c3c;">{{ total_expenses|currency }} ت</div></div></div>
+        <div class="col-md-4"><div class="stat-card"><div class="stat-label">سود خالص</div><div class="stat-value" style="color: {{ '#27ae60' if profit >= 0 else '#e74c3c' }};">{{ profit|currency }} ت</div></div></div>
+    </div>
+    <div class="card-custom">
+        <div class="card-header-custom"><h5>تفکیک هزینه‌ها</h5></div>
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>دسته‌بندی</th><th>مبلغ</th></tr></thead>
+                <tbody>
+                    {% for item in expense_breakdown %}
+                    <tr><td>{{ item[1] }}</td><td style="color: #e74c3c;">{{ item[0]|currency }} ت</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

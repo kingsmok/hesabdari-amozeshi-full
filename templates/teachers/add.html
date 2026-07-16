@@ -1,0 +1,76 @@
+{% extends "base/layout.html" %}
+{% block title %}ثبت مدرس جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('teachers.index') }}">مدرسین</a></li>
+<li class="active">ثبت مدرس</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-person-plus me-2 text-primary"></i>ثبت مدرس جدید</h1>
+    </div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-header-custom"><h5>اطلاعات فردی</h5></div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">نام <span class="text-danger">*</span></label><input type="text" name="first_name" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">نام خانوادگی <span class="text-danger">*</span></label><input type="text" name="last_name" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">نام پدر</label><input type="text" name="father_name" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">کد ملی</label><input type="text" name="national_code" class="form-control" maxlength="10"></div>
+                    <div class="col-md-3"><label class="form-label">تاریخ تولد</label><input type="date" name="birth_date" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">موبایل <span class="text-danger">*</span></label><input type="text" name="mobile" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">تلفن</label><input type="text" name="phone" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">ایمیل</label><input type="email" name="email" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">آدرس</label><input type="text" name="address" class="form-control"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card-custom mb-4">
+            <div class="card-header-custom"><h5>اطلاعات تخصصی</h5></div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">تخصص</label><input type="text" name="specialization" class="form-control" placeholder="مثال: Python, Django"></div>
+                    <div class="col-md-4"><label class="form-label">تحصیلات</label><input type="text" name="education" class="form-control"></div>
+                    <div class="col-md-2"><label class="form-label">سابقه (سال)</label><input type="number" name="experience_years" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">سطح</label>
+                        <select name="level" class="form-select">
+                            <option value="beginner">مبتدی</option>
+                            <option value="intermediate" selected>متوسط</option>
+                            <option value="professional">حرفه‌ای</option>
+                            <option value="master">استاد ارشد</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12"><label class="form-label">مهارت‌ها</label><textarea name="skills" class="form-control" rows="2" placeholder="هر مهارت در یک خط"></textarea></div>
+                </div>
+            </div>
+        </div>
+        <div class="card-custom mb-4">
+            <div class="card-header-custom"><h5>قرارداد</h5></div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">نوع قرارداد</label>
+                        <select name="contract_type" class="form-select">
+                            <option value="">انتخاب...</option>
+                            <option value="hourly">ساعتی</option>
+                            <option value="percentage">درصدی</option>
+                            <option value="fixed">ثابت</option>
+                            <option value="session">جلسه‌ای</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2"><label class="form-label">نرخ ساعتی</label><input type="number" name="hourly_rate" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">درصد همکاری</label><input type="number" name="percentage_rate" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">حقوق ثابت</label><input type="number" name="fixed_salary" class="form-control" value="0"></div>
+                    <div class="col-md-3"><label class="form-label">توضیحات</label><input type="text" name="notes" class="form-control"></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('teachers.index') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ثبت مدرس</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

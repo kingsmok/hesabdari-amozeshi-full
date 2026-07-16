@@ -1,0 +1,41 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش اقساط{% endblock %}
+{% block breadcrumb %}<li>مالی</li><li><a href="{{ url_for('new_features.installment_dashboard') }}">اقساط</a></li><li class="active">گزارش</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-file-bar-graph"></i> گزارش تفصیلی اقساط</h1></div>
+    <div class="card mb-4"><div class="card-body-padded">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3"><label class="form-label">وضعیت</label>
+                <select name="status" class="form-select">
+                    <option value="">همه</option>
+                    <option value="pending" {{ 'selected' if status_filter == 'pending' }}>در انتظار</option>
+                    <option value="overdue" {{ 'selected' if status_filter == 'overdue' }}>معوقه</option>
+                    <option value="paid" {{ 'selected' if status_filter == 'paid' }}>پرداخت شده</option>
+                    <option value="partial" {{ 'selected' if status_filter == 'partial' }}>پرداخت جزئی</option>
+                </select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i> فیلتر</button></div>
+        </form>
+    </div></div>
+    <div class="card"><div class="card-body-padded" style="padding: 0;">
+        <table class="table mb-0">
+            <thead><tr><th>هنرجو</th><th>قسط</th><th>مبلغ</th><th>پرداختی</th><th>مانده</th><th>سررسید</th><th>جریمه</th><th>وضعیت</th></tr></thead>
+            <tbody>
+                {% for inst in installments %}
+                <tr>
+                    <td>{{ inst.registration.student.full_name if inst.registration and inst.registration.student else '-' }}</td>
+                    <td>#{{ inst.installment_number }}</td>
+                    <td>{{ inst.amount|currency }} ت</td>
+                    <td style="color: #2e7d32;">{{ inst.paid_amount|currency }} ت</td>
+                    <td style="color: {{ '#c62828' if inst.remaining > 0 else '#2e7d32' }};">{{ inst.remaining|currency }} ت</td>
+                    <td>{{ inst.due_date|to_jalali }}</td>
+                    <td>{{ inst.late_fee|currency }} ت</td>
+                    <td><span class="badge-status badge-{{ 'active' if inst.status == 'paid' else ('pending' if inst.status == 'partial' else 'inactive') }}">{{ inst.status }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

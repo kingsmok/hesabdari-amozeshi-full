@@ -1,0 +1,174 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات تلگرام{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('settings_panel.control_panel') }}">پنل</a></li><li class="active">تلگرام</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-telegram" style="color: #0088cc;"></i> تنظیمات ربات تلگرام<small>اتصال واقعی به ربات تلگرام</small></h1>
+        {% if bot_info %}
+        <span class="badge-status badge-active" style="font-size: 13px; padding: 6px 16px;">
+            <i class="bi bi-check-circle me-1"></i> متصل — @{{ bot_info.username }}
+        </span>
+        {% endif %}
+    </div>
+
+    <div class="row g-3">
+        <!-- تنظیمات اتصال -->
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-key"></i> تنظیمات اتصال</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">توکن بات <span class="text-danger">*</span></label>
+                            <input type="text" name="telegram_bot_token" class="form-control" 
+                                   value="{{ settings.telegram_bot_token or '' }}" 
+                                   placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                            <small class="text-muted">از @BotFather در تلگرام دریافت کنید</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">آدرس وب‌هوک</label>
+                            <input type="text" name="telegram_webhook_url" class="form-control"
+                                   value="{{ settings.telegram_webhook_url or '' }}"
+                                   placeholder="https://your-domain.com/webhook/telegram">
+                            <small class="text-muted">آدرس سایت شما + /webhook/telegram</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ذخیره و تست اتصال</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- تنظیم وب‌هوک -->
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-link-45deg"></i> تنظیم وب‌هوک</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST" action="{{ url_for('settings_panel.set_telegram_webhook') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">آدرس وب‌هوک</label>
+                            <input type="text" name="webhook_url" class="form-control"
+                                   value="{{ settings.telegram_webhook_url or '' }}">
+                        </div>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-link-45deg me-1"></i> تنظیم وب‌هوک</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- تست ارسال پیام -->
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-send"></i> تست ارسال پیام</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST" action="{{ url_for('settings_panel.test_telegram_message') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">شناسه چت (Chat ID)</label>
+                            <input type="text" name="chat_id" class="form-control" placeholder="123456789">
+                            <small class="text-muted">برای دریافت Chat ID، به بات پیام دهید و از getUpdates بخوانید</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">متن پیام</label>
+                            <input type="text" name="message" class="form-control" value="تست اتصال از سیستم مدیریت آموزشگاه ✓">
+                        </div>
+                        <button type="submit" class="btn btn-info text-white"><i class="bi bi-send me-1"></i> ارسال تست</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- اطلاعات و وضعیت -->
+        <div class="col-lg-6">
+            <!-- اطلاعات بات -->
+            {% if bot_info %}
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-info-circle"></i> اطلاعات بات</h5></div>
+                <div class="card-body-padded">
+                    <table class="table table-borderless mb-0">
+                        <tr><td style="color: #78909c; width: 120px;">نام بات</td><td><strong>{{ bot_info.first_name }}</strong></td></tr>
+                        <tr><td style="color: #78909c;">یوزرنیم</td><td><code>@{{ bot_info.username }}</code></td></tr>
+                        <tr><td style="color: #78909c;">شناسه</td><td>{{ bot_info.id }}</td></tr>
+                        <tr><td style="color: #78909c;">وضعیت</td><td><span class="badge-status badge-active">فعال</span></td></tr>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- وضعیت وب‌هوک -->
+            {% if webhook_info %}
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-globe"></i> وضعیت وب‌هوک</h5></div>
+                <div class="card-body-padded">
+                    <table class="table table-borderless mb-0">
+                        <tr><td style="color: #78909c; width: 120px;">آدرس</td><td><code>{{ webhook_info.url or 'تنظیم نشده' }}</code></td></tr>
+                        <tr><td style="color: #78909c;">خطاها</td><td>{{ webhook_info.pending_update_count or 0 }}</td></tr>
+                        {% if webhook_info.last_error_date %}
+                        <tr><td style="color: #78909c;">آخرین خطا</td><td style="color: #c62828;">{{ webhook_info.last_error_message or '-' }}</td></tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- راهنما -->
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-question-circle"></i> راهنمای راه‌اندازی</h5></div>
+                <div class="card-body-padded">
+                    <div class="accordion" id="helpAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#step1">
+                                    مرحله ۱: ساخت بات
+                                </button>
+                            </h2>
+                            <div id="step1" class="accordion-collapse collapse show" data-bs-parent="#helpAccordion">
+                                <div class="accordion-body" style="font-size: 12px;">
+                                    <ol>
+                                        <li>به <a href="https://t.me/BotFather" target="_blank">@BotFather</a> پیام دهید</li>
+                                        <li>دستور <code>/newbot</code> را بزنید</li>
+                                        <li>نام بات را وارد کنید (مثلا: آموزشگاه من)</li>
+                                        <li>یوزرنیم بات را وارد کنید (مثلا: my_academy_bot)</li>
+                                        <li>توکن دریافتی را کپی کنید</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step2">
+                                    مرحله ۲: تنظیم وب‌هوک
+                                </button>
+                            </h2>
+                            <div id="step2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                                <div class="accordion-body" style="font-size: 12px;">
+                                    <ol>
+                                        <li>توکن را در فیلد بالا وارد کنید و ذخیره کنید</li>
+                                        <li>آدرس وب‌هوک را وارد کنید: <code>https://your-domain.com/webhook/telegram</code></li>
+                                        <li>روی «تنظیم وب‌هوک» کلیک کنید</li>
+                                        <li>حالا هر کسی به بات پیام دهد، سیستم پاسخ می‌دهد</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#step3">
+                                    مرحله ۳: تست
+                                </button>
+                            </h2>
+                            <div id="step3" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
+                                <div class="accordion-body" style="font-size: 12px;">
+                                    <ol>
+                                        <li>به بات پیام <code>/start</code> بزنید</li>
+                                        <li>شماره موبایل بفرستید → اطلاعات کلاس‌ها</li>
+                                        <li>نام دوره بنویسید → اطلاعات دوره</li>
+                                    </ol>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

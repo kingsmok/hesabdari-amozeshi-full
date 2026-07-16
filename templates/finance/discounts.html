@@ -1,0 +1,38 @@
+{% extends "base/layout.html" %}
+{% block title %}کدهای تخفیف{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.discounts') }}">مالی</a></li>
+<li class="active">کدهای تخفیف</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-percent me-2 text-success"></i>کدهای تخفیف</h1>
+        <a href="{{ url_for('finance.add_discount') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>کد جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if codes %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>کد</th><th>نوع</th><th>مقدار</th><th>استفاده</th><th>انقضا</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for c in codes %}
+                    <tr>
+                        <td><code>{{ c.code }}</code></td>
+                        <td>{{ 'درصدی' if c.discount_type == 'percentage' else 'ثابت' }}</td>
+                        <td>{{ c.discount_value }}{{ '%' if c.discount_type == 'percentage' else ' ت' }}</td>
+                        <td>{{ c.used_count or 0 }}/{{ c.max_uses or '∞' }}</td>
+                        <td>{{ c.valid_until|to_jalali if c.valid_until else '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if c.is_active else 'inactive' }}">{{ 'فعال' if c.is_active else 'غیرفعال' }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">کد تخفیفی وجود ندارد</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

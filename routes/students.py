@@ -1,0 +1,239 @@
+"""Students routes"""
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required, current_user
+from extensions import db
+from utils.form_helpers import get_jalali_date
+from models.student import Student, StudentDocument, WaitingList
+from models.registration import Registration
+from models.user import ActivityLog
+from datetime import datetime
+import json
+
+students_bp = Blueprint('students', __name__)
+
+
+@students_bp.route('/')
+@login_required
+def index():
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Filters
+    search = request.args.get('search', '')
+    status = request.args.get('status', '')
+    category = request.args.get('category', '')
+    branch = request.args.get('branch', '')
+    
+    query = Student.query
+    
+    if search:
+        query = query.filter(
+            db.or_(
+                Student.first_name.contains(search),
+                Student.last_name.contains(search),
+                Student.student_code.contains(search),
+                Student.national_code.contains(search),
+                Student.mobile.contains(search)
+            )
+        )
+    if status:
+        query = query.filter_by(status=status)
+    if category:
+        query = query.filter_by(category=category)
+    if branch:
+        query = query.filter_by(branch_id=branch)
+    
+    students = query.order_by(Student.created_at.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    return render_template('students/index.html', students=students, 
+                         search=search, status=status, category=category)
+
+
+@students_bp.route('/add', methods=['GET', 'POST'])
+@login_required
+def add():
+    if request.method == 'POST':
+        # Generate student code
+        last = Student.query.order_by(Student.id.desc()).first()
+        next_num = (last.id + 1) if last else 1
+        code = f'ST-1405-{next_num:05d}'
+        
+        student = Student(
+            student_code=code,
+            first_name=request.form['first_name'],
+            last_name=request.form['last_name'],
+            father_name=request.form.get('father_name'),
+            national_code=request.form.get('national_code'),
+            birth_certificate_no=request.form.get('birth_certificate_no'),
+            birth_date=get_jalali_date(request.form, 'birth_date') if request.form.get('birth_date') else None,
+            gender=request.form.get('gender'),
+            marital_status=request.form.get('marital_status'),
+            education_level=request.form.get('education_level'),
+            job=request.form.get('job'),
+            workplace=request.form.get('workplace'),
+            mobile=request.form['mobile'],
+            mobile2=request.form.get('mobile2'),
+            phone=request.form.get('phone'),
+            email=request.form.get('email'),
+            address=request.form.get('address'),
+            postal_code=request.form.get('postal_code'),
+            emergency_phone=request.form.get('emergency_phone'),
+            parent_name=request.form.get('parent_name'),
+            parent_mobile=request.form.get('parent_mobile'),
+            parent_job=request.form.get('parent_job'),
+            parent_relation=request.form.get('parent_relation'),
+            referral_source=request.form.get('referral_source'),
+            category=request.form.get('category'),
+            status='active',
+            branch_id=request.form.get('branch_id', 1),
+            notes=request.form.get('notes'),
+            description=request.form.get('description'),
+            created_by=current_user.id
+        )
+        
+        db.session.add(student)
+        
+        # Log
+        log = ActivityLog(
+            user_id=current_user.id,
+            action='create',
+            module='students',
+            entity_type='student',
+            description=f'ثبت هنرجو: {student.full_name}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        flash(f'هنرجو "{student.full_name}" با موفقیت ثبت شد', 'success')
+        return redirect(url_for('students.view', id=student.id))
+    
+    return render_template('students/add.html')
+
+
+@students_bp.route('/<int:id>')
+@login_required
+def view(id):
+    student = Student.query.get_or_404(id)
+    registrations = Registration.query.filter_by(student_id=id).order_by(Registration.created_at.desc()).all()
+    documents = StudentDocument.query.filter_by(student_id=id).all()
+    
+    return render_template('students/view.html', 
+                         student=student, 
+                         registrations=registrations,
+                         documents=documents)
+
+
+@students_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit(id):
+    student = Student.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        student.first_name = request.form['first_name']
+        student.last_name = request.form['last_name']
+        student.father_name = request.form.get('father_name')
+        student.national_code = request.form.get('national_code')
+        student.birth_certificate_no = request.form.get('birth_certificate_no')
+        student.birth_date = get_jalali_date(request.form, 'birth_date') if request.form.get('birth_date') else None
+        student.gender = request.form.get('gender')
+        student.marital_status = request.form.get('marital_status')
+        student.education_level = request.form.get('education_level')
+        student.job = request.form.get('job')
+        student.workplace = request.form.get('workplace')
+        student.mobile = request.form['mobile']
+        student.mobile2 = request.form.get('mobile2')
+        student.phone = request.form.get('phone')
+        student.email = request.form.get('email')
+        student.address = request.form.get('address')
+        student.postal_code = request.form.get('postal_code')
+        student.emergency_phone = request.form.get('emergency_phone')
+        student.parent_name = request.form.get('parent_name')
+        student.parent_mobile = request.form.get('parent_mobile')
+        student.referral_source = request.form.get('referral_source')
+        student.category = request.form.get('category')
+        student.status = request.form.get('status')
+        student.notes = request.form.get('notes')
+        
+        log = ActivityLog(
+            user_id=current_user.id,
+            action='edit',
+            module='students',
+            entity_type='student',
+            entity_id=id,
+            description=f'ویرایش هنرجو: {student.full_name}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        flash('اطلاعات هنرجو بروزرسانی شد', 'success')
+        return redirect(url_for('students.view', id=id))
+    
+    return render_template('students/edit.html', student=student)
+
+
+@students_bp.route('/<int:id>/history')
+@login_required
+def history(id):
+    student = Student.query.get_or_404(id)
+    registrations = Registration.query.filter_by(student_id=id).order_by(Registration.created_at.desc()).all()
+    
+    return render_template('students/history.html', student=student, registrations=registrations)
+
+
+@students_bp.route('/search')
+@login_required
+def search():
+    q = request.args.get('q', '')
+    if len(q) < 2:
+        return jsonify([])
+    
+    students = Student.query.filter(
+        db.or_(
+            Student.first_name.contains(q),
+            Student.last_name.contains(q),
+            Student.student_code.contains(q),
+            Student.mobile.contains(q),
+            Student.national_code.contains(q)
+        )
+    ).limit(20).all()
+    
+    return jsonify([{
+        'id': s.id,
+        'code': s.student_code,
+        'name': s.full_name,
+        'mobile': s.mobile,
+        'status': s.status
+    } for s in students])
+
+
+@students_bp.route('/waiting-list')
+@login_required
+def waiting_list():
+    entries = WaitingList.query.filter_by(status='waiting').order_by(WaitingList.priority).all()
+    return render_template('students/waiting_list.html', entries=entries)
+
+
+@students_bp.route('/<int:id>/delete', methods=['POST'])
+@login_required
+def delete(id):
+    student = Student.query.get_or_404(id)
+    student.status = 'withdrawn'
+    
+    log = ActivityLog(
+        user_id=current_user.id,
+        action='delete',
+        module='students',
+        entity_type='student',
+        entity_id=id,
+        description=f'حذف(غیرفعال) هنرجو: {student.full_name}',
+        ip_address=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash('هنرجو غیرفعال شد', 'warning')
+    return redirect(url_for('students.index'))

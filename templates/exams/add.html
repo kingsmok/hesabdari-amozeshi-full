@@ -1,0 +1,49 @@
+{% extends "base/layout.html" %}
+{% block title %}آزمون جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('exams.index') }}">آزمون‌ها</a></li>
+<li class="active">آزمون جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-primary"></i>ایجاد آزمون جدید</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">عنوان آزمون <span class="text-danger">*</span></label><input type="text" name="title" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">دوره</label>
+                        <select name="course_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                            {% for c in courses %}<option value="{{ c.id }}">{{ c.title }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">کلاس</label>
+                        <select name="class_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                            <option value="">همه</option>
+                            {% for cl in classes %}<option value="{{ cl.id }}">{{ cl.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">نوع آزمون</label>
+                        <select name="exam_type" class="form-select">
+                            <option value="written">کتبی</option>
+                            <option value="practical">عملی</option>
+                            <option value="oral">شفاهی</option>
+                            <option value="online">آنلاین</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">تاریخ</label><input type="date" name="exam_date" class="form-control"></div>
+                    <div class="col-md-2"><label class="form-label">مدت (دقیقه)</label><input type="number" name="duration_minutes" class="form-control" value="60"></div>
+                    <div class="col-md-2"><label class="form-label">نمره کل</label><input type="number" name="total_marks" class="form-control" value="100"></div>
+                    <div class="col-md-2"><label class="form-label">نمره قبولی</label><input type="number" name="passing_marks" class="form-control" value="50"></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('exams.index') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ایجاد آزمون</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

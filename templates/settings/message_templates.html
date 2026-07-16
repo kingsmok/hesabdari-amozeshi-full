@@ -1,0 +1,37 @@
+{% extends "base/layout.html" %}
+{% block title %}قالب‌های پیامک{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('settings.message_templates') }}">تنظیمات</a></li>
+<li class="active">قالب‌های پیامک</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-chat-text me-2 text-success"></i>قالب‌های پیامک</h1></div>
+    <div class="card-custom mb-4">
+        <div class="card-body-custom">
+            <form method="POST" action="{{ url_for('settings.add_message_template') }}" class="row g-3 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-3"><label class="form-label">نام قالب</label><input type="text" name="name" class="form-control" required></div>
+                <div class="col-md-6"><label class="form-label">متن</label><input type="text" name="template_text" class="form-control" required placeholder="سلام {نام} ..."></div>
+                <div class="col-md-2"><label class="form-label">نوع</label>
+                    <select name="template_type" class="form-select"><option value="general">عمومی</option><option value="registration">ثبت‌نام</option><option value="absence">غیبت</option><option value="payment">پرداخت</option></select>
+                </div>
+                <div class="col-md-1"><button type="submit" class="btn btn-success-custom w-100"><i class="bi bi-plus"></i></button></div>
+            </form>
+        </div>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>نام</th><th>نوع</th><th>متن</th></tr></thead>
+                <tbody>
+                    {% for t in templates %}
+                    <tr><td>{{ t.name }}</td><td>{{ t.template_type or '-' }}</td><td>{{ t.template_text }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base/layout.html" %}
+{% block title %}ثبت‌نام چند دوره‌ای{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('students.view', id=student.id) }}">{{ student.full_name }}</a></li><li class="active">ثبت‌نام چند دوره‌ای</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-pencil-square"></i> ثبت‌نام چند دوره‌ای<small>{{ student.full_name }}</small></h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-4">
+            <div class="card-head">
+                <h5>انتخاب دوره‌ها</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addCourseRow()"><i class="bi bi-plus"></i> افزودن دوره</button>
+            </div>
+            <div class="card-body-padded" style="padding: 0;">
+                <table class="table mb-0" id="courseTable">
+                    <thead><tr><th>#</th><th>دوره</th><th>کلاس</th><th>شهریه</th><th></th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>
+                                <select name="course_ids[]" class="form-select form-select-sm" onchange="updateFee(this)">
+                                    <option value="">انتخاب دوره...</option>
+                                    {% for c in courses %}<option value="{{ c.id }}" data-fee="{{ c.total_fee }}">{{ c.title }} — {{ c.total_fee|currency }} ت</option>{% endfor %}
+                                </select>
+                            </td>
+                            <td>
+                                <select name="class_ids[]" class="form-select form-select-sm">
+                                    <option value="">بدون کلاس</option>
+                                    {% for cl in classes %}<option value="{{ cl.id }}">{{ cl.name }}</option>{% endfor %}
+                                </select>
+                            </td>
+                            <td class="fee-cell">-</td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash3"></i></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('students.view', id=student.id) }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> ثبت‌نام</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let rowNum=1;
+function addCourseRow(){rowNum++;const t=document.querySelector('#courseTable tbody');const tr=document.createElement('tr');tr.innerHTML=`<td>${rowNum}</td><td><select name="course_ids[]" class="form-select form-select-sm" onchange="updateFee(this)"><option value="">انتخاب...</option>{% for c in courses %}<option value="{{ c.id }}" data-fee="{{ c.total_fee }}">{{ c.title }} — {{ c.total_fee|currency }} ت</option>{% endfor %}</select></td><td><select name="class_ids[]" class="form-select form-select-sm"><option value="">بدون کلاس</option>{% for cl in classes %}<option value="{{ cl.id }}">{{ cl.name }}</option>{% endfor %}</select></td><td class="fee-cell">-</td><td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash3"></i></button></td>`;t.appendChild(tr);}
+function updateFee(sel){const opt=sel.options[sel.selectedIndex];const fee=opt.dataset.fee||'0';sel.closest('tr').querySelector('.fee-cell').textContent=parseInt(fee).toLocaleString('fa-IR')+' ت';}
+</script>
+{% endblock %}

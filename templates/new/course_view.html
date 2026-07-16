@@ -1,0 +1,90 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ course.title }}{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('new_features.course_list') }}">دوره‌ها</a></li><li class="active">{{ course.title }}</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-journal-richtext"></i> {{ course.title }}<small>{{ course.code }}</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('new_features.course_edit', id=course.id) }}" class="btn btn-warning"><i class="bi bi-pencil me-1"></i> ویرایش</a>
+        </div>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-head"><h5>اطلاعات دوره</h5></div>
+                <div class="card-body-padded">
+                    <table class="table table-borderless mb-0" style="font-size: 12.5px;">
+                        <tr><td style="color: #78909c;">رشته</td><td><strong>{{ course.field.name if course.field else '-' }}</strong></td></tr>
+                        <tr><td style="color: #78909c;">ساعات</td><td>{{ course.duration_hours }} ساعت</td></tr>
+                        <tr><td style="color: #78909c;">جلسات</td><td>{{ course.total_sessions }} جلسه</td></tr>
+                        <tr><td style="color: #78909c;">استاندارد</td><td>{{ course.standard_code or '-' }}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-head"><h5>شهریه</h5></div>
+                <div class="card-body-padded">
+                    <table class="table table-borderless mb-0" style="font-size: 12.5px;">
+                        <tr><td style="color: #78909c;">پایه</td><td>{{ course.base_fee|currency }} ت</td></tr>
+                        <tr><td style="color: #78909c;">ثبت‌نام</td><td>{{ course.registration_fee|currency }} ت</td></tr>
+                        <tr><td style="color: #78909c;">کتاب</td><td>{{ course.book_fee|currency }} ت</td></tr>
+                        <tr><td style="color: #78909c;">آزمون</td><td>{{ course.exam_fee|currency }} ت</td></tr>
+                        <tr style="border-top: 2px solid #eee;"><td style="color: #1565c0; font-weight: 700;">جمع کل</td><td style="font-weight: 800; color: #1565c0;">{{ course.total_fee|currency }} ت</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-head"><h5>آمار</h5></div>
+                <div class="card-body-padded">
+                    <div class="row g-2 text-center">
+                        <div class="col-6"><div style="background: #e3f2fd; border-radius: 10px; padding: 14px;"><div style="font-size: 24px; font-weight: 900; color: #1565c0;">{{ total_regs }}</div><div style="font-size: 11px; color: #78909c;">کل ثبت‌نام</div></div></div>
+                        <div class="col-6"><div style="background: #e8f5e9; border-radius: 10px; padding: 14px;"><div style="font-size: 24px; font-weight: 900; color: #2e7d32;">{{ active_regs }}</div><div style="font-size: 11px; color: #78909c;">فعال</div></div></div>
+                        <div class="col-6"><div style="background: #fff3e0; border-radius: 10px; padding: 14px;"><div style="font-size: 24px; font-weight: 900; color: #e65100;">{{ classes|length }}</div><div style="font-size: 11px; color: #78909c;">کلاس</div></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% if syllabus %}
+    <div class="card mb-4">
+        <div class="card-head"><h5><i class="bi bi-list-ol"></i> سرفصل‌های آموزشی ({{ syllabus|length }})</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>#</th><th>فصل</th><th>درس</th><th>ساعت</th></tr></thead>
+                <tbody>
+                    {% for s in syllabus %}
+                    <tr><td>{{ s.chapter_no }}</td><td>{{ s.chapter_title }}</td><td>{{ s.lesson_title or '-' }}</td><td>{{ s.hours }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% if registrations %}
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-people"></i> آخرین ثبت‌نام‌ها</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>هنرجو</th><th>کلاس</th><th>تاریخ</th><th>شهریه</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for r in registrations %}
+                    <tr>
+                        <td>{{ r.student.full_name if r.student else '-' }}</td>
+                        <td>{{ r.class_group.name if r.class_group else '-' }}</td>
+                        <td>{{ r.created_at|to_jalali }}</td>
+                        <td>{{ r.total_fee|currency }} ت</td>
+                        <td><span class="badge-status badge-{{ 'active' if r.status == 'active' else 'inactive' }}">{{ r.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

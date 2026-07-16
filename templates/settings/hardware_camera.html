@@ -1,0 +1,20 @@
+{% extends "base/layout.html" %}
+{% block title %}دوربین امنیتی{% endblock %}
+{% block breadcrumb %}<li>سخت‌افزار</li><li class="active">دوربین</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-camera-video"></i> مدیریت دوربین‌های امنیتی</h1></div>
+    <div class="card"><div class="card-body-padded">
+        <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-3">
+                <div class="col-md-4"><label class="form-label">نام دوربین</label><input type="text" class="form-control" placeholder="ورودی اصلی"></div>
+                <div class="col-md-4"><label class="form-label">IP دوربین</label><input type="text" class="form-control" placeholder="192.168.1.200"></div>
+                <div class="col-md-4"><label class="form-label">محل نصب</label>
+                    <select class="form-select"><option>ورودی</option><option>کلاس</option><option>دفتر</option></select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+        </form>
+    </div></div>
+</div>
+{% endblock %}

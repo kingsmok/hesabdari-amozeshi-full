@@ -1,0 +1,104 @@
+{% extends "base/layout.html" %}
+{% block title %}داشبورد هوشمند{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('analytics.smart_dashboard') }}">تحلیل</a></li>
+<li class="active">داشبورد هوشمند</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-robot me-2 text-primary"></i>داشبورد هوشمند<small>تحلیل و بینش کسب‌وکار</small></h1></div>
+    
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5><i class="bi bi-graph-up me-2 text-success"></i>روند ثبت‌نام</h5></div>
+                <div class="card-body-custom"><canvas id="enrollmentChart" height="250"></canvas></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5><i class="bi bi-cash me-2 text-warning"></i>روند درآمد</h5></div>
+                <div class="card-body-custom"><canvas id="revenueChart" height="250"></canvas></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5><i class="bi bi-trophy me-2 text-warning"></i>دوره‌های پرطرفدار</h5></div>
+                <div class="card-body-custom"><canvas id="coursesChart" height="250"></canvas></div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5><i class="bi bi-share me-2 text-info"></i>منابع معرفی</h5></div>
+                <div class="card-body-custom"><canvas id="referralChart" height="250"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Enrollment Chart
+new Chart(document.getElementById('enrollmentChart'), {
+    type: 'line',
+    data: {
+        labels: {{ enrollment_trend|map(attribute='month')|list|tojson }},
+        datasets: [{
+            label: 'ثبت‌نام',
+            data: {{ enrollment_trend|map(attribute='count')|list|tojson }},
+            borderColor: '#27ae60',
+            backgroundColor: 'rgba(39,174,96,0.1)',
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+});
+
+// Revenue Chart
+new Chart(document.getElementById('revenueChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ revenue_trend|map(attribute='month')|list|tojson }},
+        datasets: [{
+            label: 'درآمد',
+            data: {{ revenue_trend|map(attribute='amount')|list|tojson }},
+            backgroundColor: '#f39c12',
+            borderRadius: 8
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+});
+
+// Courses Chart
+new Chart(document.getElementById('coursesChart'), {
+    type: 'doughnut',
+    data: {
+        labels: {{ top_courses|map(attribute=0)|list|tojson }},
+        datasets: [{
+            data: {{ top_courses|map(attribute=1)|list|tojson }},
+            backgroundColor: ['#3498db', '#2ecc71', '#e74c3c', '#f39c12', '#9b59b6']
+        }]
+    },
+    options: { responsive: true }
+});
+
+// Referral Chart
+new Chart(document.getElementById('referralChart'), {
+    type: 'pie',
+    data: {
+        labels: {{ referral_dist|map(attribute=0)|list|tojson }},
+        datasets: [{
+            data: {{ referral_dist|map(attribute=1)|list|tojson }},
+            backgroundColor: ['#1abc9c', '#3498db', '#9b59b6', '#e74c3c', '#f39c12']
+        }]
+    },
+    options: { responsive: true }
+});
+</script>
+{% endblock %}

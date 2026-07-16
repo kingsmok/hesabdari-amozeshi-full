@@ -1,0 +1,34 @@
+{% extends "base/layout.html" %}
+{% block title %}تقویم آموزشی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('classes.calendar') }}">کلاس‌ها</a></li>
+<li class="active">تقویم</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-calendar3 me-2 text-primary"></i>تقویم آموزشگاه</h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom">
+            <div class="row g-2">
+                {% set days = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'] %}
+                {% for day in days %}
+                <div class="col" style="min-width: 14%;">
+                    <div style="background: #1a5276; color: #fff; padding: 8px; border-radius: 8px 8px 0 0; text-align: center; font-weight: 700; font-size: 12px;">{{ day }}</div>
+                    <div style="background: #f8f9fa; padding: 8px; min-height: 200px; border-radius: 0 0 8px 8px;">
+                        {% for cls in classes %}
+                            {% if cls.days_of_week and (loop.index0 | string) in cls.days_of_week %}
+                            <div style="background: #e3f2fd; border-right: 3px solid #2196f3; padding: 4px 8px; margin-bottom: 4px; border-radius: 4px; font-size: 11px;">
+                                <strong>{{ cls.name }}</strong><br>
+                                <span style="color: #666;">{{ cls.start_time }}-{{ cls.end_time }}</span>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

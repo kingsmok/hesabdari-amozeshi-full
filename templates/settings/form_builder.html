@@ -1,0 +1,33 @@
+{% extends "base/layout.html" %}
+{% block title %}فرم‌ساز{% endblock %}
+{% block breadcrumb %}<li>تنظیمات</li><li class="active">فرم‌ساز</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-ui-checks-grid"></i> فرم‌ساز داخلی<small>ساخت فیلدهای سفارشی بدون برنامه‌نویسی</small></h1></div>
+    <div class="card"><div class="card-body-padded">
+        <div class="stat-box mb-3">
+            <h6>نحوه کار:</h6>
+            <ol style="font-size: 12px; color: #546e7a;">
+                <li>نوع فیلد را انتخاب کنید (متن، عدد، تاریخ، لیست)</li>
+                <li>نام و برچسب فیلد را وارد کنید</li>
+                <li>فیلد را به ماژول مورد نظر اختصاص دهید</li>
+            </ol>
+        </div>
+        <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-3">
+                <div class="col-md-3"><label class="form-label">نوع فیلد</label>
+                    <select name="field_type" class="form-select"><option>متن</option><option>عدد</option><option>تاریخ</option><option>لیست کشویی</option><option>چک‌باکس</option><option>فایل</option></select>
+                </div>
+                <div class="col-md-3"><label class="form-label">نام فیلد</label><input type="text" name="field_name" class="form-control"></div>
+                <div class="col-md-3"><label class="form-label">ماژول</label>
+                    <select name="module" class="form-select"><option>هنرجو</option><option>مدرس</option><option>ثبت‌نام</option><option>کلاس</option></select>
+                </div>
+                <div class="col-md-3"><label class="form-label">الزامی</label>
+                    <select name="required" class="form-select"><option value="no">خیر</option><option value="yes">بله</option></select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-plus-circle me-1"></i> افزودن فیلد</button>
+        </form>
+    </div></div>
+</div>
+{% endblock %}

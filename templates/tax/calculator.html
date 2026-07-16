@@ -1,0 +1,71 @@
+{% extends "base/layout.html" %}
+{% block title %}محاسبه‌گر مالیات{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('tax.dashboard') }}">مالیات</a></li><li class="active">محاسبه‌گر</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-calculator"></i> محاسبه‌گر مالیات<small>محاسبه بر اساس براکت‌های ۱۴۰۵</small></h1></div>
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-head"><h5>ورودی</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">نوع درآمد</label>
+                            <select name="income_type" class="form-select">
+                                <option value="monthly">ماهانه</option>
+                                <option value="annual">سالانه</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">مبلغ ناخالص</label>
+                            <input type="number" name="amount" class="form-control" required placeholder="مثال: 15000000">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">حق بیمه (ماهانه)</label>
+                            <input type="number" name="insurance" class="form-control" value="0">
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-calculator me-1"></i> محاسبه</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            {% if result %}
+            <div class="card mb-3">
+                <div class="card-head"><h5>نتیجه محاسبه</h5></div>
+                <div class="card-body-padded">
+                    <div class="row g-3 text-center">
+                        <div class="col-3"><div style="background: #e3f2fd; border-radius: 10px; padding: 14px;"><div style="font-size: 11px; color: #78909c;">ناخالص ماهانه</div><div style="font-size: 16px; font-weight: 800;">{{ result.gross_monthly|currency }}</div></div></div>
+                        <div class="col-3"><div style="background: #fff3e0; border-radius: 10px; padding: 14px;"><div style="font-size: 11px; color: #78909c;">بیمه</div><div style="font-size: 16px; font-weight: 800; color: #e65100;">{{ result.insurance|currency }}</div></div></div>
+                        <div class="col-3"><div style="background: #ffebee; border-radius: 10px; padding: 14px;"><div style="font-size: 11px; color: #78909c;">مالیات ماهانه</div><div style="font-size: 16px; font-weight: 800; color: #c62828;">{{ result.monthly_tax|currency }}</div></div></div>
+                        <div class="col-3"><div style="background: #e8f5e9; border-radius: 10px; padding: 14px;"><div style="font-size: 11px; color: #78909c;">خالص ماهانه</div><div style="font-size: 16px; font-weight: 800; color: #2e7d32;">{{ result.net_monthly|currency }}</div></div></div>
+                    </div>
+                </div>
+            </div>
+            {% if breakdown %}
+            <div class="card">
+                <div class="card-head"><h5>تفکیک براکت‌ها</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>براکت</th><th>مبلغ مشمول</th><th>نرخ</th><th>مالیات</th></tr></thead>
+                        <tbody>
+                            {% for b in breakdown %}
+                            <tr>
+                                <td>{{ b.label }}</td>
+                                <td>{{ b.taxable|currency }} ت</td>
+                                <td>{{ (b.rate * 100)|int }}%</td>
+                                <td style="font-weight: 700;">{{ b.tax|currency }} ت</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات فراز اس‌ام‌اس{% endblock %}
+{% block breadcrumb %}<li>پیامک</li><li class="active">فراز اس‌ام‌اس</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-phone"></i> تنظیمات فراز اس‌ام‌اس<small>FARAZSMS.ir — سامانه پیامکی</small></h1></div>
+    <div class="card mb-4" style="max-width: 700px;">
+        <div class="card-head"><h5>تنظیمات API</h5></div>
+        <div class="card-body-padded">
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">API Key <span class="text-danger">*</span></label><input type="text" name="farazsms_api_key" class="form-control" value="{{ settings.farazsms_api_key or '' }}" placeholder="کلید API از پنل فراز"></div>
+                    <div class="col-md-6"><label class="form-label">شماره فرستنده</label><input type="text" name="farazsms_sender" class="form-control" value="{{ settings.farazsms_sender or '' }}" placeholder="1000xxxxx"></div>
+                    <div class="col-md-6"><label class="form-label">کد الگوی پترن (اختیاری)</label><input type="text" name="farazsms_pattern_code" class="form-control" value="{{ settings.farazsms_pattern_code or '' }}" placeholder="کد الگوی تایید شده"></div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+            </form>
+        </div>
+    </div>
+    <div class="card" style="max-width: 700px;">
+        <div class="card-head"><h5>راهنما</h5></div>
+        <div class="card-body-padded">
+            <ol style="font-size: 13px; line-height: 2.2;">
+                <li>در <a href="https://farazsms.com" target="_blank">farazsms.com</a> ثبت‌نام کنید</li>
+                <li>از بخش «خدمات وب‌رویس» → «لیست کلیدهای دسترسی» یک API Key بسازید</li>
+                <li>برای ارسال سریع، از بخش «ارسال بر اساس پترن» یک الگو بسازید</li>
+                <li>پس از تایید الگو، کد آن را در فیلد مربوطه وارد کنید</li>
+            </ol>
+            <h6 class="mt-3">قابلیت‌ها:</h6>
+            <ul style="font-size: 12px; color: #546e7a;">
+                <li>📤 ارسال پیامک تبلیغاتی به همه هنرجویان</li>
+                <li>💰 ارسال یادآوری اقساط خودکار</li>
+                <li>📢 ارسال به بدهکاران</li>
+                <li>🎯 ارسال با الگوی پترن (سریع‌تر)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

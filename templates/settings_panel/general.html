@@ -1,0 +1,44 @@
+{% extends "base/layout.html" %}
+{% block title %}اطلاعات آموزشگاه{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('settings_panel.control_panel') }}">پنل</a></li><li class="active">عمومی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-building"></i> اطلاعات آموزشگاه</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-4">
+            <div class="card-head"><h5>اطلاعات اصلی</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">نام آموزشگاه</label><input type="text" name="academy_name" class="form-control" value="{{ settings.academy_name or '' }}"></div>
+                    <div class="col-md-2"><label class="form-label">کد</label><input type="text" name="academy_code" class="form-control" value="{{ settings.academy_code or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">شماره مجوز</label><input type="text" name="license_number" class="form-control" value="{{ settings.license_number or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">مدیر مسئول</label><input type="text" name="manager_name" class="form-control" value="{{ settings.manager_name or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">تلفن</label><input type="text" name="phone" class="form-control" value="{{ settings.phone or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">فکس</label><input type="text" name="fax" class="form-control" value="{{ settings.fax or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">ایمیل</label><input type="email" name="email" class="form-control" value="{{ settings.email or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">وبسایت</label><input type="text" name="website" class="form-control" value="{{ settings.website or '' }}"></div>
+                    <div class="col-md-12"><label class="form-label">آدرس</label><input type="text" name="address" class="form-control" value="{{ settings.address or '' }}"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-head"><h5>سال آموزشی</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">سال جاری</label><input type="text" name="current_year" class="form-control" value="{{ settings.current_year or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">ترم جاری</label>
+                        <select name="current_term" class="form-select">
+                            <option value="بهار" {{ 'selected' if settings.current_term == 'بهار' }}>بهار</option>
+                            <option value="تابستان" {{ 'selected' if settings.current_term == 'تابستان' }}>تابستان</option>
+                            <option value="پاییز" {{ 'selected' if settings.current_term == 'پاییز' }}>پاییز</option>
+                            <option value="زمستان" {{ 'selected' if settings.current_term == 'زمستان' }}>زمستان</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+    </form>
+</div>
+{% endblock %}

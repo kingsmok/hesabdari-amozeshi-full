@@ -1,0 +1,34 @@
+{% extends "base/layout.html" %}
+{% block title %}چاپ لیست کلاس{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('classes.view', id=class_group.id) }}">{{ class_group.name }}</a></li>
+<li class="active">چاپ لیست</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-printer"></i> لیست کلاس {{ class_group.name }}</h1>
+        <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
+    </div>
+    <div class="card">
+        <div class="card-body-padded">
+            <div class="text-center mb-4">
+                <h4>{{ app_name }}</h4>
+                <p>لیست حضور و غیاب — {{ class_group.name }} | {{ class_group.course.title if class_group.course else '' }}</p>
+                <p style="font-size: 12px; color: #78909c;">مدرس: {{ class_group.teacher.full_name if class_group.teacher else '-' }} | ساعت: {{ class_group.start_time }}-{{ class_group.end_time }}</p>
+            </div>
+            <table class="table" style="border: 1px solid #ddd;">
+                <thead>
+                    <tr style="background: #f5f5f5;"><th>ردیف</th><th>نام و نام خانوادگی</th><th>کد</th><th>موبایل</th><th>امضا</th></tr>
+                </thead>
+                <tbody>
+                    {% for s in students %}
+                    <tr><td>{{ loop.index }}</td><td style="min-width: 150px;">{{ s.full_name }}</td><td>{{ s.student_code }}</td><td>{{ s.mobile }}</td><td style="min-width: 100px; border-bottom: 1px solid #ddd;"></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

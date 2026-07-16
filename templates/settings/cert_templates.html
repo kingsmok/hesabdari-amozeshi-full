@@ -1,0 +1,17 @@
+{% extends "base/layout.html" %}
+{% block title %}قالب مدارک{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('settings.cert_templates') }}">تنظیمات</a></li>
+<li class="active">قالب مدارک</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-award me-2 text-warning"></i>قالب‌های مدرک و گواهینامه</h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom">
+            <p style="color: #888;">در این بخش می‌توانید قالب‌های گواهینامه و مدارک را مدیریت کنید.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

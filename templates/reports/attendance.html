@@ -1,0 +1,29 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش حضور{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('reports.attendance_report') }}">گزارش‌ها</a></li>
+<li class="active">حضور</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-clipboard-data me-2 text-info"></i>گزارش حضور و غیاب</h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>کلاس</th><th>کل حضور</th><th>حاضر</th><th>درصد</th></tr></thead>
+                <tbody>
+                    {% for s in class_stats %}
+                    <tr>
+                        <td>{{ s.class.name }}</td>
+                        <td>{{ s.total }}</td>
+                        <td>{{ s.present }}</td>
+                        <td><div class="progress" style="height: 20px; border-radius: 10px;"><div class="progress-bar bg-{{ 'success' if s.rate >= 75 else 'warning' }}" style="width: {{ s.rate }}%;">{{ s.rate }}%</div></div></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

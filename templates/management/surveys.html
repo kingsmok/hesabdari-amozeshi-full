@@ -1,0 +1,31 @@
+{% extends "base/layout.html" %}
+{% block title %}نظرسنجی‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('surveys.index') }}">مدیریت</a></li>
+<li class="active">نظرسنجی‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-bar-chart me-2 text-success"></i>نظرسنجی‌ها</h1>
+        <a href="{{ url_for('surveys.add') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>نظرسنجی جدید</a>
+    </div>
+    <div class="row g-3">
+        {% for s in surveys %}
+        <div class="col-md-4">
+            <div class="card-custom">
+                <div class="card-body-custom">
+                    <h6 style="font-weight: 700;">{{ s.title }}</h6>
+                    <p style="font-size: 12px; color: #888;">{{ s.description or '-' }}</p>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <span class="badge-status badge-{{ 'active' if s.is_active else 'inactive' }}">{{ 'فعال' if s.is_active else 'غیرفعال' }}</span>
+                        <a href="{{ url_for('surveys.results', id=s.id) }}" class="btn btn-sm-custom btn-outline-primary">نتایج</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

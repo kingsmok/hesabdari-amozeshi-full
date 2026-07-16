@@ -1,0 +1,38 @@
+{% extends "base/layout.html" %}
+{% block title %}هزینه‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.expenses') }}">مالی</a></li>
+<li class="active">هزینه‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-wallet2 me-2 text-danger"></i>هزینه‌های آموزشگاه</h1>
+        <a href="{{ url_for('finance.add_expense') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>هزینه جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if expenses.items %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>شماره</th><th>دسته‌بندی</th><th>مبلغ</th><th>توضیح</th><th>تاریخ</th><th>پرداخت‌کننده</th></tr></thead>
+                <tbody>
+                    {% for e in expenses.items %}
+                    <tr>
+                        <td><code>{{ e.expense_number }}</code></td>
+                        <td>{{ e.category.name if e.category else '-' }}</td>
+                        <td style="color: #e74c3c; font-weight: 700;">{{ e.amount|currency }} ت</td>
+                        <td>{{ e.description or '-' }}</td>
+                        <td>{{ e.expense_date|to_jalali }}</td>
+                        <td>{{ e.paid_to or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">هزینه‌ای ثبت نشده</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

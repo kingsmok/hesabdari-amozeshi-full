@@ -1,0 +1,37 @@
+{% extends "base/layout.html" %}
+{% block title %}تاریخچه {{ student.full_name }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('students.index') }}">هنرجویان</a></li>
+<li><a href="{{ url_for('students.view', id=student.id) }}">{{ student.full_name }}</a></li>
+<li class="active">تاریخچه</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-clock-history me-2 text-info"></i>تاریخچه هنرجو<small>{{ student.full_name }}</small></h1>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if registrations %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>کد</th><th>دوره</th><th>تاریخ</th><th>مبلغ</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for reg in registrations %}
+                    <tr>
+                        <td><code>{{ reg.reg_code }}</code></td>
+                        <td>{{ reg.course.title if reg.course else '-' }}</td>
+                        <td>{{ reg.registration_date|to_jalali }}</td>
+                        <td>{{ reg.total_fee|currency }} ت</td>
+                        <td><span class="badge-status badge-{{ 'active' if reg.status == 'active' else 'completed' }}">{{ reg.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;"><p>سابقه‌ای یافت نشد</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

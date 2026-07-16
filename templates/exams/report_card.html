@@ -1,0 +1,46 @@
+{% extends "base/layout.html" %}
+{% block title %}کارنامه {{ student.full_name }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('exams.grades') }}">نمرات</a></li>
+<li class="active">کارنامه</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-file-earmark-text"></i> کارنامه آموزشی<small>{{ student.full_name }}</small></h1>
+        <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
+    </div>
+    <div class="card" style="max-width: 700px; margin: 0 auto;">
+        <div class="card-body-padded">
+            <div class="text-center mb-4">
+                <h4>{{ app_name }}</h4>
+                <h5>کارنامه آموزشی</h5>
+            </div>
+            <table class="table table-borderless mb-4" style="border: 1px solid #eee;">
+                <tr><td style="color: #78909c;">نام</td><td><strong>{{ student.full_name }}</strong></td><td style="color: #78909c;">کد</td><td>{{ student.student_code }}</td></tr>
+                <tr><td style="color: #78909c;">کد ملی</td><td>{{ student.national_code or '-' }}</td><td style="color: #78909c;">تاریخ</td><td>{{ "now"|to_jalali }}</td></tr>
+            </table>
+            {% if grades %}
+            <table class="table" style="border: 1px solid #ddd;">
+                <thead><tr style="background: #f5f5f5;"><th>دوره</th><th>میان‌ترم</th><th>پایان‌ترم</th><th>عملی</th><th>کل</th><th>نتیجه</th></tr></thead>
+                <tbody>
+                    {% for g in grades %}
+                    <tr>
+                        <td>{{ g.course.title if g.course else '-' }}</td>
+                        <td>{{ g.midterm_score or '-' }}</td>
+                        <td>{{ g.final_score or '-' }}</td>
+                        <td>{{ g.practical_score or '-' }}</td>
+                        <td><strong>{{ g.total_score or '-' }}</strong></td>
+                        <td><span class="badge-status badge-{{ 'active' if g.is_passed else 'inactive' }}">{{ 'قبول' if g.is_passed else 'مردود' }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center" style="color: #b0bec5;"><p>نمره‌ای ثبت نشده</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base/layout.html" %}
+{% block title %}لاگ امنیتی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('features.security_log') }}">تنظیمات</a></li>
+<li class="active">لاگ امنیتی</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-shield-check"></i> لاگ امنیتی<small>رویدادهای امنیتی سیستم</small></h1></div>
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>کاربر</th><th>عملیات</th><th>توضیحات</th><th>IP</th><th>زمان</th></tr></thead>
+                <tbody>
+                    {% for log in all_logs %}
+                    <tr>
+                        <td>{{ log.user.full_name if log.user else '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if log.action == 'login' else ('completed' if log.action == 'edit' else 'inactive') }}">{{ log.action }}</span></td>
+                        <td>{{ (log.description or '-')[:60] }}</td>
+                        <td><code>{{ log.ip_address or '-' }}</code></td>
+                        <td>{{ log.created_at|to_jalali }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

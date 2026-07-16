@@ -1,0 +1,20 @@
+{% extends "base/layout.html" %}
+{% block title %}تحلیل ریزش{% endblock %}
+{% block breadcrumb %}<li>تحلیل</li><li class="active">ریزش</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-graph-down"></i> تحلیل ریزش هنرجویان</h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">کل هنرجویان</div><div class="stat-val">{{ total }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">انصرافی</div><div class="stat-val" style="color: #c62828;">{{ withdrawn }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">نرخ ریزش</div><div class="stat-val" style="color: {{ '#c62828' if rate > 10 else '#ff8f00' }};">{{ rate }}٪</div></div></div>
+    </div>
+    <div class="card"><div class="card-head"><h5>دلایل انصراف</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0"><thead><tr><th>دلیل</th><th>تعداد</th></tr></thead>
+                <tbody>{% for reason, count in reasons.items() %}<tr><td>{{ reason }}</td><td>{{ count }}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

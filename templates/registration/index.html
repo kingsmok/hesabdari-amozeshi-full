@@ -1,0 +1,41 @@
+{% extends "base/layout.html" %}
+{% block title %}لیست ثبت‌نام{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('registration.index') }}">ثبت‌نام</a></li>
+<li class="active">لیست ثبت‌نام</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-pencil-square me-2 text-success"></i>لیست ثبت‌نام<small>مدیریت ثبت‌نام‌ها</small></h1>
+        <a href="{{ url_for('registration.add') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>ثبت‌نام جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if registrations.items %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>کد</th><th>هنرجو</th><th>دوره</th><th>کلاس</th><th>شهریه</th><th>پرداختی</th><th>مانده</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for reg in registrations.items %}
+                    <tr>
+                        <td><code>{{ reg.reg_code }}</code></td>
+                        <td>{{ reg.student.full_name if reg.student else '-' }}</td>
+                        <td>{{ reg.course.title if reg.course else '-' }}</td>
+                        <td>{{ reg.class_group.name if reg.class_group else '-' }}</td>
+                        <td>{{ reg.total_fee|currency }} ت</td>
+                        <td style="color: #27ae60;">{{ reg.paid_amount|currency }} ت</td>
+                        <td style="color: {{ '#e74c3c' if reg.remaining_amount > 0 else '#27ae60' }};">{{ reg.remaining_amount|currency }} ت</td>
+                        <td><span class="badge-status badge-{{ 'active' if reg.status == 'active' else 'inactive' }}">{{ reg.status }}</span></td>
+                        <td><a href="{{ url_for('registration.view', id=reg.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;"><i class="bi bi-pencil-square" style="font-size: 48px;"></i><p class="mt-3">ثبت‌نامی یافت نشد</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

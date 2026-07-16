@@ -1,0 +1,53 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ class_group.name }}{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('attendance.index') }}">حضور و غیاب</a></li><li class="active">{{ class_group.name }}</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-clipboard2-check"></i> {{ class_group.name }}<small>{{ class_group.course.title if class_group.course else '' }} | {{ class_group.teacher.full_name if class_group.teacher else '' }}</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('attendance.student_attendance', student_id=0) }}" class="btn btn-outline-info"><i class="bi bi-person me-1"></i> هنرجو</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">هنرجویان</div><div class="stat-val">{{ students|length }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جلسات</div><div class="stat-val">{{ sessions|length }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">تکمیل شده</div><div class="stat-val" style="color: #2e7d32;">{{ sessions|selectattr('status', 'equalto', 'completed')|list|length }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">باقیمانده</div><div class="stat-val" style="color: #e65100;">{{ sessions|rejectattr('status', 'equalto', 'completed')|list|length }}</div></div></div>
+    </div>
+
+    <!-- لیست جلسات -->
+    <div class="card">
+        <div class="card-head">
+            <h5><i class="bi bi-calendar-event"></i> جلسات</h5>
+            {% if not sessions %}
+            <form method="POST" action="{{ url_for('classes.generate_sessions', id=class_group.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-sm btn-success"><i class="bi bi-magic me-1"></i> تولید جلسات</button>
+            </form>
+            {% endif %}
+        </div>
+        <div class="card-body-padded" style="padding: 0;">
+            {% if sessions %}
+            <table class="table mb-0">
+                <thead><tr><th>جلسه</th><th>تاریخ</th><th>موضوع</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for s in sessions %}
+                    <tr>
+                        <td><strong>{{ s.session_number }}</strong></td>
+                        <td>{{ s.session_date|to_jalali }}</td>
+                        <td>{{ s.topic or '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'completed' if s.status == 'completed' else 'pending' }}">{{ s.status }}</span></td>
+                        <td><a href="{{ url_for('attendance.session_attendance', session_id=s.id) }}" class="btn btn-sm {{ 'btn-success' if s.status == 'completed' else 'btn-primary' }}"><i class="bi bi-pencil me-1"></i> {{ 'ویرایش' if s.status == 'completed' else 'ثبت' }}</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #b0bec5;"><p>جلسه‌ای تولید نشده</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

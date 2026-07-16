@@ -1,0 +1,18 @@
+{% extends "base/layout.html" %}
+{% block title %}نسخه‌های سند{% endblock %}
+{% block breadcrumb %}<li>اسناد</li><li class="active">نسخه‌ها</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-file-earmark-diff"></i> نسخه‌بندی سند<small>{{ doc.file_name or doc.doc_type }}</small></h1></div>
+    <div class="card"><div class="card-body-padded">
+        <div class="stat-box mb-3">
+            <table class="table table-borderless mb-0">
+                <tr><td style="color: #78909c;">نوع سند</td><td>{{ doc.doc_type }}</td></tr>
+                <tr><td style="color: #78909c;">فایل</td><td>{{ doc.file_name or '-' }}</td></tr>
+                <tr><td style="color: #78909c;">تاریخ آپلود</td><td>{{ doc.created_at|to_jalali }}</td></tr>
+            </table>
+        </div>
+        <p style="color: #78909c;">نسخه‌بندی اسناد: هر بار آپلود جدید، نسخه قبلی حفظ می‌شود.</p>
+    </div></div>
+</div>
+{% endblock %}

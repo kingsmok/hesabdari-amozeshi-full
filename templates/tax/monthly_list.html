@@ -1,0 +1,48 @@
+{% extends "base/layout.html" %}
+{% block title %}لیست مالیات ماهانه{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('tax.dashboard') }}">مالیات</a></li><li class="active">لیست ماهانه</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-list-ul"></i> لیست مالیات ماهانه<small>برای ارسال به اداره دارایی</small></h1>
+        <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
+    </div>
+    
+    <div class="card mb-4">
+        <div class="card-body-padded">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">دوره</label>
+                    <input type="text" name="period" class="form-control" value="{{ period }}" placeholder="1405/04">
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i> فیلتر</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>ردیف</th><th>شماره فیش</th><th>نوع</th><th>ناخالص</th><th>بیمه</th><th>مالیات</th><th>خالص</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for p in payslips %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><code>{{ p.payslip_number }}</code></td>
+                        <td>{{ p.person_type }}</td>
+                        <td>{{ p.gross_amount|currency }} ت</td>
+                        <td style="color: #e65100;">{{ p.insurance|currency }} ت</td>
+                        <td style="color: #c62828;">{{ p.tax|currency }} ت</td>
+                        <td style="color: #2e7d32; font-weight: 700;">{{ p.net_amount|currency }} ت</td>
+                        <td><span class="badge-status badge-{{ 'active' if p.status == 'paid' else 'pending' }}">{{ p.status }}</span></td>
+                        <td><a href="{{ url_for('tax.tax_receipt', payslip_id=p.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-text"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

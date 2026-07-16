@@ -1,0 +1,23 @@
+{% extends "base/layout.html" %}
+{% block title %}قالب‌های چاپی{% endblock %}
+{% block breadcrumb %}<li>تنظیمات</li><li class="active">قالب‌های چاپی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-file-earmark-richtext"></i> مدیریت فرم‌های چاپی</h1></div>
+    <div class="card"><div class="card-body-padded" style="padding: 0;">
+        <table class="table mb-0">
+            <thead><tr><th>نام قالب</th><th>ماژول</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+            <tbody>
+                {% for t in templates_list %}
+                <tr>
+                    <td><strong>{{ t.name }}</strong></td>
+                    <td>{{ t.module }}</td>
+                    <td><span class="badge-status badge-active">{{ t.status }}</span></td>
+                    <td><button class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></button></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

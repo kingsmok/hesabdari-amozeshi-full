@@ -1,0 +1,73 @@
+{% extends "base/layout.html" %}
+{% block title %}پنل مدرس{% endblock %}
+{% block breadcrumb %}<li class="active">پنل مدرس</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="welcome-banner mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2><i class="bi bi-person-workspace me-2"></i> {{ teacher.full_name }}</h2>
+                <p>{{ teacher.specialization or 'مدرس' }} | {{ teacher.teacher_code }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('teacher_portal.my_classes') }}" class="quick-btn"><i class="bi bi-easel2"></i> کلاس‌های من</a>
+                <a href="{{ url_for('teacher_portal.my_students') }}" class="quick-btn"><i class="bi bi-people"></i> هنرجویان</a>
+                <a href="{{ url_for('teacher_portal.my_schedule') }}" class="quick-btn"><i class="bi bi-calendar3"></i> برنامه</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-sm-6"><div class="stat-box"><div class="d-flex justify-content-between align-items-start"><div><div class="stat-label">کلاس‌های من</div><div class="stat-val">{{ my_classes|length }}</div></div><div class="stat-icon" style="background:#e3f2fd;color:#1565c0;"><i class="bi bi-easel2-fill"></i></div></div></div></div>
+        <div class="col-xl-3 col-sm-6"><div class="stat-box"><div class="d-flex justify-content-between align-items-start"><div><div class="stat-label">هنرجویان</div><div class="stat-val">{{ total_students }}</div></div><div class="stat-icon" style="background:#e8f5e9;color:#2e7d32;"><i class="bi bi-people-fill"></i></div></div></div></div>
+        <div class="col-xl-3 col-sm-6"><div class="stat-box"><div class="d-flex justify-content-between align-items-start"><div><div class="stat-label">ساعات تدریس ماه</div><div class="stat-val" style="color:#e65100;">{{ month_hours }}</div></div><div class="stat-icon" style="background:#fff3e0;color:#e65100;"><i class="bi bi-clock"></i></div></div></div></div>
+        <div class="col-xl-3 col-sm-6"><div class="stat-box"><div class="d-flex justify-content-between align-items-start"><div><div class="stat-label">جلسات برگزار شده</div><div class="stat-val">{{ total_sessions }}</div></div><div class="stat-icon" style="background:#f3e5f5;color:#7b1fa2;"><i class="bi bi-check2-all"></i></div></div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-calendar-event" style="color:#1565c0;"></i> کلاس‌های امروز</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    {% if today_classes %}
+                    <table class="table mb-0">
+                        <thead><tr><th>کلاس</th><th>ساعت</th><th>اتاق</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                            {% for cls in today_classes %}
+                            <tr>
+                                <td><strong>{{ cls.name }}</strong><br><small style="color:#78909c;">{{ cls.course.title if cls.course else '' }}</small></td>
+                                <td>{{ cls.start_time }} - {{ cls.end_time }}</td>
+                                <td>{{ cls.room.name if cls.room else '-' }}</td>
+                                <td><a href="{{ url_for('teacher_portal.my_class_detail', id=cls.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-eye"></i></a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color:#b0bec5;"><i class="bi bi-calendar-x" style="font-size:32px;"></i><p class="mt-2">کلاسی برای امروز ندارید</p></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-easel2" style="color:#2e7d32;"></i> کلاس‌های من</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>کلاس</th><th>هنرجویان</th><th>جلسات</th></tr></thead>
+                        <tbody>
+                            {% for cls in my_classes[:6] %}
+                            <tr>
+                                <td><a href="{{ url_for('teacher_portal.my_class_detail', id=cls.id) }}">{{ cls.name }}</a></td>
+                                <td><span class="badge-status badge-active">{{ cls.current_count }}/{{ cls.max_capacity }}</span></td>
+                                <td>{{ cls.completed_sessions_count }}/{{ cls.total_sessions_count }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

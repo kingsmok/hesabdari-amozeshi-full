@@ -1,0 +1,21 @@
+{% extends "base/layout.html" %}
+{% block title %}مرکز گزارش‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('reports.index') }}">گزارش‌ها</a></li>
+<li class="active">مرکز گزارش</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>مرکز گزارش‌ها<small>دسترسی به تمام گزارش‌های سیستم</small></h1></div>
+    <div class="row g-3">
+        <div class="col-md-3"><a href="{{ url_for('reports.student_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-people" style="font-size: 32px; color: #3498db;"></i><div class="stat-label mt-2">گزارش هنرجویان</div></div></a></div>
+        <div class="col-md-3"><a href="{{ url_for('reports.financial_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-cash-stack" style="font-size: 32px; color: #27ae60;"></i><div class="stat-label mt-2">گزارش مالی</div></div></a></div>
+        <div class="col-md-3"><a href="{{ url_for('reports.enrollment_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-graph-up" style="font-size: 32px; color: #e67e22;"></i><div class="stat-label mt-2">گزارش ثبت‌نام</div></div></a></div>
+        <div class="col-md-3"><a href="{{ url_for('reports.attendance_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-clipboard-data" style="font-size: 32px; color: #9b59b6;"></i><div class="stat-label mt-2">گزارش حضور</div></div></a></div>
+        <div class="col-md-3"><a href="{{ url_for('reports.teacher_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-person-lines-fill" style="font-size: 32px; color: #1abc9c;"></i><div class="stat-label mt-2">گزارش مدرسین</div></div></a></div>
+        <div class="col-md-3"><a href="{{ url_for('reports.installment_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-calendar-check" style="font-size: 32px; color: #e74c3c;"></i><div class="stat-label mt-2">گزارش اقساط</div></div></a></div>
+        <div class="col-md-3"><a href="{{ url_for('reports.profit_loss') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-graph-up-arrow" style="font-size: 32px; color: #2ecc71;"></i><div class="stat-label mt-2">سود و زیان</div></div></a></div>
+    </div>
+</div>
+{% endblock %}

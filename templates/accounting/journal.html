@@ -1,0 +1,40 @@
+{% extends "base/layout.html" %}
+{% block title %}دفتر روزنامه{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('accounting.journal') }}">حسابداری</a></li>
+<li class="active">دفتر روزنامه</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-journal-bookmark me-2 text-primary"></i>دفتر روزنامه<small>اسناد حسابداری</small></h1>
+        <a href="{{ url_for('accounting.add_entry') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>سند جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if entries.items %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>شماره</th><th>تاریخ</th><th>نوع</th><th>بدهکار</th><th>بستانکار</th><th>شرح</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for e in entries.items %}
+                    <tr>
+                        <td><code>{{ e.entry_number }}</code></td>
+                        <td>{{ e.entry_date|to_jalali }}</td>
+                        <td>{{ e.entry_type or '-' }}</td>
+                        <td>{{ e.total_debit|currency }}</td>
+                        <td>{{ e.total_credit|currency }}</td>
+                        <td>{{ (e.description or '-')[:40] }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if e.status == 'approved' else ('completed' if e.status == 'confirmed' else 'pending') }}">{{ e.status }}</span></td>
+                        <td><a href="{{ url_for('accounting.view_entry', id=e.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">سندی ثبت نشده</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش‌ساز سفارشی{% endblock %}
+{% block breadcrumb %}<li>گزارش‌ها</li><li class="active">گزارش‌ساز</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-wrench-adjustable"></i> گزارش‌ساز سفارشی<small>بدون نیاز به برنامه‌نویسی</small></h1></div>
+    <div class="card mb-4">
+        <div class="card-body-padded">
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">جدول</label>
+                        <select name="table" class="form-select">
+                            {% for t in tables %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2"><label class="form-label">تعداد</label><input type="number" name="limit" class="form-control" value="50"></div>
+                    <div class="col-md-2"><label class="form-label">&nbsp;</label><button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i> اجرا</button></div>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% if results %}
+    <div class="card"><div class="card-body-padded" style="padding: 0;">
+        <table class="table mb-0">
+            <thead><tr>{% for col in results.columns %}<th>{{ col }}</th>{% endfor %}</tr></thead>
+            <tbody>{% for row in results.rows %}<tr>{% for val in row %}<td>{{ val or '-' }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        </table>
+    </div></div>
+    {% endif %}
+</div>
+{% endblock %}

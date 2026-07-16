@@ -1,0 +1,31 @@
+{% extends "base/layout.html" %}
+{% block title %}لاگ فعالیت‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('settings.logs') }}">تنظیمات</a></li>
+<li class="active">لاگ فعالیت‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-clock-history me-2 text-secondary"></i>لاگ فعالیت‌ها</h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>کاربر</th><th>عملیات</th><th>ماژول</th><th>توضیحات</th><th>IP</th><th>زمان</th></tr></thead>
+                <tbody>
+                    {% for log in logs.items %}
+                    <tr>
+                        <td>{{ log.user.full_name if log.user else '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if log.action == 'create' else ('completed' if log.action == 'edit' else 'inactive') }}">{{ log.action }}</span></td>
+                        <td>{{ log.module or '-' }}</td>
+                        <td>{{ (log.description or '-')[:50] }}</td>
+                        <td><code>{{ log.ip_address or '-' }}</code></td>
+                        <td>{{ log.created_at|to_jalali }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

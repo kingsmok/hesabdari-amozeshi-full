@@ -1,0 +1,32 @@
+{% extends "base/layout.html" %}
+{% block title %}پیام جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('messaging.compose') }}">پیام‌رسانی</a></li>
+<li class="active">پیام جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-pencil me-2 text-primary"></i>نوشتن پیام</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">گیرنده</label>
+                        <select name="receiver_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                            {% for u in users %}<option value="{{ u.id }}">{{ u.full_name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6"><label class="form-label">موضوع</label><input type="text" name="subject" class="form-control"></div>
+                    <div class="col-md-12"><label class="form-label">متن پیام</label><textarea name="body" class="form-control" rows="6" required></textarea></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('messaging.inbox') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-send me-2"></i>ارسال</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% extends "base/layout.html" %}
+{% block title %}ارزیابی من{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('teacher_portal.my_dashboard') }}">پنل مدرس</a></li><li class="active">ارزیابی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-star"></i> ارزیابی‌های من</h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-box text-center">
+            <div class="stat-label">میانگین امتیاز</div>
+            <div class="stat-val" style="color: {{ '#2e7d32' if avg_score >= 4 else '#e65100' }};">{{ avg_score }}/5</div>
+            <div class="progress mt-2"><div class="progress-bar bg-{{ 'success' if avg_score >= 4 else 'warning' }}" style="width: {{ avg_score * 20 }}%;"></div></div>
+        </div></div>
+    </div>
+    <div class="card"><div class="card-body-padded" style="padding:0;">
+        <table class="table mb-0">
+            <thead><tr><th>هنرجو</th><th>کیفیت</th><th>نظم</th><th>رفتار</th><th>رضایت</th><th>نظر</th></tr></thead>
+            <tbody>
+                {% for e in evaluations %}
+                <tr>
+                    <td>{{ e.student.full_name if e.student else '-' }}</td>
+                    <td>{{ e.teaching_quality }}/5</td>
+                    <td>{{ e.punctuality }}/5</td>
+                    <td>{{ e.behavior }}/5</td>
+                    <td>{{ e.overall_satisfaction }}/5</td>
+                    <td>{{ e.comment or '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

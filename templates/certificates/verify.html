@@ -1,0 +1,35 @@
+{% extends "base/layout.html" %}
+{% block title %}تایید مدرک{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('certificates.index') }}">گواهینامه‌ها</a></li>
+<li class="active">تایید مدرک</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-shield-check me-2 text-success"></i>تایید صحت مدرک</h1></div>
+    {% if verified %}
+    <div class="card-custom" style="max-width: 600px; border: 2px solid #27ae60;">
+        <div class="card-body-custom text-center">
+            <i class="bi bi-check-circle" style="font-size: 64px; color: #27ae60;"></i>
+            <h3 style="color: #27ae60; margin-top: 16px;">مدرک معتبر است</h3>
+            <table class="table table-borderless mt-4" style="font-size: 14px;">
+                <tr><td style="color: #888;">شماره سریال</td><td><strong>{{ cert.serial_number }}</strong></td></tr>
+                <tr><td style="color: #888;">دارنده</td><td><strong>{{ cert.student.full_name if cert.student else '-' }}</strong></td></tr>
+                <tr><td style="color: #888;">دوره</td><td>{{ cert.course.title if cert.course else '-' }}</td></tr>
+                <tr><td style="color: #888;">تاریخ صدور</td><td>{{ cert.issue_date|to_jalali }}</td></tr>
+                <tr><td style="color: #888;">وضعیت</td><td><span class="badge-status badge-active">{{ cert.status }}</span></td></tr>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="card-custom" style="max-width: 600px; border: 2px solid #e74c3c;">
+        <div class="card-body-custom text-center">
+            <i class="bi bi-x-circle" style="font-size: 64px; color: #e74c3c;"></i>
+            <h3 style="color: #e74c3c; margin-top: 16px;">مدرک یافت نشد</h3>
+            <p style="color: #888;">شماره سریال وارد شده معتبر نیست</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

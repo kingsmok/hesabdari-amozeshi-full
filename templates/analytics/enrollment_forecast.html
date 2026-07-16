@@ -1,0 +1,29 @@
+{% extends "base/layout.html" %}
+{% block title %}پیش‌بینی ثبت‌نام{% endblock %}
+{% block breadcrumb %}<li>تحلیل</li><li class="active">پیش‌بینی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-graph-up-arrow"></i> پیش‌بینی ثبت‌نام<small>بر اساس روند ۶ ماه اخیر</small></h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">میانگین ماهانه</div><div class="stat-val">{{ avg }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">پیش‌بینی ماه آینده</div><div class="stat-val" style="color: #2e7d32;">{{ forecast }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">نرخ رشد فرضی</div><div class="stat-val">۵٪</div></div></div>
+    </div>
+    <div class="card"><div class="card-body-padded"><canvas id="forecastChart" height="250"></canvas></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('forecastChart'),{
+    type:'line',
+    data:{
+        labels:{{ monthly|map(attribute='month')|list|tojson }} + ['پیش‌بینی'],
+        datasets:[{
+            label:'ثبت‌نام',data:{{ monthly|map(attribute='count')|list|tojson }} + [{{ forecast }}],
+            borderColor:'#1565c0',backgroundColor:'rgba(21,101,192,.1)',fill:true,tension:.4,
+            borderDash:[0,0,0,0,0,10]
+        }]
+    },options:{responsive:true}
+});
+</script>
+{% endblock %}

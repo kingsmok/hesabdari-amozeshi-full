@@ -1,0 +1,18 @@
+{% extends "base/layout.html" %}
+{% block title %}قرارداد سازمانی{% endblock %}
+{% block breadcrumb %}<li>سازمانی</li><li class="active">جدید</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-plus-circle"></i> قرارداد سازمانی جدید</h1></div>
+    <div class="card"><div class="card-body-padded">
+        <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-3">
+                <div class="col-md-4"><label class="form-label">نام شرکت</label><input type="text" name="company" class="form-control"></div>
+                <div class="col-md-4"><label class="form-label">تعداد نفرات</label><input type="number" name="count" class="form-control"></div>
+                <div class="col-md-4"><label class="form-label">مبلغ کل</label><input type="number" name="total" class="form-control"></div>
+            </div>
+            <button type="submit" class="btn btn-success mt-3"><i class="bi bi-check-circle me-1"></i> ثبت</button>
+        </form>
+    </div></div>
+</div>
+{% endblock %}

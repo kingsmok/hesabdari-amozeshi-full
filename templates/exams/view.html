@@ -1,0 +1,57 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ exam.title }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('exams.index') }}">آزمون‌ها</a></li>
+<li class="active">{{ exam.title }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-journal-text me-2 text-primary"></i>{{ exam.title }}<small>{{ exam.exam_code }}</small></h1>
+        <a href="{{ url_for('exams.grade', id=exam.id) }}" class="btn btn-success-custom"><i class="bi bi-pencil me-1"></i> ثبت نمرات</a>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5>اطلاعات آزمون</h5></div>
+                <div class="card-body-custom">
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 12.5px;">
+                        <tr><td style="color: #888;">دوره</td><td>{{ exam.course.title if exam.course else '-' }}</td></tr>
+                        <tr><td style="color: #888;">نوع</td><td>{{ exam.exam_type or '-' }}</td></tr>
+                        <tr><td style="color: #888;">تاریخ</td><td>{{ exam.exam_date|to_jalali if exam.exam_date else '-' }}</td></tr>
+                        <tr><td style="color: #888;">مدت</td><td>{{ exam.duration_minutes }} دقیقه</td></tr>
+                        <tr><td style="color: #888;">نمره کل</td><td>{{ exam.total_marks }}</td></tr>
+                        <tr><td style="color: #888;">نمره قبولی</td><td>{{ exam.passing_marks }}</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5>نتایج ({{ results|length }})</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    {% if results %}
+                    <table class="table table-custom mb-0">
+                        <thead><tr><th>هنرجو</th><th>تئوری</th><th>عملی</th><th>نمره نهایی</th><th>وضعیت</th></tr></thead>
+                        <tbody>
+                            {% for r in results %}
+                            <tr>
+                                <td>{{ r.student.full_name if r.student else '-' }}</td>
+                                <td>{{ r.theory_score }}</td>
+                                <td>{{ r.practical_score }}</td>
+                                <td><strong>{{ r.total_score|round(1) }}</strong></td>
+                                <td><span class="badge-status badge-{{ 'active' if r.is_passed else 'inactive' }}">{{ 'قبول' if r.is_passed else 'مردود' }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #aaa;">نمره‌ای ثبت نشده</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "base/layout.html" %}
+{% block title %}ثبت دوره جدید{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('new_features.course_list') }}">دوره‌ها</a></li><li class="active">ثبت دوره</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-plus-circle"></i> ثبت دوره جدید<small>تعریف کامل دوره آموزشی با سرفصل‌ها</small></h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-4">
+            <div class="card-head"><h5><i class="bi bi-info-circle"></i> اطلاعات اصلی دوره</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">عنوان دوره <span class="text-danger">*</span></label><input type="text" name="title" class="form-control" required placeholder="مثال: Python مقدماتی"></div>
+                    <div class="col-md-3"><label class="form-label">رشته آموزشی <span class="text-danger">*</span></label>
+                        <select name="field_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                            <option value="">انتخاب...</option>
+                            {% for f in fields %}<option value="{{ f.id }}">{{ f.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2"><label class="form-label">ساعات آموزشی</label><input type="number" name="duration_hours" class="form-control" value="0"></div>
+                    <div class="col-md-3"><label class="form-label">تعداد جلسات</label><input type="number" name="total_sessions" class="form-control" value="0"></div>
+                    <div class="col-md-12"><label class="form-label">توضیحات</label><textarea name="description" class="form-control" rows="2" placeholder="توضیحات دوره..."></textarea></div>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-head"><h5><i class="bi bi-cash"></i> شهریه و هزینه‌ها</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-2"><label class="form-label">شهریه پایه</label><input type="number" name="base_fee" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">هزینه ثبت‌نام</label><input type="number" name="registration_fee" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">هزینه کتاب</label><input type="number" name="book_fee" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">هزینه آزمون</label><input type="number" name="exam_fee" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">هزینه مدرک</label><input type="number" name="certificate_fee" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">سایر هزینه‌ها</label><input type="number" name="other_fees" class="form-control" value="0"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-head">
+                <h5><i class="bi bi-list-ol"></i> سرفصل‌های آموزشی</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addSyllabusRow()"><i class="bi bi-plus"></i> افزودن سرفصل</button>
+            </div>
+            <div class="card-body-padded" style="padding: 0;">
+                <table class="table mb-0" id="syllabusTable">
+                    <thead><tr><th style="width: 40px;">#</th><th>فصل</th><th>درس</th><th style="width: 100px;">ساعت</th><th style="width: 40px;"></th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td><input type="text" name="syl_chapter[]" class="form-control form-control-sm" placeholder="نام فصل"></td>
+                            <td><input type="text" name="syl_lesson[]" class="form-control form-control-sm" placeholder="نام درس"></td>
+                            <td><input type="number" name="syl_hours[]" class="form-control form-control-sm" value="0"></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash3"></i></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-head"><h5><i class="bi bi-award"></i> استاندارد فنی‌حرفه‌ای</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">کد استاندارد</label><input type="text" name="standard_code" class="form-control"></div>
+                    <div class="col-md-8"><label class="form-label">نام استاندارد</label><input type="text" name="standard_name" class="form-control"></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('new_features.course_list') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> ثبت دوره</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let sylRow = 1;
+function addSyllabusRow() {
+    sylRow++;
+    const tbody = document.querySelector('#syllabusTable tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td>${sylRow}</td>
+        <td><input type="text" name="syl_chapter[]" class="form-control form-control-sm" placeholder="نام فصل"></td>
+        <td><input type="text" name="syl_lesson[]" class="form-control form-control-sm" placeholder="نام درس"></td>
+        <td><input type="number" name="syl_hours[]" class="form-control form-control-sm" value="0"></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash3"></i></button></td>
+    `;
+    tbody.appendChild(tr);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ account.name }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('accounting.ledger') }}">معین</a></li>
+<li class="active">{{ account.name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-book me-2 text-info"></i>{{ account.name }}<small>{{ account.code }}</small></h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>سند</th><th>تاریخ</th><th>شرح</th><th>بدهکار</th><th>بستانکار</th></tr></thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.entry.entry_number if item.entry else '-' }}</td>
+                        <td>{{ item.entry.entry_date|to_jalali if item.entry else '-' }}</td>
+                        <td>{{ item.description or '-' }}</td>
+                        <td>{{ item.debit|currency }}</td>
+                        <td>{{ item.credit|currency }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

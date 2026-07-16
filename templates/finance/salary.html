@@ -1,0 +1,39 @@
+{% extends "base/layout.html" %}
+{% block title %}حقوق و دستمزد{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.salary') }}">مالی</a></li>
+<li class="active">حقوق و دستمزد</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-cash-coin me-2 text-warning"></i>حقوق و دستمزد</h1>
+        <a href="{{ url_for('finance.create_payslip') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>فیش جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if payslips %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>شماره</th><th>نوع</th><th>دوره</th><th>ناخالص</th><th>کسورات</th><th>خالص</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for p in payslips %}
+                    <tr>
+                        <td><code>{{ p.payslip_number }}</code></td>
+                        <td>{{ p.person_type }}</td>
+                        <td>{{ p.period }}</td>
+                        <td>{{ p.gross_amount|currency }} ت</td>
+                        <td style="color: #e74c3c;">{{ p.total_deductions|currency }} ت</td>
+                        <td style="color: #27ae60; font-weight: 700;">{{ p.net_amount|currency }} ت</td>
+                        <td><span class="badge-status badge-{{ 'active' if p.status == 'paid' else 'pending' }}">{{ p.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">فیش حقوقی صادر نشده</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

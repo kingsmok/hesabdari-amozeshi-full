@@ -1,0 +1,68 @@
+{% extends "base/layout.html" %}
+{% block title %}حقوق و دستمزد{% endblock %}
+{% block breadcrumb %}<li class="active">حقوق و دستمزد</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-cash-coin"></i> سیستم حقوق و دستمزد پیشرفته<small>مدیریت کامل حقوق مدرسین و کارکنان</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('payroll.add_contract') }}" class="btn btn-outline-primary"><i class="bi bi-file-earmark-plus me-1"></i> قرارداد جدید</a>
+            <a href="{{ url_for('payroll.calculate') }}" class="btn btn-primary"><i class="bi bi-calculator me-1"></i> محاسبه حقوق</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">کل پرداخت شده</div><div class="stat-val" style="font-size: 18px; color: #2e7d32;">{{ total_paid|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">در انتظار پرداخت</div><div class="stat-val" style="font-size: 18px; color: #e65100;">{{ total_pending|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">مدرسین فعال</div><div class="stat-val">{{ teachers|length }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">قراردادهای فعال</div><div class="stat-val">{{ contracts|length }}</div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <!-- لینک‌های سریع -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-lightning"></i> دسترسی سریع</h5></div>
+                <div class="card-body-padded">
+                    <div class="row g-2">
+                        <div class="col-6"><a href="{{ url_for('payroll.contracts') }}" class="btn btn-outline-primary w-100 mb-2"><i class="bi bi-file-earmark-text"></i><br>قراردادها</a></div>
+                        <div class="col-6"><a href="{{ url_for('payroll.calculate') }}" class="btn btn-outline-success w-100 mb-2"><i class="bi bi-calculator"></i><br>محاسبه حقوق</a></div>
+                        <div class="col-6"><a href="{{ url_for('payroll.tax_report') }}" class="btn btn-outline-warning w-100 mb-2"><i class="bi bi-percent"></i><br>مالیات</a></div>
+                        <div class="col-6"><a href="{{ url_for('payroll.advanced_expenses') }}" class="btn btn-outline-danger w-100 mb-2"><i class="bi bi-wallet2"></i><br>هزینه‌ها</a></div>
+                        <div class="col-6"><a href="{{ url_for('payroll.comprehensive_report') }}" class="btn btn-outline-info w-100"><i class="bi bi-graph-up"></i><br>گزارش جامع</a></div>
+                        <div class="col-6"><a href="{{ url_for('payroll.expense_categories') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-tags"></i><br>دسته‌بندی</a></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- فیش‌های اخیر -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-receipt"></i> آخرین فیش‌های حقوقی</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    {% if recent_payslips %}
+                    <table class="table mb-0">
+                        <thead><tr><th>شماره</th><th>نوع</th><th>دوره</th><th>خالص</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                            {% for p in recent_payslips[:10] %}
+                            <tr>
+                                <td><code>{{ p.payslip_number }}</code></td>
+                                <td>{{ p.person_type }}</td>
+                                <td>{{ p.period }}</td>
+                                <td style="font-weight: 700;">{{ p.net_amount|currency }} ت</td>
+                                <td><span class="badge-status badge-{{ 'active' if p.status == 'paid' else ('pending' if p.status == 'approved' else 'inactive') }}">{{ p.status }}</span></td>
+                                <td><a href="{{ url_for('payroll.view_payslip', id=p.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #b0bec5;"><p>فیشی صادر نشده</p></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

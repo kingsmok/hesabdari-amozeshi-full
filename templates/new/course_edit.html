@@ -1,0 +1,79 @@
+{% extends "base/layout.html" %}
+{% block title %}ویرایش {{ course.title }}{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('new_features.course_list') }}">دوره‌ها</a></li><li class="active">ویرایش</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-pencil"></i> ویرایش دوره<small>{{ course.title }}</small></h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-4">
+            <div class="card-head"><h5>اطلاعات اصلی</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">عنوان</label><input type="text" name="title" class="form-control" value="{{ course.title }}" required></div>
+                    <div class="col-md-3"><label class="form-label">رشته</label>
+                        <select name="field_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">{% for f in fields %}<option value="{{ f.id }}" {{ 'selected' if f.id == course.field_id }}>{{ f.name }}</option>{% endfor %}</select>
+                    </div>
+                    <div class="col-md-2"><label class="form-label">ساعات</label><input type="number" name="duration_hours" class="form-control" value="{{ course.duration_hours }}"></div>
+                    <div class="col-md-3"><label class="form-label">جلسات</label><input type="number" name="total_sessions" class="form-control" value="{{ course.total_sessions }}"></div>
+                    <div class="col-md-12"><label class="form-label">توضیحات</label><textarea name="description" class="form-control" rows="2">{{ course.description or '' }}</textarea></div>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-head"><h5>شهریه</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-2"><label class="form-label">پایه</label><input type="number" name="base_fee" class="form-control" value="{{ course.base_fee }}"></div>
+                    <div class="col-md-2"><label class="form-label">ثبت‌نام</label><input type="number" name="registration_fee" class="form-control" value="{{ course.registration_fee }}"></div>
+                    <div class="col-md-2"><label class="form-label">کتاب</label><input type="number" name="book_fee" class="form-control" value="{{ course.book_fee }}"></div>
+                    <div class="col-md-2"><label class="form-label">آزمون</label><input type="number" name="exam_fee" class="form-control" value="{{ course.exam_fee }}"></div>
+                    <div class="col-md-2"><label class="form-label">مدرک</label><input type="number" name="certificate_fee" class="form-control" value="{{ course.certificate_fee }}"></div>
+                    <div class="col-md-2"><label class="form-label">سایر</label><input type="number" name="other_fees" class="form-control" value="{{ course.other_fees }}"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-head">
+                <h5>سرفصل‌ها</h5>
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="addSylRow()"><i class="bi bi-plus"></i> افزودن</button>
+            </div>
+            <div class="card-body-padded" style="padding: 0;">
+                <table class="table mb-0" id="sylTable">
+                    <thead><tr><th>#</th><th>فصل</th><th>درس</th><th>ساعت</th><th></th></tr></thead>
+                    <tbody>
+                        {% for s in syllabus %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><input type="text" name="syl_chapter[]" class="form-control form-control-sm" value="{{ s.chapter_title }}"></td>
+                            <td><input type="text" name="syl_lesson[]" class="form-control form-control-sm" value="{{ s.lesson_title or '' }}"></td>
+                            <td><input type="number" name="syl_hours[]" class="form-control form-control-sm" value="{{ s.hours }}"></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash3"></i></button></td>
+                        </tr>
+                        {% endfor %}
+                        {% if not syllabus %}
+                        <tr>
+                            <td>1</td>
+                            <td><input type="text" name="syl_chapter[]" class="form-control form-control-sm"></td>
+                            <td><input type="text" name="syl_lesson[]" class="form-control form-control-sm"></td>
+                            <td><input type="number" name="syl_hours[]" class="form-control form-control-sm" value="0"></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash3"></i></button></td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('new_features.course_view', id=course.id) }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> ذخیره</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+let sylN={{ syllabus|length if syllabus else 1 }};
+function addSylRow(){sylN++;const t=document.querySelector('#sylTable tbody');const tr=document.createElement('tr');tr.innerHTML=`<td>${sylN}</td><td><input type="text" name="syl_chapter[]" class="form-control form-control-sm"></td><td><input type="text" name="syl_lesson[]" class="form-control form-control-sm"></td><td><input type="number" name="syl_hours[]" class="form-control form-control-sm" value="0"></td><td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash3"></i></button></td>`;t.appendChild(tr);}
+</script>
+{% endblock %}

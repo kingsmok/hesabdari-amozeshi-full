@@ -1,0 +1,16 @@
+{% extends "base/layout.html" %}
+{% block title %}مرکز پشتیبانی{% endblock %}
+{% block breadcrumb %}<li class="active">پشتیبانی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-headset"></i> مرکز پشتیبانی</h1></div>
+    <div class="row g-3">
+        <div class="col-md-4"><a href="{{ url_for('features.help_center') }}" class="text-decoration-none"><div class="stat-box text-center"><i class="bi bi-question-circle" style="font-size: 36px; color: #1565c0;"></i><h6 class="mt-2">راهنمای نرم‌افزار</h6></div></a></div>
+        <div class="col-md-4"><a href="{{ url_for('tickets.add') }}" class="text-decoration-none"><div class="stat-box text-center"><i class="bi bi-ticket" style="font-size: 36px; color: #2e7d32;"></i><h6 class="mt-2">ثبت تیکت</h6></div></a></div>
+        <div class="col-md-4"><a href="{{ url_for('features.suggestions') }}" class="text-decoration-none"><div class="stat-box text-center"><i class="bi bi-lightbulb" style="font-size: 36px; color: #e65100;"></i><h6 class="mt-2">پیشنهادات</h6></div></a></div>
+        <div class="col-md-4"><a href="{{ url_for('features2.keyboard_shortcuts') }}" class="text-decoration-none"><div class="stat-box text-center"><i class="bi bi-keyboard" style="font-size: 36px; color: #7b1fa2;"></i><h6 class="mt-2">میانبرها</h6></div></a></div>
+        <div class="col-md-4"><a href="{{ url_for('features2.smart_assistant') }}" class="text-decoration-none"><div class="stat-box text-center"><i class="bi bi-robot" style="font-size: 36px; color: #00838f;"></i><h6 class="mt-2">دستیار هوشمند</h6></div></a></div>
+        <div class="col-md-4"><a href="{{ url_for('features2.check_update') }}" class="text-decoration-none"><div class="stat-box text-center"><i class="bi bi-arrow-up-circle" style="font-size: 36px; color: #c62828;"></i><h6 class="mt-2">بروزرسانی</h6></div></a></div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base/layout.html" %}
+{% block title %}شکایات{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('complaints.index') }}">مدیریت</a></li>
+<li class="active">شکایات</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-exclamation-triangle me-2 text-danger"></i>مدیریت شکایات<small>ثبت و پیگیری شکایات</small></h1>
+        <a href="{{ url_for('complaints.add') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>شکایت جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if complaints %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>شماره</th><th>موضوع</th><th>شکایت‌کننده</th><th>وضعیت</th><th>تاریخ</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for c in complaints %}
+                    <tr>
+                        <td><code>{{ c.complaint_number }}</code></td>
+                        <td><strong>{{ c.subject }}</strong></td>
+                        <td>{{ c.complainant_name or '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if c.status == 'resolved' else ('pending' if c.status == 'investigating' else 'inactive') }}">{{ c.status }}</span></td>
+                        <td>{{ c.created_at|to_jalali }}</td>
+                        <td>
+                            {% if c.status != 'resolved' %}
+                            <form method="POST" action="{{ url_for('complaints.resolve', id=c.id) }}" style="display: inline;">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="response" value="رسیدگی شد">
+                                <button class="btn btn-sm-custom btn-outline-success"><i class="bi bi-check"></i></button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;"><i class="bi bi-exclamation-triangle" style="font-size: 48px;"></i><p class="mt-3">شکایتی ثبت نشده</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

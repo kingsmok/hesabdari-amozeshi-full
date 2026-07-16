@@ -1,0 +1,44 @@
+{% extends "base/layout.html" %}
+{% block title %}تحلیل استفاده{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('features.usage_analytics') }}">تنظیمات</a></li>
+<li class="active">تحلیل استفاده</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-bar-chart-line"></i> تحلیل استفاده کاربران<small>هفته اخیر</small></h1></div>
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5>فعال‌ترین کاربران</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>کاربر</th><th>فعالیت</th></tr></thead>
+                        <tbody>
+                            {% for u in active_users %}
+                            <tr><td>{{ u[0] }}</td><td><span class="badge-status badge-active">{{ u[1] }}</span></td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5>پرکاربردترین بخش‌ها</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>ماژول</th><th>تعداد</th></tr></thead>
+                        <tbody>
+                            {% for m in top_modules %}
+                            <tr><td>{{ m[0] or '-' }}</td><td><span class="badge-status badge-completed">{{ m[1] }}</span></td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

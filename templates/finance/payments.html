@@ -1,0 +1,39 @@
+{% extends "base/layout.html" %}
+{% block title %}پرداخت‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.payments') }}">مالی</a></li>
+<li class="active">پرداخت‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-receipt me-2 text-success"></i>پرداخت‌ها<small>لیست تمام پرداخت‌ها</small></h1>
+        <a href="{{ url_for('finance.add_payment') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>پرداخت جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if payments.items %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>رسید</th><th>هنرجو</th><th>مبلغ</th><th>روش</th><th>تاریخ</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for p in payments.items %}
+                    <tr>
+                        <td><code>{{ p.receipt_no }}</code></td>
+                        <td>{{ p.student.full_name if p.student else '-' }}</td>
+                        <td style="color: #27ae60; font-weight: 700;">{{ p.amount|currency }} ت</td>
+                        <td>{{ p.payment_method }}</td>
+                        <td>{{ p.payment_date|to_jalali }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if p.status == 'confirmed' else 'pending' }}">{{ p.status }}</span></td>
+                        <td><a href="{{ url_for('finance.view_payment', id=p.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">پرداختی ثبت نشده</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
