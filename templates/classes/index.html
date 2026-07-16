@@ -1,0 +1,45 @@
+{% extends "base/layout.html" %}
+{% block title %}لیست کلاس‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('classes.index') }}">کلاس‌ها</a></li>
+<li class="active">لیست کلاس‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-easel-fill me-2 text-success"></i>لیست کلاس‌ها<small>مدیریت کلاس‌های آموزشی</small></h1>
+        <a href="{{ url_for('classes.add') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>کلاس جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if classes.items %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>کد</th><th>نام کلاس</th><th>دوره</th><th>مدرس</th><th>ظرفیت</th><th>ساعت</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for cls in classes.items %}
+                    <tr>
+                        <td><code>{{ cls.class_code }}</code></td>
+                        <td><strong>{{ cls.name }}</strong></td>
+                        <td>{{ cls.course.title if cls.course else '-' }}</td>
+                        <td>{{ cls.teacher.full_name if cls.teacher else '-' }}</td>
+                        <td><span class="badge-status {{ 'badge-pending' if cls.is_full else 'badge-active' }}">{{ cls.current_count }}/{{ cls.max_capacity }}</span></td>
+                        <td>{{ cls.start_time or '-' }} - {{ cls.end_time or '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if cls.status == 'active' else 'completed' }}">{{ cls.status }}</span></td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('classes.view', id=cls.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a>
+                                <a href="{{ url_for('attendance.class_attendance', class_id=cls.id) }}" class="btn btn-sm-custom btn-outline-info"><i class="bi bi-clipboard-check"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;"><i class="bi bi-easel" style="font-size: 48px;"></i><p class="mt-3">کلاسی یافت نشد</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

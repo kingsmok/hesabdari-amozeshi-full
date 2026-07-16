@@ -1,0 +1,173 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات فراز اس‌ام‌اس{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('settings_panel.control_panel') }}">پنل</a></li><li class="active">فراز اس‌ام‌اس</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-phone" style="color: #e91e63;"></i> فراز اس‌ام‌اس<small>FARAZSMS.ir — سامانه پیامکی</small></h1>
+        {% if settings and settings.farazsms_api_key %}
+        <span class="badge-status badge-active" style="font-size: 13px; padding: 6px 16px;">
+            <i class="bi bi-check-circle me-1"></i> تنظیم شده
+        </span>
+        {% endif %}
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <!-- تنظیمات API -->
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-key"></i> تنظیمات API</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">API Key <span class="text-danger">*</span></label>
+                            <input type="text" name="farazsms_api_key" class="form-control" value="{{ settings.farazsms_api_key or '' }}" placeholder="کلید API از پنل فراز">
+                            <small class="text-muted">از پنل کاربری فراز > خدمات وب‌رویس > لیست کلیدهای دسترسی</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">شماره فرستنده <span class="text-danger">*</span></label>
+                            <input type="text" name="farazsms_sender" class="form-control" value="{{ settings.farazsms_sender or '' }}" placeholder="1000xxxxx">
+                            <small class="text-muted">شماره اختصاصی یا اشتراکی از پنل فراز</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">کد الگوی پترن (اختیاری)</label>
+                            <input type="text" name="farazsms_pattern_code" class="form-control" value="{{ settings.farazsms_pattern_code or '' }}" placeholder="کد الگوی تایید شده">
+                            <small class="text-muted">برای ارسال سریع بدون تایید ناظر — از بخش «ارسال بر اساس پترن»</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ذخیره و تست اتصال</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- تست ارسال -->
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-send"></i> تست ارسال پیامک</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST" action="{{ url_for('settings_panel.test_farazsms') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">شماره موبایل</label>
+                            <input type="text" name="phone" class="form-control" placeholder="09121234567">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">متن پیامک</label>
+                            <textarea name="message" class="form-control" rows="3">تست اتصال از سیستم مدیریت آموزشگاه ✓</textarea>
+                        </div>
+                        <button type="submit" class="btn btn-info text-white"><i class="bi bi-send me-1"></i> ارسال تست</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ارسال گروهی -->
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-broadcast"></i> ارسال گروهی</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST" action="{{ url_for('settings_panel.farazsms_bulk') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="form-label">گروه هدف</label>
+                            <select name="target" class="form-select">
+                                <option value="all_students">همه هنرجویان فعال</option>
+                                <option value="debtors">فقط بدهکاران</option>
+                                <option value="specific">شماره خاص</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">شماره (برای ارسال تکی)</label>
+                            <input type="text" name="phone" class="form-control" placeholder="0912...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">نوع</label>
+                            <select name="send_type" class="form-select">
+                                <option value="manual">دستی</option>
+                                <option value="advertisement">تبلیغاتی</option>
+                                <option value="installment_reminder">یادآوری قسط</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">متن پیامک</label>
+                            <textarea name="message_text" class="form-control" rows="4" required placeholder="از {نام} برای نام هنرجو استفاده کنید"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-send me-1"></i> ارسال گروهی</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- یادآوری اقساط -->
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-bell"></i> یادآوری خودکار اقساط</h5></div>
+                <div class="card-body-padded">
+                    <p style="font-size: 12px; color: #546e7a;">ارسال یادآوری به هنرجویانی که قسط‌شان ظرف ۳ روز آینده سررسید می‌شود:</p>
+                    <form method="POST" action="{{ url_for('settings_panel.farazsms_installment_reminders') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-warning"><i class="bi bi-bell me-1"></i> ارسال یادآوری اقساط</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <!-- راهنما -->
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-question-circle"></i> راهنمای اتصال</h5></div>
+                <div class="card-body-padded" style="font-size: 12px;">
+                    <h6>مرحله ۱: ثبت‌نام در فراز</h6>
+                    <ol>
+                        <li>به <a href="https://farazsms.com" target="_blank">farazsms.com</a> مراجعه کنید</li>
+                        <li>ثبت‌نام کنید و پنل پیامکی بخرید</li>
+                        <li>یک خط اختصاصی یا اشتراکی فعال کنید</li>
+                    </ol>
+                    <h6 class="mt-3">مرحله ۲: دریافت API Key</h6>
+                    <ol>
+                        <li>از منوی سمت راست پنل فراز > خدمات وب‌رویس</li>
+                        <li>لیست کلیدهای دسترسی</li>
+                        <li>یک کلید جدید بسازید</li>
+                        <li>کلید را کپی کنید</li>
+                    </ol>
+                    <h6 class="mt-3">مرحله ۳: تنظیم پترن (اختیاری)</h6>
+                    <ol>
+                        <li>از منو > ارسال بر اساس پترن > تولید پترن</li>
+                        <li>الگو بسازید (مثلا: سلام {نام} عزیز...)</li>
+                        <li>بعد از تایید، کد الگو را وارد کنید</li>
+                    </ol>
+                    <h6 class="mt-3">متغیرهای قابل استفاده:</h6>
+                    <ul>
+                        <li><code>{نام}</code> — نام هنرجو</li>
+                        <li><code>{دوره}</code> — نام دوره</li>
+                        <li><code>{مبلغ}</code> — مبلغ قسط</li>
+                        <li><code>{تاریخ}</code> — تاریخ سررسید</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- آمار ارسال -->
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-bar-chart"></i> آمار ارسال</h5></div>
+                <div class="card-body-padded">
+                    <div class="stat-box mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>وضعیت API</span>
+                            <span class="badge-status badge-{{ 'active' if settings and settings.farazsms_api_key else 'inactive' }}">
+                                {{ 'تنظیم شده' if settings and settings.farazsms_api_key else 'تنظیم نشده' }}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="stat-box mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>شماره فرستنده</span>
+                            <code>{{ settings.farazsms_sender or '-' }}</code>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="d-flex justify-content-between">
+                            <span>الگوی پترن</span>
+                            <code>{{ settings.farazsms_pattern_code or '-' }}</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

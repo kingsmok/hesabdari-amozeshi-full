@@ -1,0 +1,43 @@
+{% extends "base/layout.html" %}
+{% block title %}رتبه‌بندی مدرسین{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('features.teacher_ranking') }}">مدرسین</a></li>
+<li class="active">رتبه‌بندی</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-trophy"></i> رتبه‌بندی مدرسین<small>بر اساس ارزیابی هنرجویان</small></h1></div>
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>رتبه</th><th>مدرس</th><th>امتیاز</th><th>تعداد ارزیابی</th><th>کلاس‌ها</th><th>هنرجویان</th></tr></thead>
+                <tbody>
+                    {% for r in rankings %}
+                    <tr>
+                        <td>
+                            {% if loop.index == 1 %}<span style="color: #ffd600; font-size: 20px;">🥇</span>
+                            {% elif loop.index == 2 %}<span style="color: #90a4ae; font-size: 20px;">🥈</span>
+                            {% elif loop.index == 3 %}<span style="color: #bf360c; font-size: 20px;">🥉</span>
+                            {% else %}{{ loop.index }}{% endif %}
+                        </td>
+                        <td><strong>{{ r.teacher.full_name }}</strong></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="progress" style="width: 100px; height: 8px;">
+                                    <div class="progress-bar bg-{{ 'success' if r.avg_score >= 4 else ('warning' if r.avg_score >= 3 else 'danger') }}" style="width: {{ r.avg_score * 20 }}%;"></div>
+                                </div>
+                                <span style="font-weight: 700;">{{ r.avg_score }}/5</span>
+                            </div>
+                        </td>
+                        <td>{{ r.eval_count }}</td>
+                        <td>{{ r.class_count }}</td>
+                        <td>{{ r.student_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

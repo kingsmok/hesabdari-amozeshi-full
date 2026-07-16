@@ -1,0 +1,38 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش اقساط{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('reports.installment_report') }}">گزارش‌ها</a></li>
+<li class="active">اقساط</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-calendar-check me-2 text-danger"></i>گزارش اقساط</h1></div>
+    <div class="card-custom mb-4">
+        <div class="card-header-custom"><h5>اقساط سررسید گذشته</h5></div>
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>قسط</th><th>مبلغ</th><th>سررسید</th></tr></thead>
+                <tbody>
+                    {% for o in overdue %}
+                    <tr><td>#{{ o.installment_number }}</td><td>{{ o.amount|currency }} ت</td><td>{{ o.due_date|to_jalali }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-custom">
+        <div class="card-header-custom"><h5>اقساط نزدیک سررسید</h5></div>
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>قسط</th><th>مبلغ</th><th>سررسید</th></tr></thead>
+                <tbody>
+                    {% for u in upcoming %}
+                    <tr><td>#{{ u.installment_number }}</td><td>{{ u.amount|currency }} ت</td><td>{{ u.due_date|to_jalali }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

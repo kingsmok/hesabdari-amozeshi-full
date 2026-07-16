@@ -1,0 +1,32 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش حضور{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('attendance.index') }}">حضور</a></li><li class="active">گزارش</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-bar-chart"></i> گزارش حضور و غیاب<small>خلاصه وضعیت تمام کلاس‌ها</small></h1></div>
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>کلاس</th><th>دوره</th><th>مدرس</th><th>کل</th><th>حاضر</th><th>غایب</th><th>درصد</th></tr></thead>
+                <tbody>
+                    {% for cs in class_stats %}
+                    <tr>
+                        <td><strong>{{ cs.class.name }}</strong></td>
+                        <td>{{ cs.class.course.title if cs.class.course else '-' }}</td>
+                        <td>{{ cs.class.teacher.full_name if cs.class.teacher else '-' }}</td>
+                        <td>{{ cs.total }}</td>
+                        <td style="color: #2e7d32;">{{ cs.present }}</td>
+                        <td style="color: #c62828;">{{ cs.absent }}</td>
+                        <td>
+                            <div class="progress" style="height: 18px; min-width: 100px;">
+                                <div class="progress-bar bg-{{ 'success' if cs.rate >= 75 else ('warning' if cs.rate >= 50 else 'danger') }}" style="width: {{ cs.rate }}%; font-size: 11px;">{{ cs.rate }}%</div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

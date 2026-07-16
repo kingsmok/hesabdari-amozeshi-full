@@ -1,0 +1,35 @@
+{% extends "base/layout.html" %}
+{% block title %}وضعیت شبکه{% endblock %}
+{% block breadcrumb %}<li>شبکه</li><li class="active">وضعیت</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-hdd-network"></i> وضعیت شبکه</h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">سرور</div><div style="font-size: 14px; font-weight: 700;">{{ status.hostname }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">IP</div><div style="font-size: 14px; font-weight: 700;">{{ status.ip }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">سیستم‌عامل</div><div style="font-size: 14px; font-weight: 700;">{{ status.platform }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">ساعت سرور</div><div style="font-size: 14px; font-weight: 700;">{{ status.server_time }}</div></div></div>
+    </div>
+    <div class="card">
+        <div class="card-body-padded">
+            <button class="btn btn-primary" onclick="testNetwork()"><i class="bi bi-arrow-repeat me-1"></i> تست اتصال</button>
+            <div id="testResult" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function testNetwork(){
+    fetch('/settings/network/test',{method:'POST',headers:{'X-CSRFToken':'{{ csrf_token() }}'}})
+    .then(r=>r.json()).then(d=>{
+        let h='<table class="table"><tbody>';
+        for(let[k,v]of Object.entries(d)){
+            h+=`<tr><td>${k}</td><td><span class="badge-status badge-${v.status==='ok'?'active':'inactive'}">${v.message||v.status}</span></td></tr>`;
+        }
+        h+='</tbody></table>';
+        document.getElementById('testResult').innerHTML=h;
+    });
+}
+</script>
+{% endblock %}

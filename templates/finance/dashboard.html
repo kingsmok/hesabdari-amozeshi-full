@@ -1,0 +1,58 @@
+{% extends "base/layout.html" %}
+{% block title %}داشبورد مالی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.financial_dashboard') }}">مالی</a></li>
+<li class="active">داشبورد مالی</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-graph-up me-2 text-warning"></i>داشبورد مالی<small>خلاصه وضعیت مالی آموزشگاه</small></h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-card"><div class="stat-label">درآمد ماه</div><div class="stat-value" style="font-size: 18px;">{{ month_income|currency }} <small style="font-size: 11px;">تومان</small></div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-label">هزینه ماه</div><div class="stat-value" style="font-size: 18px; color: #e74c3c;">{{ month_expenses|currency }} <small style="font-size: 11px;">تومان</small></div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-label">سود ماه</div><div class="stat-value" style="font-size: 18px; color: #27ae60;">{{ (month_income - month_expenses)|currency }} <small style="font-size: 11px;">تومان</small></div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-label">موجودی صندوق</div><div class="stat-value" style="font-size: 18px;">{{ cashbox.balance|currency if cashbox else '0' }} <small style="font-size: 11px;">تومان</small></div></div></div>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5><i class="bi bi-exclamation-triangle text-warning me-2"></i>بدهکاران</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    {% if debtors %}
+                    <table class="table table-custom mb-0">
+                        <thead><tr><th>هنرجو</th><th>مانده بدهی</th></tr></thead>
+                        <tbody>
+                            {% for d in debtors %}
+                            <tr><td>{{ d.student.full_name if d.student else '-' }}</td><td style="color: #e74c3c;">{{ d.remaining_amount|currency }} ت</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #aaa;">بدهکاری نداریم</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5><i class="bi bi-calendar-x text-danger me-2"></i>اقساط معوقه</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    {% if overdue %}
+                    <table class="table table-custom mb-0">
+                        <thead><tr><th>قسط</th><th>مبلغ</th><th>سررسید</th></tr></thead>
+                        <tbody>
+                            {% for o in overdue %}
+                            <tr><td>#{{ o.installment_number }}</td><td>{{ o.amount|currency }} ت</td><td>{{ o.due_date|to_jalali }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #aaa;">اقساط معوقه نداریم</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

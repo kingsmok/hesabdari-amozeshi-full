@@ -1,0 +1,35 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش مالی جامع{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('payroll.dashboard') }}">حقوق</a></li><li class="active">گزارش جامع</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-graph-up"></i> گزارش مالی جامع<small>خلاصه کامل وضعیت مالی ماه جاری</small></h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">درآمد</div><div class="stat-val" style="font-size: 16px; color: #2e7d32;">{{ income|currency }} ت</div></div></div>
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">هزینه‌ها</div><div class="stat-val" style="font-size: 16px; color: #c62828;">{{ expenses|currency }} ت</div></div></div>
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">حقوق</div><div class="stat-val" style="font-size: 16px; color: #e65100;">{{ salaries|currency }} ت</div></div></div>
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">مالیات</div><div class="stat-val" style="font-size: 16px; color: #7b1fa2;">{{ taxes|currency }} ت</div></div></div>
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">بدهکاران</div><div class="stat-val" style="font-size: 16px; color: #c62828;">{{ total_debt|currency }} ت</div></div></div>
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">سود خالص</div><div class="stat-val" style="font-size: 16px; color: {{ '#2e7d32' if profit >= 0 else '#c62828' }};">{{ profit|currency }} ت</div></div></div>
+    </div>
+    <div class="card">
+        <div class="card-body-padded">
+            <canvas id="chart" height="300"></canvas>
+        </div>
+    </div>
+</div>
+<script>
+new Chart(document.getElementById('chart'), {
+    type: 'bar',
+    data: {
+        labels: ['درآمد', 'هزینه‌ها', 'حقوق', 'مالیات', 'سود'],
+        datasets: [{
+            data: [{{ income }}, {{ expenses }}, {{ salaries }}, {{ taxes }}, {{ profit }}],
+            backgroundColor: ['#2e7d32', '#c62828', '#e65100', '#7b1fa2', '#1565c0'],
+            borderRadius: 8
+        }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base/layout.html" %}
+{% block title %}دستگاه‌های مجاز{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('settings.general') }}">امنیت</a></li><li class="active">دستگاه‌های مجاز</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-pc-display"></i> دستگاه‌های مجاز<small>کنترل دسترسی بر اساس IP و MAC</small></h1></div>
+    <div class="card">
+        <div class="card-head"><h5>نشست‌های فعال</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>کاربر</th><th>IP</th><th>مرورگر</th><th>زمان ورود</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for s in active_sessions %}
+                    <tr>
+                        <td>{{ s.user.full_name if s.user else '-' }}</td>
+                        <td><code>{{ s.ip_address or '-' }}</code></td>
+                        <td style="font-size: 11px;">{{ (s.user_agent or '-')[:50] }}</td>
+                        <td>{{ s.login_at|to_jalali }}</td>
+                        <td><span class="badge-status badge-active">فعال</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

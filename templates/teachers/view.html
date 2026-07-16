@@ -1,0 +1,86 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ teacher.full_name }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('teachers.index') }}">مدرسین</a></li>
+<li class="active">{{ teacher.full_name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-person-workspace me-2 text-primary"></i>{{ teacher.full_name }}<small>کد: {{ teacher.teacher_code }}</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('teachers.edit', id=teacher.id) }}" class="btn btn-warning"><i class="bi bi-pencil me-1"></i> ویرایش</a>
+            <a href="{{ url_for('teachers.schedule', id=teacher.id) }}" class="btn btn-info text-white"><i class="bi bi-calendar me-1"></i> برنامه</a>
+        </div>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5>اطلاعات فردی</h5></div>
+                <div class="card-body-custom">
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 12.5px;">
+                        <tr><td style="color: #888;">موبایل</td><td><strong>{{ teacher.mobile }}</strong></td></tr>
+                        <tr><td style="color: #888;">تلفن</td><td>{{ teacher.phone or '-' }}</td></tr>
+                        <tr><td style="color: #888;">ایمیل</td><td>{{ teacher.email or '-' }}</td></tr>
+                        <tr><td style="color: #888;">تخصص</td><td>{{ teacher.specialization or '-' }}</td></tr>
+                        <tr><td style="color: #888;">تحصیلات</td><td>{{ teacher.education or '-' }}</td></tr>
+                        <tr><td style="color: #888;">سطح</td><td><span class="badge-status badge-active">{{ teacher.level or '-' }}</span></td></tr>
+                        <tr><td style="color: #888;">سابقه</td><td>{{ teacher.experience_years or 0 }} سال</td></tr>
+                        <tr><td style="color: #888;">نوع قرارداد</td><td>{{ teacher.contract_type or '-' }}</td></tr>
+                        <tr><td style="color: #888;">وضعیت</td><td><span class="badge-status badge-{{ 'active' if teacher.is_active else 'inactive' }}">{{ 'فعال' if teacher.is_active else 'غیرفعال' }}</span></td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card-custom mb-3">
+                <div class="card-header-custom"><h5>کلاس‌های فعال</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    {% if classes %}
+                    <table class="table table-custom mb-0">
+                        <thead><tr><th>کلاس</th><th>دوره</th><th>ظرفیت</th><th>روز و ساعت</th></tr></thead>
+                        <tbody>
+                            {% for cls in classes %}
+                            <tr>
+                                <td><a href="{{ url_for('classes.view', id=cls.id) }}">{{ cls.name }}</a></td>
+                                <td>{{ cls.course.title if cls.course else '-' }}</td>
+                                <td>{{ cls.current_count }}/{{ cls.max_capacity }}</td>
+                                <td>{{ cls.start_time }} - {{ cls.end_time }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #aaa;">کلاس فعالی ندارد</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-custom">
+                <div class="card-header-custom"><h5>ارزیابی‌ها</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    {% if evaluations %}
+                    <table class="table table-custom mb-0">
+                        <thead><tr><th>هنرجو</th><th>کیفیت</th><th>نظم</th><th>رفتار</th><th>رضایت</th><th>تاریخ</th></tr></thead>
+                        <tbody>
+                            {% for ev in evaluations %}
+                            <tr>
+                                <td>{{ ev.student.full_name if ev.student else '-' }}</td>
+                                <td>{{ ev.teaching_quality }}/5</td>
+                                <td>{{ ev.punctuality }}/5</td>
+                                <td>{{ ev.behavior }}/5</td>
+                                <td>{{ ev.overall_satisfaction }}/5</td>
+                                <td>{{ ev.created_at|to_jalali }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #aaa;">ارزیابی‌ای ثبت نشده</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

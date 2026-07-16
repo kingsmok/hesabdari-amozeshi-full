@@ -1,0 +1,21 @@
+{% extends "base/layout.html" %}
+{% block title %}سفارشی‌سازی داشبورد{% endblock %}
+{% block breadcrumb %}<li>تنظیمات</li><li class="active">داشبورد</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-grid-3x3-gap"></i> سفارشی‌سازی داشبورد<small>ویجت‌های مورد نظر خود را انتخاب کنید</small></h1></div>
+    <div class="card" style="max-width: 500px;">
+        <div class="card-body-padded">
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                {% for w in available %}
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" name="widgets" value="{{ w.id }}" id="w{{ w.id }}" {{ 'checked' if w.default or w.id in current }}>
+                    <label class="form-check-label" for="w{{ w.id }}">{{ w.name }}</label>
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

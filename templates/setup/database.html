@@ -1,0 +1,74 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات دیتابیس{% endblock %}
+{% block breadcrumb %}<li>تنظیمات</li><li class="active">دیتابیس</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-database"></i> تنظیمات دیتابیس</h1></div>
+    <div class="card" style="max-width: 700px;">
+        <div class="card-head"><h5>نوع دیتابیس</h5></div>
+        <div class="card-body-padded">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="stat-box text-center" style="cursor: pointer; border: 2px solid {{ '#0d47a1' if config.database.type == 'sqlite' else '#e0e4e8' }};" onclick="selectDbType('sqlite')">
+                            <i class="bi bi-database" style="font-size: 32px; color: #0d47a1;"></i>
+                            <h6 class="mt-2">SQLite</h6>
+                            <p style="font-size: 11px; color: #78909c;">تک‌کاربره — ساده</p>
+                            <input type="radio" name="db_type" value="sqlite" id="db-sqlite" {{ 'checked' if config.database.type == 'sqlite' }} style="display: none;">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-box text-center" style="cursor: pointer; border: 2px solid {{ '#0d47a1' if config.database.type == 'mysql' else '#e0e4e8' }};" onclick="selectDbType('mysql')">
+                            <i class="bi bi-database-fill" style="font-size: 32px; color: #e65100;"></i>
+                            <h6 class="mt-2">MySQL</h6>
+                            <p style="font-size: 11px; color: #78909c;">متوسط — شبکه</p>
+                            <input type="radio" name="db_type" value="mysql" id="db-mysql" {{ 'checked' if config.database.type == 'mysql' }} style="display: none;">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="stat-box text-center" style="cursor: pointer; border: 2px solid {{ '#0d47a1' if config.database.type == 'postgresql' else '#e0e4e8' }};" onclick="selectDbType('postgresql')">
+                            <i class="bi bi-database-fill-add" style="font-size: 32px; color: #2e7d32;"></i>
+                            <h6 class="mt-2">PostgreSQL</h6>
+                            <p style="font-size: 11px; color: #78909c;">بزرگ — حرفه‌ای</p>
+                            <input type="radio" name="db_type" value="postgresql" id="db-postgresql" {{ 'checked' if config.database.type == 'postgresql' }} style="display: none;">
+                        </div>
+                    </div>
+                </div>
+                <div id="mysql-settings" style="display: {{ 'block' if config.database.type == 'mysql' else 'none' }};">
+                    <h6 class="mb-3">تنظیمات MySQL</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label">آدرس سرور</label><input type="text" name="mysql_host" class="form-control" value="{{ config.database.mysql_host }}"></div>
+                        <div class="col-md-2"><label class="form-label">پورت</label><input type="number" name="mysql_port" class="form-control" value="{{ config.database.mysql_port }}"></div>
+                        <div class="col-md-3"><label class="form-label">نام دیتابیس</label><input type="text" name="mysql_database" class="form-control" value="{{ config.database.mysql_database }}"></div>
+                        <div class="col-md-3"><label class="form-label">کاربری</label><input type="text" name="mysql_user" class="form-control" value="{{ config.database.mysql_user }}"></div>
+                        <div class="col-md-4"><label class="form-label">رمز عبور</label><input type="password" name="mysql_password" class="form-control"></div>
+                    </div>
+                </div>
+                <div id="pg-settings" style="display: {{ 'block' if config.database.type == 'postgresql' else 'none' }};">
+                    <h6 class="mb-3">تنظیمات PostgreSQL</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label">آدرس سرور</label><input type="text" name="postgresql_host" class="form-control" value="{{ config.database.postgresql_host }}"></div>
+                        <div class="col-md-2"><label class="form-label">پورت</label><input type="number" name="postgresql_port" class="form-control" value="{{ config.database.postgresql_port }}"></div>
+                        <div class="col-md-3"><label class="form-label">نام دیتابیس</label><input type="text" name="postgresql_database" class="form-control" value="{{ config.database.postgresql_database }}"></div>
+                        <div class="col-md-3"><label class="form-label">کاربری</label><input type="text" name="postgresql_user" class="form-control" value="{{ config.database.postgresql_user }}"></div>
+                        <div class="col-md-4"><label class="form-label">رمز عبور</label><input type="password" name="postgresql_password" class="form-control"></div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-4"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+function selectDbType(type) {
+    document.querySelectorAll('.stat-box').forEach(el => el.style.borderColor = '#e0e4e8');
+    event.currentTarget.style.borderColor = '#0d47a1';
+    document.getElementById('db-' + type).checked = true;
+    document.getElementById('mysql-settings').style.display = type === 'mysql' ? 'block' : 'none';
+    document.getElementById('pg-settings').style.display = type === 'postgresql' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

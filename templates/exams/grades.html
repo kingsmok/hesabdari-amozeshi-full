@@ -1,0 +1,36 @@
+{% extends "base/layout.html" %}
+{% block title %}نمرات{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('exams.index') }}">آزمون‌ها</a></li>
+<li class="active">نمرات</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-award me-2 text-warning"></i>نمرات و کارنامه</h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if grades.items %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>هنرجو</th><th>دوره</th><th>میان‌ترم</th><th>پایان‌ترم</th><th>عملی</th><th>کل</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for g in grades.items %}
+                    <tr>
+                        <td>{{ g.student.full_name if g.student else '-' }}</td>
+                        <td>{{ g.course.title if g.course else '-' }}</td>
+                        <td>{{ g.midterm_score or '-' }}</td>
+                        <td>{{ g.final_score or '-' }}</td>
+                        <td>{{ g.practical_score or '-' }}</td>
+                        <td><strong>{{ g.total_score or '-' }}</strong></td>
+                        <td><span class="badge-status badge-{{ 'active' if g.is_passed else 'inactive' }}">{{ 'قبول' if g.is_passed else 'مردود' }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">نمره‌ای ثبت نشده</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base/layout.html" %}
+{% block title %}حضور {{ student.full_name }}{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('attendance.index') }}">حضور</a></li><li class="active">{{ student.full_name }}</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-person-check"></i> حضور و غیاب<small>{{ student.full_name }} — {{ student.student_code }}</small></h1></div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">کل جلسات</div><div class="stat-val">{{ total }}</div></div></div>
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">حاضر</div><div class="stat-val" style="color: #2e7d32;">{{ present }}</div></div></div>
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">غایب</div><div class="stat-val" style="color: #c62828;">{{ absent }}</div></div></div>
+        <div class="col-md-2"><div class="stat-box text-center"><div class="stat-label">تأخیر</div><div class="stat-val" style="color: #e65100;">{{ late }}</div></div></div>
+        <div class="col-md-4">
+            <div class="stat-box text-center">
+                <div class="stat-label">درصد حضور</div>
+                <div class="progress mt-2" style="height: 24px;">
+                    <div class="progress-bar bg-{{ 'success' if percentage >= 75 else ('warning' if percentage >= 50 else 'danger') }}" style="width: {{ percentage }}%;">{{ percentage }}%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- آمار هر کلاس -->
+    <div class="card mb-4">
+        <div class="card-head"><h5><i class="bi bi-bar-chart"></i> آمار هر کلاس</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>کلاس</th><th>دوره</th><th>کل جلسات</th><th>حاضر</th><th>غایب</th><th>درصد</th></tr></thead>
+                <tbody>
+                    {% for cs in class_stats %}
+                    <tr>
+                        <td><strong>{{ cs.registration.class_group.name if cs.registration.class_group else '-' }}</strong></td>
+                        <td>{{ cs.registration.course.title if cs.registration.course else '-' }}</td>
+                        <td>{{ cs.total }}</td>
+                        <td style="color: #2e7d32;">{{ cs.present }}</td>
+                        <td style="color: #c62828;">{{ cs.absent }}</td>
+                        <td>
+                            <div class="progress" style="height: 18px; min-width: 80px;">
+                                <div class="progress-bar bg-{{ 'success' if cs.percentage >= 75 else ('warning' if cs.percentage >= 50 else 'danger') }}" style="width: {{ cs.percentage }}%; font-size: 11px;">{{ cs.percentage }}%</div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base/layout.html" %}
+{% block title %}لایسنس{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('features.license_management') }}">تنظیمات</a></li>
+<li class="active">لایسنس</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-key"></i> مدیریت لایسنس</h1></div>
+    <div class="card" style="max-width: 600px;">
+        <div class="card-body-padded">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3"><label class="form-label">کلید لایسنس</label><input type="text" name="license_key" class="form-control" value="{{ settings.license_number or '' }}"></div>
+                <div class="mb-3">
+                    <div class="stat-box">
+                        <div class="stat-label">وضعیت</div>
+                        <span class="badge-status badge-{{ 'active' if settings.license_number else 'pending' }}">{{ 'فعال' if settings.license_number else 'نسخه آزمایشی' }}</span>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

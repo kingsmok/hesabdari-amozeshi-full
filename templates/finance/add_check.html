@@ -1,0 +1,34 @@
+{% extends "base/layout.html" %}
+{% block title %}ثبت چک{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.checks') }}">چک‌ها</a></li>
+<li class="active">ثبت چک</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-info"></i>ثبت چک جدید</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">شماره چک</label><input type="text" name="check_number" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">بانک</label><input type="text" name="bank_name" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">مبلغ</label><input type="number" name="amount" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">صادرکننده</label><input type="text" name="issuer_name" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">تاریخ صدور</label><input type="date" name="issue_date" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">تاریخ سررسید</label><input type="date" name="due_date" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">نوع</label>
+                        <select name="check_type" class="form-select"><option value="received">دریافتی</option><option value="issued">پرداختی</option></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('finance.checks') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ثبت</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

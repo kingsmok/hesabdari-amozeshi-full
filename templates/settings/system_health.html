@@ -1,0 +1,34 @@
+{% extends "base/layout.html" %}
+{% block title %}سلامت سیستم{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('features.system_health') }}">تنظیمات</a></li>
+<li class="active">سلامت سیستم</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-heart-pulse"></i> سلامت سیستم<small>وضعیت کلی نرم‌افزار</small></h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">حجم دیتابیس</div><div class="stat-val" style="font-size: 20px;">{{ stats.db_size_mb }} مگابایت</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">تعداد جداول</div><div class="stat-val">{{ stats.table_count }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">حجم آپلودها</div><div class="stat-val" style="font-size: 20px;">{{ stats.upload_size_mb }} مگابایت</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">نسخه‌های پشتیبان</div><div class="stat-val">{{ stats.backup_count }}</div></div></div>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">کل کاربران</div><div class="stat-val">{{ stats.total_users }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">هنرجویان</div><div class="stat-val">{{ stats.total_students }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">مدرسین</div><div class="stat-val">{{ stats.total_teachers }}</div></div></div>
+    </div>
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-info-circle"></i> وضعیت سیستم</h5></div>
+        <div class="card-body-padded">
+            <table class="table table-borderless mb-0">
+                <tr><td style="color: #78909c;">آخرین پشتیبان‌گیری</td><td><strong>{{ stats.last_backup or 'هیچ‌وقت' }}</strong></td></tr>
+                <tr><td style="color: #78909c;">تعداد ثبت‌نام‌ها</td><td>{{ stats.total_registrations }}</td></tr>
+                <tr><td style="color: #78909c;">تعداد پرداخت‌ها</td><td>{{ stats.total_payments }}</td></tr>
+                <tr><td style="color: #78909c;">وضعیت دیتابیس</td><td><span class="badge-status badge-active">سالم</span></td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

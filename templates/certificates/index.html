@@ -1,0 +1,19 @@
+{% extends "base/layout.html" %}
+{% block title %}گواهینامه‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('exams.grades') }}">مدارک</a></li>
+<li class="active">گواهینامه‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-award me-2 text-warning"></i>گواهینامه‌ها و مدارک<small>صدور و مدیریت مدارک آموزشی</small></h1>
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-card text-center"><i class="bi bi-award" style="font-size: 32px; color: #f39c12;"></i><div class="stat-value">{{ total_issued or 0 }}</div><div class="stat-label">مدارک صادر شده</div></div></div>
+        <div class="col-md-3"><div class="stat-card text-center"><i class="bi bi-check-circle" style="font-size: 32px; color: #27ae60;"></i><div class="stat-value">{{ active_certs or 0 }}</div><div class="stat-label">فعال</div></div></div>
+        <div class="col-md-3"><div class="stat-card text-center"><i class="bi bi-x-circle" style="font-size: 32px; color: #e74c3c;"></i><div class="stat-value">{{ cancelled_certs or 0 }}</div><div class="stat-label">ابطال شده</div></div></div>
+    </div>
+</div>
+{% endblock %}

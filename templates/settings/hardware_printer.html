@@ -1,0 +1,22 @@
+{% extends "base/layout.html" %}
+{% block title %}چاپگر کارت{% endblock %}
+{% block breadcrumb %}<li>سخت‌افزار</li><li class="active">چاپگر کارت</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-printer"></i> تنظیمات چاپگر کارت</h1></div>
+    <div class="card"><div class="card-body-padded">
+        <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row g-3">
+                <div class="col-md-4"><label class="form-label">مدل چاپگر</label><input type="text" class="form-control" placeholder="Datacard, Evolis, ..."></div>
+                <div class="col-md-4"><label class="form-label">اندازه کارت</label>
+                    <select class="form-select"><option>CR-80 (استاندارد)</option><option>CR-79</option></select>
+                </div>
+                <div class="col-md-4"><label class="form-label">رزولوچون</label>
+                    <select class="form-select"><option>300 DPI</option><option>600 DPI</option></select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+        </form>
+    </div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base/layout.html" %}
+{% block title %}آمار حضور و غیاب{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('attendance.index') }}">حضور</a></li><li class="active">آمار</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-graph-up"></i> آمار حضور و غیاب<small>تحلیل کلی وضعیت حضور</small></h1></div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">کل رکوردها</div><div class="stat-val">{{ total_records }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">حاضر</div><div class="stat-val" style="color: #2e7d32;">{{ total_present }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">غایب</div><div class="stat-val" style="color: #c62828;">{{ total_absent }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">نرخ کلی حضور</div><div class="stat-val" style="color: {{ '#2e7d32' if overall_rate >= 75 else '#e65100' }};">{{ overall_rate }}%</div></div></div>
+    </div>
+
+    <!-- نمودار -->
+    <div class="card mb-4">
+        <div class="card-head"><h5><i class="bi bi-pie-chart"></i> توزیع حضور</h5></div>
+        <div class="card-body-padded"><canvas id="chart" height="200"></canvas></div>
+    </div>
+
+    <!-- هنرجویان با غیبت زیاد -->
+    {% if absent_students %}
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-exclamation-triangle" style="color: #c62828;"></i> هنرجویان با بیشترین غیبت</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>#</th><th>نام</th><th>تعداد غیبت</th></tr></thead>
+                <tbody>
+                    {% for s in absent_students %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><a href="{{ url_for('attendance.student_attendance', student_id=s[0]) }}">{{ s[1] }} {{ s[2] }}</a></td>
+                        <td><span class="badge-status badge-inactive">{{ s[3] }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('chart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['حاضر', 'غایب', 'تأخیر'],
+        datasets: [{ data: [{{ total_present }}, {{ total_absent }}, {{ total_late }}], backgroundColor: ['#2e7d32', '#c62828', '#e65100'] }]
+    },
+    options: { responsive: true }
+});
+</script>
+{% endblock %}

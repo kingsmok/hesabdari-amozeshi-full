@@ -1,0 +1,48 @@
+{% extends "base/layout.html" %}
+{% block title %}حضور گروهی{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('attendance.index') }}">حضور</a></li><li class="active">گروهی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-people"></i> حضور و غیاب گروهی<small>انتخاب کلاس و جلسه</small></h1></div>
+    <div class="card mb-4">
+        <div class="card-body-padded">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label">کلاس</label>
+                        <select name="class_id" class="form-select" id="classSelect" onchange="loadSessions(this.value)">
+                            <option value="">انتخاب کلاس...</option>
+                            {% for c in classes %}<option value="{{ c.id }}">{{ c.name }} — {{ c.course.title if c.course else '' }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">جلسه</label>
+                        <select name="session_id" class="form-select" id="sessionSelect">
+                            <option value="">ابتدا کلاس را انتخاب کنید</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-arrow-left me-1"></i> ثبت</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+function loadSessions(classId) {
+    if (!classId) return;
+    fetch(`/attendance/api/class-sessions/${classId}`)
+        .then(r => r.json())
+        .then(data => {
+            const sel = document.getElementById('sessionSelect');
+            sel.innerHTML = '<option value="">انتخاب جلسه...</option>';
+            data.forEach(s => {
+                sel.innerHTML += `<option value="${s.id}">جلسه ${s.number} — ${s.date} ${s.status === 'completed' ? '✓' : ''}</option>`;
+            });
+        });
+}
+</script>
+{% endblock %}

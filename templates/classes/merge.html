@@ -1,0 +1,36 @@
+{% extends "base/layout.html" %}
+{% block title %}ادغام کلاس{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('classes.index') }}">کلاس‌ها</a></li>
+<li class="active">ادغام {{ class_group.name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-intersect"></i> ادغام کلاس<small>{{ class_group.name }}</small></h1></div>
+    <div class="card mb-4">
+        <div class="card-head"><h5>کلاس مبدا: {{ class_group.name }} ({{ class_group.current_count }} نفر)</h5></div>
+        <div class="card-body-padded">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <label class="form-label">کلاس مقصد (ادغام شود در)</label>
+                        <select name="target_class_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                            <option value="">انتخاب کلاس...</option>
+                            {% for c in all_classes %}
+                            <option value="{{ c.id }}">{{ c.name }} — {{ c.course.title if c.course else '' }} ({{ c.available_capacity }} ظرفیت خالی)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100" onclick="return confirm('آیا مطمئن هستید؟ تمام هنرجویان منتقل می‌شوند.')">
+                            <i class="bi bi-intersect me-1"></i> ادغام کلاس
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

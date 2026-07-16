@@ -1,0 +1,46 @@
+{% extends "base/layout.html" %}
+{% block title %}مدیریت کاربران{% endblock %}
+{% block breadcrumb %}<li>مدیریت</li><li class="active">کاربران</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-people-fill"></i> مدیریت کاربران<small>ایجاد و مدیریت حساب‌های کاربری</small></h1>
+        <a href="{{ url_for('perms.add_user') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> کاربر جدید</a>
+    </div>
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>نام کاربری</th><th>نام کامل</th><th>نقش</th><th>شعبه</th><th>آخرین ورود</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td><code>{{ u.username }}</code></td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #0d47a1, #1565c0); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px;">{{ u.full_name[0] }}</div>
+                                <div>
+                                    <div style="font-weight: 700;">{{ u.full_name }}</div>
+                                    <div style="font-size: 11px; color: #78909c;">{{ u.email or '-' }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge-status badge-{{ 'active' if u.is_admin else 'completed' }}">{{ u.role.name if u.role else '-' }}</span></td>
+                        <td>{{ u.branch.name if u.branch else 'همه' }}</td>
+                        <td style="font-size: 12px;">{{ u.last_login|to_jalali if u.last_login else '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if u.is_active else 'inactive' }}">{{ 'فعال' if u.is_active else 'غیرفعال' }}</span></td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('perms.edit_user', id=u.id) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></a>
+                                {% if u.id != current_user.id %}
+                                <form method="POST" action="{{ url_for('perms.delete_user', id=u.id) }}" style="display: inline;" onsubmit="return confirm('غیرفعال شود؟')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-person-x"></i></button></form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

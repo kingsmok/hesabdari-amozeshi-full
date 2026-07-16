@@ -1,0 +1,37 @@
+{% extends "base/layout.html" %}
+{% block title %}قراردادهای حقوقی{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('payroll.dashboard') }}">حقوق</a></li><li class="active">قراردادها</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-file-earmark-text"></i> قراردادهای حقوقی<small>مدیریت قراردادهای مدرسین و کارکنان</small></h1>
+        <a href="{{ url_for('payroll.add_contract') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> قرارداد جدید</a>
+    </div>
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            {% if contracts %}
+            <table class="table mb-0">
+                <thead><tr><th>شخص</th><th>نوع</th><th>پایه</th><th>ساعتی</th><th>جلسه‌ای</th><th>درصد</th><th>بیمه</th><th>مالیات</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for c in contracts %}
+                    <tr>
+                        <td><strong>{{ c.person_id }}</strong></td>
+                        <td><span class="badge-status badge-completed">{{ c.contract_type }}</span></td>
+                        <td>{{ c.base_salary|currency }} ت</td>
+                        <td>{{ c.hourly_rate|currency }} ت</td>
+                        <td>{{ c.session_rate|currency }} ت</td>
+                        <td>{{ c.percentage_rate }}%</td>
+                        <td>{{ c.insurance|currency }} ت</td>
+                        <td>{{ c.tax|currency }} ت</td>
+                        <td><span class="badge-status badge-{{ 'active' if c.is_active else 'inactive' }}">{{ 'فعال' if c.is_active else 'غیرفعال' }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #b0bec5;"><p>قراردادی ثبت نشده</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

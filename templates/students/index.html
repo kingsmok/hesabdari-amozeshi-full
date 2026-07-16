@@ -1,0 +1,150 @@
+{% extends "base/layout.html" %}
+{% block title %}لیست هنرجویان{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('students.index') }}">هنرجویان</a></li>
+<li class="active">لیست هنرجویان</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-people-fill me-2 text-primary"></i>لیست هنرجویان<small>مدیریت اطلاعات هنرجویان آموزشگاه</small></h1>
+        <a href="{{ url_for('students.add') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>هنرجو جدید</a>
+    </div>
+
+    <!-- Filters -->
+    <div class="card-custom mb-4">
+        <div class="card-body-custom">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label">جستجو</label>
+                    <div class="search-box">
+                        <i class="bi bi-search"></i>
+                        <input type="text" name="search" class="form-control" placeholder="نام، کد، موبایل..." value="{{ search }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">وضعیت</label>
+                    <select name="status" class="form-select">
+                        <option value="">همه</option>
+                        <option value="active" {{ 'selected' if status=='active' }}>فعال</option>
+                        <option value="graduated" {{ 'selected' if status=='graduated' }}>فارغ‌التحصیل</option>
+                        <option value="withdrawn" {{ 'selected' if status=='withdrawn' }}>انصرافی</option>
+                        <option value="suspended" {{ 'selected' if status=='suspended' }}>تعلیق</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">دسته‌بندی</label>
+                    <select name="category" class="form-select">
+                        <option value="">همه</option>
+                        <option value="teen" {{ 'selected' if category=='teen' }}>نوجوان</option>
+                        <option value="adult" {{ 'selected' if category=='adult' }}>بزرگسال</option>
+                        <option value="vip" {{ 'selected' if category=='vip' }}>VIP</option>
+                        <option value="corporate" {{ 'selected' if category=='corporate' }}>سازمانی</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary-custom w-100"><i class="bi bi-funnel me-1"></i> فیلتر</button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('students.index') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-x-circle me-1"></i> پاک کردن</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if students.items %}
+            <div class="table-responsive">
+                <table class="table table-custom mb-0">
+                    <thead>
+                        <tr>
+                            <th>کد</th>
+                            <th>نام و نام خانوادگی</th>
+                            <th>موبایل</th>
+                            <th>کد ملی</th>
+                            <th>دسته‌بندی</th>
+                            <th>وضعیت</th>
+                            <th>تاریخ ثبت</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for student in students.items %}
+                        <tr>
+                            <td><code>{{ student.student_code }}</code></td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div style="width: 32px; height: 32px; border-radius: 8px; background: {% if student.gender == 'female' %}#fce4ec{% else %}#e3f2fd{% endif %}; display: flex; align-items: center; justify-content: center; margin-left: 8px; font-size: 13px;">
+                                        <i class="bi bi-person{% if student.gender == 'female' %}-fill{% endif %}" style="color: {% if student.gender == 'female' %}#e91e63{% else %}#2196f3{% endif %};"></i>
+                                    </div>
+                                    <div>
+                                        <strong>{{ student.full_name }}</strong>
+                                        <div style="font-size: 10px; color: #aaa;">{{ student.father_name or '' }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>{{ student.mobile }}</td>
+                            <td>{{ student.national_code or '-' }}</td>
+                            <td>
+                                {% if student.category %}
+                                <span class="badge-status" style="background: #e8f4fd; color: #1565c0;">{{ student.category }}</span>
+                                {% else %}-{% endif %}
+                            </td>
+                            <td>
+                                <span class="badge-status badge-{{ 'active' if student.status == 'active' else ('completed' if student.status == 'graduated' else 'inactive') }}">
+                                    {% if student.status == 'active' %}فعال{% elif student.status == 'graduated' %}فارغ‌التحصیل{% elif student.status == 'withdrawn' %}انصرافی{% elif student.status == 'suspended' %}تعلیق{% else %}{{ student.status }}{% endif %}
+                                </span>
+                            </td>
+                            <td>{{ student.created_at|to_jalali }}</td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('students.view', id=student.id) }}" class="btn btn-sm-custom btn-outline-primary" title="مشاهده"><i class="bi bi-eye"></i></a>
+                                    {% if can_edit('students') %}
+                                    <a href="{{ url_for('students.edit', id=student.id) }}" class="btn btn-sm-custom btn-outline-warning" title="ویرایش"><i class="bi bi-pencil"></i></a>
+                                    {% endif %}
+                                    <a href="{{ url_for('attendance.student_attendance', student_id=student.id) }}" class="btn btn-sm-custom btn-outline-info" title="حضور"><i class="bi bi-clipboard-check"></i></a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if students.pages > 1 %}
+            <div class="d-flex justify-content-center py-3">
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if students.has_prev %}
+                        <li class="page-item"><a class="page-link" href="?page={{ students.prev_num }}&search={{ search }}&status={{ status }}&category={{ category }}">قبلی</a></li>
+                        {% endif %}
+                        {% for p in students.iter_pages() %}
+                            {% if p %}
+                            <li class="page-item {{ 'active' if p == students.page }}"><a class="page-link" href="?page={{ p }}&search={{ search }}&status={{ status }}&category={{ category }}">{{ p }}</a></li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                            {% endif %}
+                        {% endfor %}
+                        {% if students.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ students.next_num }}&search={{ search }}&status={{ status }}&category={{ category }}">بعدی</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">
+                <i class="bi bi-people" style="font-size: 48px;"></i>
+                <p class="mt-3">هنرجویی یافت نشد</p>
+                <a href="{{ url_for('students.add') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>ثبت هنرجو جدید</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

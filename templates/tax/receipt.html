@@ -1,0 +1,56 @@
+{% extends "base/layout.html" %}
+{% block title %}فیش مالیاتی{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('tax.dashboard') }}">مالیات</a></li><li class="active">فیش مالیاتی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-file-earmark-text"></i> فیش مالیاتی<small>{{ payslip.payslip_number }}</small></h1>
+        <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
+    </div>
+    <div class="card" style="max-width: 700px; margin: 0 auto;">
+        <div class="card-body-padded">
+            <div class="text-center mb-4">
+                <h4>فیش مالیاتی حقوق و دستمزد</h4>
+                <p style="color: #78909c;">دوره: {{ payslip.period }} | شماره: {{ payslip.payslip_number }}</p>
+            </div>
+            
+            <table class="table table-borderless mb-4" style="border: 1px solid #eee;">
+                <tr><td style="color: #78909c;">نام</td><td><strong>{{ person_name }}</strong></td></tr>
+                <tr><td style="color: #78909c;">کد پرسنلی</td><td>{{ payslip.person_id }}</td></tr>
+                <tr><td style="color: #78909c;">دوره</td><td>{{ payslip.period }}</td></tr>
+            </table>
+            
+            <table class="table" style="border: 1px solid #ddd;">
+                <thead><tr style="background: #f5f5f5;"><th>شرح</th><th style="text-align: left;">مبلغ (ریال)</th></tr></thead>
+                <tbody>
+                    <tr><td>حقوق ناخالص ماهانه</td><td style="text-align: left;">{{ payslip.gross_amount|currency }}</td></tr>
+                    <tr><td>کسر بیمه</td><td style="text-align: left; color: #e65100;">{{ payslip.insurance|currency }}</td></tr>
+                    <tr><td>درآمد مشمول مالیات</td><td style="text-align: left; font-weight: 700;">{{ (payslip.gross_amount - (payslip.insurance or 0))|currency }}</td></tr>
+                    <tr style="background: #ffebee;"><td style="font-weight: 700;">مالیات ماهانه</td><td style="text-align: left; font-weight: 700; color: #c62828;">{{ payslip.tax|currency }}</td></tr>
+                    <tr><td>سایر کسورات</td><td style="text-align: left;">{{ (payslip.deductions or 0)|currency }}</td></tr>
+                    <tr><td>جریمه</td><td style="text-align: left;">{{ (payslip.penalty or 0)|currency }}</td></tr>
+                    <tr style="background: #e8f5e9;"><td style="font-weight: 900;">خالص قابل پرداخت</td><td style="text-align: left; font-weight: 900; color: #2e7d32; font-size: 16px;">{{ payslip.net_amount|currency }}</td></tr>
+                </tbody>
+            </table>
+            
+            <div class="mt-4">
+                <h6>براکت مالیاتی سالانه:</h6>
+                <table class="table table-sm" style="font-size: 12px;">
+                    <thead><tr><th>براکت</th><th>مبلغ مشمول</th><th>نرخ</th><th>مالیات</th></tr></thead>
+                    <tbody>
+                        {% for b in breakdown %}
+                        <tr><td>{{ b.label }}</td><td>{{ b.taxable|currency }} ت</td><td>{{ (b.rate * 100)|int }}%</td><td>{{ b.tax|currency }} ت</td></tr>
+                        {% endfor %}
+                        <tr style="font-weight: 700; background: #f5f5f5;"><td>جمع</td><td></td><td></td><td style="color: #c62828;">{{ annual_tax|currency }} ت</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="d-flex justify-content-between mt-4">
+                <div><p style="color: #78909c;">مهر و امضا:</p><div style="width: 120px; height: 60px; border-bottom: 1px solid #333;"></div></div>
+                <div><p style="color: #78909c;">تاریخ:</p><p>{{ "now"|to_jalali }}</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

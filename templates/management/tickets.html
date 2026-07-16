@@ -1,0 +1,38 @@
+{% extends "base/layout.html" %}
+{% block title %}تیکت‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('tickets.index') }}">مدیریت</a></li>
+<li class="active">تیکت‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-ticket me-2 text-info"></i>تیکت‌های پشتیبانی<small>سیستم تیکتینگ داخلی</small></h1>
+        <a href="{{ url_for('tickets.add') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>تیکت جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if tickets %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>شماره</th><th>موضوع</th><th>اولویت</th><th>وضعیت</th><th>تاریخ</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for t in tickets %}
+                    <tr>
+                        <td><code>{{ t.ticket_number }}</code></td>
+                        <td><a href="{{ url_for('tickets.view', id=t.id) }}"><strong>{{ t.subject }}</strong></a></td>
+                        <td><span class="badge-status badge-{{ 'inactive' if t.priority == 'urgent' else ('pending' if t.priority == 'high' else 'active') }}">{{ t.priority }}</span></td>
+                        <td><span class="badge-status badge-{{ 'active' if t.status == 'resolved' else ('pending' if t.status == 'in_progress' else 'inactive') }}">{{ t.status }}</span></td>
+                        <td>{{ t.created_at|to_jalali }}</td>
+                        <td><a href="{{ url_for('tickets.view', id=t.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;"><i class="bi bi-ticket" style="font-size: 48px;"></i><p class="mt-3">تیکتی وجود ندارد</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

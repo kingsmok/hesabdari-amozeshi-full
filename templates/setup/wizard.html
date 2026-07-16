@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ویزارد نصب — Academy Manager Pro</title>
+    <link rel="stylesheet" href="/static/fonts/Vazirmatn-font-face.css">
+    <link rel="stylesheet" href="/static/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
+    <style>
+        * { font-family: Vazirmatn, Tahoma, sans-serif; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a1628, #0d47a1);
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .wizard-card {
+            background: #fff; border-radius: 20px; max-width: 700px; width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,.3); overflow: hidden;
+        }
+        .wizard-header {
+            background: linear-gradient(135deg, #0d47a1, #1565c0);
+            color: white; padding: 28px 32px; text-align: center;
+        }
+        .wizard-header h2 { margin: 0; font-size: 22px; font-weight: 800; }
+        .wizard-header p { margin: 4px 0 0; opacity: .7; font-size: 13px; }
+        .wizard-body { padding: 32px; }
+        .steps {
+            display: flex; justify-content: center; gap: 8px; margin-bottom: 28px;
+        }
+        .step {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 700;
+            background: #e0e4e8; color: #78909c;
+            transition: all .3s;
+        }
+        .step.active { background: #0d47a1; color: white; box-shadow: 0 4px 12px rgba(13,71,161,.3); }
+        .step.done { background: #00c853; color: white; }
+        .step-line { width: 40px; height: 2px; background: #e0e4e8; margin-top: 17px; }
+        .step-line.done { background: #00c853; }
+        .form-control, .form-select {
+            border-radius: 10px; border: 2px solid #e0e4e8;
+            padding: 10px 14px; font-size: 13px;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #0d47a1;
+            box-shadow: 0 0 0 3px rgba(13,71,161,.1);
+        }
+        .form-label { font-weight: 700; font-size: 12px; color: #546e7a; }
+        .btn-next {
+            background: linear-gradient(135deg, #0d47a1, #1565c0);
+            border: none; color: white; padding: 12px 32px;
+            border-radius: 10px; font-size: 14px; font-weight: 700;
+        }
+        .btn-next:hover { background: linear-gradient(135deg, #002171, #0d47a1); color: white; }
+        .db-option {
+            border: 2px solid #e0e4e8; border-radius: 12px; padding: 20px;
+            cursor: pointer; transition: all .3s; text-align: center;
+        }
+        .db-option:hover { border-color: #0d47a1; background: #f8f9ff; }
+        .db-option.selected { border-color: #0d47a1; background: #e3f2fd; }
+        .db-option i { font-size: 32px; margin-bottom: 8px; display: block; }
+        .success-box { text-align: center; padding: 20px; }
+        .success-box i { font-size: 64px; color: #00c853; }
+    </style>
+</head>
+<body>
+    <div class="wizard-card">
+        <div class="wizard-header">
+            <h2>🎓 Academy Manager Pro</h2>
+            <p>ویزارد نصب و راه‌اندازی</p>
+        </div>
+        <div class="wizard-body">
+            <!-- مراحل -->
+            <div class="steps">
+                <div class="step {% if step >= 1 %}active{% endif %} {% if step > 1 %}done{% endif %}">1</div>
+                <div class="step-line {% if step > 1 %}done{% endif %}"></div>
+                <div class="step {% if step >= 2 %}active{% endif %} {% if step > 2 %}done{% endif %}">2</div>
+                <div class="step-line {% if step > 2 %}done{% endif %}"></div>
+                <div class="step {% if step >= 3 %}active{% endif %} {% if step > 3 %}done{% endif %}">3</div>
+                <div class="step-line {% if step > 3 %}done{% endif %}"></div>
+                <div class="step {% if step >= 4 %}active{% endif %}">4</div>
+            </div>
+
+            {% if step == 1 %}
+            <!-- مرحله ۱: اطلاعات آموزشگاه -->
+            <form method="POST">
+                <input type="hidden" name="step" value="1">
+                <h5 style="margin-bottom: 20px;">اطلاعات آموزشگاه</h5>
+                <div class="mb-3">
+                    <label class="form-label">نام آموزشگاه</label>
+                    <input type="text" name="academy_name" class="form-control" value="آموزشگاه نمونه" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">تلفن</label>
+                    <input type="text" name="phone" class="form-control" placeholder="021-12345678">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">آدرس</label>
+                    <input type="text" name="address" class="form-control" placeholder="تهران، خیابان...">
+                </div>
+                <div class="text-end mt-4">
+                    <button type="submit" class="btn btn-next">مرحله بعد <i class="bi bi-arrow-left"></i></button>
+                </div>
+            </form>
+            {% endif %}
+
+            {% if step == 2 %}
+            <!-- مرحله ۲: انتخاب دیتابیس -->
+            <form method="POST" id="dbForm">
+                <input type="hidden" name="step" value="2">
+                <h5 style="margin-bottom: 20px;">انتخاب دیتابیس</h5>
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="db-option selected" onclick="selectDb('sqlite')">
+                            <i class="bi bi-database" style="color: #0d47a1;"></i>
+                            <h6>SQLite</h6>
+                            <p style="font-size: 11px; color: #78909c;">پیش‌فرض — تک‌کاربره</p>
+                            <input type="radio" name="db_type" value="sqlite" checked style="display: none;" id="db-sqlite">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="db-option" onclick="selectDb('mysql')">
+                            <i class="bi bi-database-fill" style="color: #e65100;"></i>
+                            <h6>MySQL</h6>
+                            <p style="font-size: 11px; color: #78909c;">مناسب متوسط</p>
+                            <input type="radio" name="db_type" value="mysql" style="display: none;" id="db-mysql">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="db-option" onclick="selectDb('postgresql')">
+                            <i class="bi bi-database-fill-add" style="color: #2e7d32;"></i>
+                            <h6>PostgreSQL</h6>
+                            <p style="font-size: 11px; color: #78909c;">بهترین برای داده بزرگ</p>
+                            <input type="radio" name="db_type" value="postgresql" style="display: none;" id="db-postgresql">
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="mysqlSettings" style="display: none;">
+                    <h6 style="margin-bottom: 12px;">تنظیمات MySQL</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label">آدرس سرور</label><input type="text" name="mysql_host" class="form-control" value="localhost"></div>
+                        <div class="col-md-3"><label class="form-label">پورت</label><input type="number" name="mysql_port" class="form-control" value="3306"></div>
+                        <div class="col-md-3"><label class="form-label">نام دیتابیس</label><input type="text" name="mysql_database" class="form-control" value="academy_manager"></div>
+                        <div class="col-md-4"><label class="form-label">نام کاربری</label><input type="text" name="mysql_user" class="form-control" value="root"></div>
+                        <div class="col-md-4"><label class="form-label">رمز عبور</label><input type="password" name="mysql_password" class="form-control"></div>
+                        <div class="col-md-4"><label class="form-label">&nbsp;</label><button type="button" class="btn btn-outline-primary w-100" onclick="testDb()"><i class="bi bi-lightning me-1"></i> تست اتصال</button></div>
+                    </div>
+                    <div id="dbTestResult" class="mt-2"></div>
+                </div>
+                
+                <div id="pgSettings" style="display: none;">
+                    <h6 style="margin-bottom: 12px;">تنظیمات PostgreSQL</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="form-label">آدرس سرور</label><input type="text" name="postgresql_host" class="form-control" value="localhost"></div>
+                        <div class="col-md-3"><label class="form-label">پورت</label><input type="number" name="postgresql_port" class="form-control" value="5432"></div>
+                        <div class="col-md-3"><label class="form-label">نام دیتابیس</label><input type="text" name="postgresql_database" class="form-control" value="academy_manager"></div>
+                        <div class="col-md-4"><label class="form-label">نام کاربری</label><input type="text" name="postgresql_user" class="form-control" value="postgres"></div>
+                        <div class="col-md-4"><label class="form-label">رمز عبور</label><input type="password" name="postgresql_password" class="form-control"></div>
+                        <div class="col-md-4"><label class="form-label">&nbsp;</label><button type="button" class="btn btn-outline-primary w-100" onclick="testDb()"><i class="bi bi-lightning me-1"></i> تست اتصال</button></div>
+                    </div>
+                    <div id="dbTestResult" class="mt-2"></div>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary" onclick="history.back()"><i class="bi bi-arrow-right me-1"></i> قبلی</button>
+                    <button type="submit" class="btn btn-next">مرحله بعد <i class="bi bi-arrow-left"></i></button>
+                </div>
+            </form>
+            {% endif %}
+
+            {% if step == 3 %}
+            <!-- مرحله ۳: تنظیمات مدیر -->
+            <form method="POST">
+                <input type="hidden" name="step" value="3">
+                <h5 style="margin-bottom: 20px;">تنظیمات مدیر سیستم</h5>
+                <div class="mb-3">
+                    <label class="form-label">نام مدیر</label>
+                    <input type="text" name="admin_name" class="form-control" value="مدیر سیستم">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">رمز عبور جدید (خالی = بدون تغییر)</label>
+                    <input type="password" name="admin_password" class="form-control" placeholder="رمز عبور جدید">
+                </div>
+                <div class="alert alert-info" style="border-radius: 10px; font-size: 12px;">
+                    <i class="bi bi-info-circle me-1"></i>
+                    نام کاربری پیش‌فرض: <strong>admin</strong> — رمز عبور پیش‌فرض: <strong>admin123</strong>
+                </div>
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary" onclick="history.back()"><i class="bi bi-arrow-right me-1"></i> قبلی</button>
+                    <button type="submit" class="btn btn-next">مرحله بعد <i class="bi bi-arrow-left"></i></button>
+                </div>
+            </form>
+            {% endif %}
+
+            {% if step == 4 %}
+            <!-- مرحله ۴: پایان -->
+            <div class="success-box">
+                <i class="bi bi-check-circle-fill"></i>
+                <h3 style="margin-top: 16px;">نصب با موفقیت انجام شد!</h3>
+                <p style="color: #78909c;">سیستم آماده استفاده است</p>
+                
+                <div class="row g-3 mt-4 text-start">
+                    <div class="col-md-6">
+                        <div style="background: #e8f5e9; border-radius: 10px; padding: 16px;">
+                            <h6 style="color: #2e7d32;">اطلاعات ورود</h6>
+                            <p style="font-size: 13px; margin: 0;">نام کاربری: <strong>admin</strong></p>
+                            <p style="font-size: 13px; margin: 0;">رمز عبور: <strong>admin123</strong></p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div style="background: #e3f2fd; border-radius: 10px; padding: 16px;">
+                            <h6 style="color: #1565c0;">آدرس دسترسی</h6>
+                            <p style="font-size: 13px; margin: 0;">محلی: <strong>http://localhost:5000</strong></p>
+                            <p style="font-size: 13px; margin: 0;">شبکه: <strong>http://{{ request.host }}</strong></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <a href="/" class="btn btn-next mt-4" style="display: inline-block; text-decoration: none;">
+                    <i class="bi bi-box-arrow-in-left me-1"></i> ورود به نرم‌افزار
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <script>
+        function selectDb(type) {
+            document.querySelectorAll('.db-option').forEach(el => el.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            document.getElementById('db-' + type).checked = true;
+            document.getElementById('mysqlSettings').style.display = type === 'mysql' ? 'block' : 'none';
+            document.getElementById('pgSettings').style.display = type === 'postgresql' ? 'block' : 'none';
+        }
+        
+        function testDb() {
+            const data = {
+                type: 'mysql',
+                host: document.querySelector('[name=mysql_host]').value,
+                port: document.querySelector('[name=mysql_port]').value,
+                user: document.querySelector('[name=mysql_user]').value,
+                password: document.querySelector('[name=mysql_password]').value,
+                database: document.querySelector('[name=mysql_database]').value,
+            };
+            
+            fetch('/setup/test-db', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            })
+            .then(r => r.json())
+            .then(d => {
+                const box = document.getElementById('dbTestResult');
+                box.innerHTML = `<div class="alert alert-${d.ok ? 'success' : 'danger'}" style="border-radius: 8px; font-size: 12px;">
+                    <i class="bi bi-${d.ok ? 'check-circle' : 'x-circle'} me-1"></i> ${d.message}
+                </div>`;
+            });
+        }
+    </script>
+</body>
+</html>

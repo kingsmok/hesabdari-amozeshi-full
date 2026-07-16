@@ -1,0 +1,28 @@
+{% extends "base/layout.html" %}
+{% block title %}رفتار مشتری{% endblock %}
+{% block breadcrumb %}<li>تحلیل</li><li class="active">رفتار مشتری</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-people"></i> تحلیل رفتار هنرجویان</h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">نرخ بازگشت</div><div class="stat-val">{{ repeat_rate }}٪</div><div class="stat-trend">{{ repeat_students }} هنرجو بیش از یک دوره</div></div></div>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-6"><div class="card"><div class="card-head"><h5>منابع معرفی</h5></div>
+            <div class="card-body-padded"><canvas id="refChart" height="200"></canvas></div>
+        </div></div>
+        <div class="col-lg-6"><div class="card"><div class="card-head"><h5>محبوب‌ترین دوره‌ها</h5></div>
+            <div class="card-body-padded" style="padding: 0;">
+                <table class="table mb-0"><thead><tr><th>دوره</th><th>تعداد</th></tr></thead>
+                    <tbody>{% for c in popular_courses %}<tr><td>{{ c[0] }}</td><td>{{ c[1] }}</td></tr>{% endfor %}</tbody>
+                </table>
+            </div>
+        </div></div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('refChart'),{type:'pie',data:{labels:{{ referrals|map(attribute=0)|list|tojson }},datasets:[{data:{{ referrals|map(attribute=1)|list|tojson }},backgroundColor:['#1565c0','#2e7d32','#e65100','#7b1fa2','#00838f']}]},options:{responsive:true}});
+</script>
+{% endblock %}

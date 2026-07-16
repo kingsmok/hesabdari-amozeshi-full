@@ -1,0 +1,44 @@
+{% extends "base/layout.html" %}
+{% block title %}لیست دوره‌ها{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('new_features.course_list') }}">دوره‌ها</a></li><li class="active">لیست</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-journal-richtext"></i> مدیریت دوره‌ها<small>{{ courses|length }} دوره</small></h1>
+        <a href="{{ url_for('new_features.course_add') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> دوره جدید</a>
+    </div>
+    <div class="card mb-4"><div class="card-body-padded">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-4"><label class="form-label">جستجو</label><input type="text" name="search" class="form-control" value="{{ search }}" placeholder="نام یا کد دوره..."></div>
+            <div class="col-md-3"><label class="form-label">رشته</label>
+                <select name="field_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select"><option value="">همه</option>{% for f in fields %}<option value="{{ f.id }}" {{ 'selected' if field_id == f.id|string }}>{{ f.name }}</option>{% endfor %}</select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i> فیلتر</button></div>
+        </form>
+    </div></div>
+    <div class="card"><div class="card-body-padded" style="padding: 0;">
+        <table class="table mb-0">
+            <thead><tr><th>کد</th><th>عنوان</th><th>رشته</th><th>ساعات</th><th>جلسات</th><th>شهریه</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+            <tbody>
+                {% for c in courses %}
+                <tr>
+                    <td><code>{{ c.code }}</code></td>
+                    <td><a href="{{ url_for('new_features.course_view', id=c.id) }}"><strong>{{ c.title }}</strong></a></td>
+                    <td>{{ c.field.name if c.field else '-' }}</td>
+                    <td>{{ c.duration_hours }}</td>
+                    <td>{{ c.total_sessions }}</td>
+                    <td>{{ c.total_fee|currency }} ت</td>
+                    <td><span class="badge-status badge-{{ 'active' if c.is_active else 'inactive' }}">{{ 'فعال' if c.is_active else 'غیرفعال' }}</span></td>
+                    <td>
+                        <div class="d-flex gap-1">
+                            <a href="{{ url_for('new_features.course_view', id=c.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                            <a href="{{ url_for('new_features.course_edit', id=c.id) }}" class="btn btn-sm btn-outline-warning"><i class="bi bi-pencil"></i></a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

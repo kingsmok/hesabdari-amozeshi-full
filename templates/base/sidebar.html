@@ -1,0 +1,199 @@
+{# سایدبار ساده و کاربرپسند #}
+{% set user_menu = get_user_menu_items() %}
+
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo"><i class="bi bi-mortarboard-fill"></i></div>
+        <div class="sidebar-brand">
+            {{ app_name }}
+            <small>{{ current_user.role.name if current_user.role else 'کاربر' }}</small>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        {# ═══ داشبورد ═══ #}
+        <a href="{{ url_for('dashboard.index') }}" class="nav-link-item {% if request.endpoint == 'dashboard.index' %}active{% endif %}">
+            <i class="bi bi-grid-1x2-fill"></i> داشبورد
+        </a>
+        
+        {% if not is_admin() %}
+        <a href="{{ url_for('teacher_portal.my_dashboard') }}" class="nav-link-item">
+            <i class="bi bi-person-workspace"></i> پنل مدرس
+        </a>
+        {% endif %}
+
+        {# ═══ آموزش ═══ #}
+        <div class="nav-section-title">آموزش</div>
+
+        {% if 'students' in user_menu %}
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-people-fill"></i> هنرجویان
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('students.index') }}" class="nav-link-item"><i class="bi bi-list-ul"></i> لیست هنرجویان</a>
+            <a href="{{ url_for('students.add') }}" class="nav-link-item"><i class="bi bi-person-plus"></i> ثبت هنرجو</a>
+        </div>
+        {% endif %}
+
+        {% if 'registration' in user_menu %}
+        <a href="{{ url_for('registration.index') }}" class="nav-link-item">
+            <i class="bi bi-pencil-square"></i> ثبت‌نام
+        </a>
+        {% endif %}
+
+        {% if 'courses' in user_menu %}
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-journal-richtext"></i> دوره‌ها
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('new_features.course_list') }}" class="nav-link-item"><i class="bi bi-list-ul"></i> لیست دوره‌ها</a>
+            <a href="{{ url_for('new_features.course_add') }}" class="nav-link-item"><i class="bi bi-plus-circle"></i> افزودن دوره</a>
+            <a href="{{ url_for('settings.fields') }}" class="nav-link-item"><i class="bi bi-bookmark"></i> رشته‌ها</a>
+        </div>
+        {% endif %}
+
+        {% if 'classes' in user_menu %}
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-easel2-fill"></i> کلاس‌ها
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('classes.index') }}" class="nav-link-item"><i class="bi bi-list-ul"></i> لیست کلاس‌ها</a>
+            <a href="{{ url_for('classes.add') }}" class="nav-link-item"><i class="bi bi-plus-circle"></i> ایجاد کلاس</a>
+            <a href="{{ url_for('classes.calendar') }}" class="nav-link-item"><i class="bi bi-calendar3"></i> تقویم</a>
+        </div>
+        {% endif %}
+
+        {% if 'teachers' in user_menu %}
+        <a href="{{ url_for('teachers.index') }}" class="nav-link-item">
+            <i class="bi bi-person-workspace"></i> مدرسین
+        </a>
+        {% endif %}
+
+        {% if 'attendance' in user_menu %}
+        <a href="{{ url_for('attendance.index') }}" class="nav-link-item">
+            <i class="bi bi-clipboard2-check-fill"></i> حضور و غیاب
+        </a>
+        {% endif %}
+
+        {% if 'exams' in user_menu %}
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-journal-text"></i> آزمون‌ها
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('exams.index') }}" class="nav-link-item"><i class="bi bi-list-ul"></i> لیست آزمون‌ها</a>
+            <a href="{{ url_for('exams.grades') }}" class="nav-link-item"><i class="bi bi-award"></i> نمرات</a>
+            <a href="{{ url_for('exams.question_bank') }}" class="nav-link-item"><i class="bi bi-database"></i> بانک سوالات</a>
+        </div>
+        {% endif %}
+
+        {# ═══ مالی ═══ #}
+        {% if 'finance' in user_menu or 'accounting' in user_menu or 'payroll' in user_menu %}
+        <div class="nav-section-title">مالی</div>
+        {% endif %}
+
+        {% if 'finance' in user_menu %}
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-cash-stack"></i> مالی
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('finance.financial_dashboard') }}" class="nav-link-item"><i class="bi bi-graph-up"></i> داشبورد مالی</a>
+            <a href="{{ url_for('finance.payments') }}" class="nav-link-item"><i class="bi bi-receipt"></i> پرداخت‌ها</a>
+            <a href="{{ url_for('finance.cashbox') }}" class="nav-link-item"><i class="bi bi-box2"></i> صندوق</a>
+            <a href="{{ url_for('finance.bank') }}" class="nav-link-item"><i class="bi bi-bank2"></i> بانک</a>
+            <a href="{{ url_for('finance.checks') }}" class="nav-link-item"><i class="bi bi-file-earmark-check"></i> چک‌ها</a>
+            <a href="{{ url_for('finance.expenses') }}" class="nav-link-item"><i class="bi bi-wallet2"></i> هزینه‌ها</a>
+            <a href="{{ url_for('new_features.installment_dashboard') }}" class="nav-link-item"><i class="bi bi-calendar-check"></i> اقساط</a>
+        </div>
+        {% endif %}
+
+        {% if 'accounting' in user_menu %}
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-calculator"></i> حسابداری
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('accounting.chart') }}" class="nav-link-item"><i class="bi bi-diagram-3"></i> دفتر کل</a>
+            <a href="{{ url_for('accounting.journal') }}" class="nav-link-item"><i class="bi bi-journal-bookmark"></i> روزنامه</a>
+            <a href="{{ url_for('accounting.ledger') }}" class="nav-link-item"><i class="bi bi-book"></i> معین</a>
+            <a href="{{ url_for('accounting.trial_balance') }}" class="nav-link-item"><i class="bi bi-bar-chart"></i> تراز</a>
+        </div>
+        {% endif %}
+
+        {% if 'payroll' in user_menu %}
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-cash-coin"></i> حقوق و مالیات
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('payroll.dashboard') }}" class="nav-link-item"><i class="bi bi-calculator"></i> حقوق</a>
+            <a href="{{ url_for('tax.dashboard') }}" class="nav-link-item"><i class="bi bi-percent"></i> مالیات</a>
+        </div>
+        {% endif %}
+
+        {# ═══ ابزارها ═══ #}
+        <div class="nav-section-title">ابزارها</div>
+
+        {% if 'reports' in user_menu %}
+        <a href="{{ url_for('reports.index') }}" class="nav-link-item">
+            <i class="bi bi-file-earmark-bar-graph"></i> گزارش‌ها
+        </a>
+        {% endif %}
+
+        {% if 'messaging' in user_menu %}
+        <a href="{{ url_for('messaging.sms') }}" class="nav-link-item">
+            <i class="bi bi-chat-dots"></i> پیام‌رسانی
+        </a>
+        {% endif %}
+
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('analytics.smart_dashboard') }}" class="nav-link-item">
+            <i class="bi bi-robot"></i> داشبورد هوشمند
+        </a>
+        <a href="{{ url_for('certificates.index') }}" class="nav-link-item">
+            <i class="bi bi-award"></i> گواهینامه‌ها
+        </a>
+        {% endif %}
+
+        {# ═══ مدیریت ═══ #}
+        {% if 'settings' in user_menu %}
+        <div class="nav-section-title">مدیریت</div>
+
+        <a href="{{ url_for('settings_panel.control_panel') }}" class="nav-link-item" style="background: rgba(0,200,83,.1); border: 1px solid rgba(0,200,83,.2);">
+            <i class="bi bi-sliders2" style="color: #00c853;"></i> پنل مدیریت
+        </a>
+
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-gear-fill"></i> تنظیمات
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('perms.users_list') }}" class="nav-link-item"><i class="bi bi-people-fill"></i> کاربران</a>
+            <a href="{{ url_for('perms.roles_list') }}" class="nav-link-item"><i class="bi bi-shield-lock"></i> نقش‌ها و دسترسی</a>
+            <a href="{{ url_for('settings.general') }}" class="nav-link-item"><i class="bi bi-sliders2"></i> تنظیمات عمومی</a>
+            <a href="{{ url_for('settings.branches') }}" class="nav-link-item"><i class="bi bi-building"></i> شعب</a>
+            <a href="{{ url_for('settings.backup') }}" class="nav-link-item"><i class="bi bi-cloud-arrow-up"></i> پشتیبان‌گیری</a>
+            <a href="{{ url_for('settings.logs') }}" class="nav-link-item"><i class="bi bi-clock-history"></i> لاگ فعالیت‌ها</a>
+            <a href="{{ url_for('features.system_health') }}" class="nav-link-item"><i class="bi bi-heart-pulse"></i> سلامت سیستم</a>
+        </div>
+
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-phone"></i> اتصالات
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('new_features.telegram_settings') }}" class="nav-link-item"><i class="bi bi-telegram"></i> تلگرام</a>
+            <a href="{{ url_for('new_features.bale_settings') }}" class="nav-link-item"><i class="bi bi-chat-dots"></i> بله</a>
+            <a href="{{ url_for('new_features.farazsms_settings') }}" class="nav-link-item"><i class="bi bi-phone"></i> فراز اس‌ام‌اس</a>
+        </div>
+        {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+        <small><i class="bi bi-heart-fill" style="color: #e91e63; font-size: 9px;"></i> نسخه ۱.۰</small>
+    </div>
+</aside>

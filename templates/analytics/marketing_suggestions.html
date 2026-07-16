@@ -1,0 +1,22 @@
+{% extends "base/layout.html" %}
+{% block title %}پیشنهادات تبلیغاتی{% endblock %}
+{% block breadcrumb %}<li>تحلیل</li><li class="active">پیشنهادات تبلیغاتی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-megaphone"></i> پیشنهادات تبلیغاتی<small>بر اساس تحلیل داده‌ها</small></h1></div>
+    <div class="card mb-4"><div class="card-head"><h5>دوره‌هایی که نیاز به تبلیغ دارند</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0"><thead><tr><th>دوره</th><th>ثبت‌نام فعلی</th><th>پیشنهاد</th></tr></thead>
+                <tbody>{% for c in low_courses %}<tr><td>{{ c[0] }}</td><td>{{ c[2] }}</td><td><span class="badge-status badge-pending">نیاز به تبلیغ</span></td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card"><div class="card-head"><h5>مؤثرترین کانال‌های معرفی</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0"><thead><tr><th>کانال</th><th>تعداد جذب</th></tr></thead>
+                <tbody>{% for r in effective_referrals %}<tr><td>{{ r[0] }}</td><td>{{ r[1] }}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

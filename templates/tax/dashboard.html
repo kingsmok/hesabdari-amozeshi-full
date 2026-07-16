@@ -1,0 +1,80 @@
+{% extends "base/layout.html" %}
+{% block title %}سیستم مالیاتی{% endblock %}
+{% block breadcrumb %}<li class="active">مالیات</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-percent"></i> سیستم مالیاتی<small>محاسبه، گزارش و فیش مالیاتی</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('tax.calculator') }}" class="btn btn-outline-primary"><i class="bi bi-calculator me-1"></i> محاسبه‌گر</a>
+            <a href="{{ url_for('tax.annual_report') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-text me-1"></i> گزارش سالانه</a>
+            <a href="{{ url_for('tax.monthly_list') }}" class="btn btn-outline-info"><i class="bi bi-list-ul me-1"></i> لیست ماهانه</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع ناخالص</div><div class="stat-val" style="font-size: 18px;">{{ total_gross|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع مالیات</div><div class="stat-val" style="font-size: 18px; color: #c62828;">{{ total_tax|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع بیمه</div><div class="stat-val" style="font-size: 18px; color: #e65100;">{{ total_insurance|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع خالص</div><div class="stat-val" style="font-size: 18px; color: #2e7d32;">{{ total_net|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div></div></div>
+    </div>
+
+    <!-- محاسبه خودکار -->
+    <div class="card mb-4">
+        <div class="card-body-padded">
+            <form method="POST" action="{{ url_for('tax.auto_calculate') }}" class="row g-3 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-4">
+                    <label class="form-label">دوره (مثال: 1405/04)</label>
+                    <input type="text" name="period" class="form-control" placeholder="1405/04" required>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-warning w-100"><i class="bi bi-calculator me-1"></i> محاسبه خودکار مالیات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- براکت‌های مالیاتی -->
+    <div class="card mb-4">
+        <div class="card-head"><h5><i class="bi bi-info-circle"></i> براکت‌های مالیاتی ۱۴۰۵</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>از</th><th>تا</th><th>نرخ</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    <tr><td>۰</td><td>۱۲۰,۰۰۰,۰۰۰</td><td>۰٪</td><td><span class="badge-status badge-active">معاف</span></td></tr>
+                    <tr><td>۱۲۰,۰۰۰,۰۰۰</td><td>۲۰۰,۰۰۰,۰۰۰</td><td>۱۰٪</td><td></td></tr>
+                    <tr><td>۲۰۰,۰۰۰,۰۰۰</td><td>۴۰۰,۰۰۰,۰۰۰</td><td>۱۵٪</td><td></td></tr>
+                    <tr><td>۴۰۰,۰۰۰,۰۰۰</td><td>۶۰۰,۰۰۰,۰۰۰</td><td>۲۰٪</td><td></td></tr>
+                    <tr><td>۶۰۰,۰۰۰,۰۰۰</td><td>۸۰۰,۰۰۰,۰۰۰</td><td>۲۵٪</td><td></td></tr>
+                    <tr><td>۸۰۰,۰۰۰,۰۰۰</td><td>۱,۰۰۰,۰۰۰,۰۰۰</td><td>۳۰٪</td><td></td></tr>
+                    <tr><td>۱,۰۰۰,۰۰۰,۰۰۰</td><td>بدون سقف</td><td>۳۵٪</td><td></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- لیست افراد -->
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-people"></i> تفکیک مالیات هر شخص</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>نام</th><th>نوع</th><th>ناخالص</th><th>مالیات</th><th>بیمه</th><th>خالص</th><th>فیش</th></tr></thead>
+                <tbody>
+                    {% for p in persons %}
+                    <tr>
+                        <td><strong>{{ p.name }}</strong></td>
+                        <td>{{ p.type }}</td>
+                        <td>{{ p.gross|currency }} ت</td>
+                        <td style="color: #c62828;">{{ p.tax|currency }} ت</td>
+                        <td style="color: #e65100;">{{ p.insurance|currency }} ت</td>
+                        <td style="color: #2e7d32; font-weight: 700;">{{ p.net|currency }} ت</td>
+                        <td>{{ p.count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

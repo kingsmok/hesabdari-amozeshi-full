@@ -1,0 +1,29 @@
+{% extends "base/layout.html" %}
+{% block title %}تایید دو مرحله‌ای{% endblock %}
+{% block breadcrumb %}<li>امنیت</li><li class="active">تایید دو مرحله‌ای</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-shield-lock"></i> تایید دو مرحله‌ای<small>افزایش امنیت ورود</small></h1></div>
+    <div class="card" style="max-width: 600px;">
+        <div class="card-body-padded">
+            <div class="stat-box mb-3">
+                <h6>عملیات حساس نیاز به تایید دارند:</h6>
+                <ul style="font-size: 13px; color: #546e7a;">
+                    <li>حذف پرداخت مالی</li>
+                    <li>تغییر شهریه</li>
+                    <li>اصلاح سند حسابداری</li>
+                    <li>بستن دوره مالی</li>
+                    <li>حذف کاربر</li>
+                </ul>
+            </div>
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="tfa" checked>
+                    <label class="form-check-label" for="tfa">فعال‌سازی تایید دو مرحله‌ای برای عملیات حساس</label>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

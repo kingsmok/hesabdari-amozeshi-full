@@ -1,0 +1,35 @@
+{% extends "base/layout.html" %}
+{% block title %}ثبت‌نام سریع{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('registration.index') }}">ثبت‌نام</a></li>
+<li class="active">ثبت‌نام سریع</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-lightning me-2 text-warning"></i>ثبت‌نام سریع<small>فرم سریع برای منشی</small></h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom">
+            <form method="POST" action="{{ url_for('registration.add') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">هنرجو <span class="text-danger">*</span></label>
+                        <select name="student_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                            <option value="">انتخاب...</option>
+                            {% for s in students %}<option value="{{ s.id }}">{{ s.full_name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">دوره <span class="text-danger">*</span></label>
+                        <select name="course_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                            <option value="">انتخاب...</option>
+                            {% for c in classes %}<option value="{{ c.course_id }}">{{ c.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">پرداخت</label><input type="number" name="initial_payment" class="form-control" value="0"></div>
+                </div>
+                <button type="submit" class="btn btn-success-custom mt-3"><i class="bi bi-check-circle me-2"></i>ثبت سریع</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

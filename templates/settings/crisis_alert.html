@@ -1,0 +1,17 @@
+{% extends "base/layout.html" %}
+{% block title %}اعلان بحران{% endblock %}
+{% block breadcrumb %}<li>تنظیمات</li><li class="active">اعلان بحران</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-exclamation-octagon"></i> سیستم اعلان بحران<small>ارسال فوری به همه کاربران</small></h1></div>
+    <div class="card" style="max-width: 600px; border: 2px solid #c62828;">
+        <div class="card-body-padded">
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="mb-3"><label class="form-label">موضوع بحران</label><input type="text" name="title" class="form-control" required></div>
+                <div class="mb-3"><label class="form-label">توضیحات</label><textarea name="body" class="form-control" rows="3"></textarea></div>
+                <button type="submit" class="btn btn-danger" onclick="return confirm('ارسال شود؟')"><i class="bi bi-exclamation-triangle me-1"></i> ارسال اعلان بحران</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

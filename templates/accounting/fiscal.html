@@ -1,0 +1,30 @@
+{% extends "base/layout.html" %}
+{% block title %}دوره مالی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('accounting.fiscal') }}">حسابداری</a></li>
+<li class="active">دوره مالی</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-calendar-range me-2 text-primary"></i>دوره‌های مالی</h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>نام</th><th>از</th><th>تا</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for p in periods %}
+                    <tr>
+                        <td>{{ p.name }}</td>
+                        <td>{{ p.start_date|to_jalali }}</td>
+                        <td>{{ p.end_date|to_jalali }}</td>
+                        <td><span class="badge-status badge-{{ 'completed' if p.is_closed else 'active' }}">{{ 'بسته' if p.is_closed else 'باز' }}</span></td>
+                        <td>{% if not p.is_closed %}<form method="POST" action="{{ url_for('accounting.close_fiscal', id=p.id) }}" style="display: inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm-custom btn-outline-danger">بستن</button></form>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

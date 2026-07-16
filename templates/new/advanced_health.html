@@ -1,0 +1,51 @@
+{% extends "base/layout.html" %}
+{% block title %}سلامت پیشرفته{% endblock %}
+{% block breadcrumb %}<li>تنظیمات</li><li class="active">سلامت پیشرفته</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-heart-pulse"></i> گزارش سلامت پیشرفته<small>وضعیت کامل سیستم</small></h1></div>
+    <div class="row g-3 mb-4">
+        {% for check in health_checks %}
+        <div class="col-md-4">
+            <div class="stat-box" style="border: 2px solid {{ '#2e7d32' if check.status == 'ok' else ('#ff8f00' if check.status == 'warning' else '#c62828') }};">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">{{ check.name }}</div>
+                        <div style="font-size: 14px; font-weight: 700;">{{ check.message }}</div>
+                    </div>
+                    <i class="bi bi-{{ 'check-circle' if check.status == 'ok' else ('exclamation-triangle' if check.status == 'warning' else 'x-circle') }}" style="font-size: 28px; color: {{ '#2e7d32' if check.status == 'ok' else ('#ff8f00' if check.status == 'warning' else '#c62828') }};"></i>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">حجم دیتابیس</div><div class="stat-val" style="font-size: 18px;">{{ stats.db_size_mb }} MB</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">کل جداول</div><div class="stat-val">{{ stats.total_tables }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">کل رکوردها</div><div class="stat-val">{{ stats.total_records }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">پلتفرم</div><div class="stat-val" style="font-size: 14px;">{{ stats.platform }}</div></div></div>
+    </div>
+    <div class="card mb-4">
+        <div class="card-head"><h5><i class="bi bi-database"></i> آمار جداول</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>جدول</th><th>تعداد رکورد</th></tr></thead>
+                <tbody>{% for t in table_stats %}<tr><td><code>{{ t.name }}</code></td><td>{{ t.count }}</td></tr>{% endfor %}</tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-clock-history"></i> آخرین فعالیت‌ها</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>کاربر</th><th>عملیات</th><th>توضیحات</th><th>زمان</th></tr></thead>
+                <tbody>
+                    {% for log in recent_logs %}
+                    <tr><td>{{ log.user.full_name if log.user else '-' }}</td><td><span class="badge-status badge-active">{{ log.action }}</span></td><td>{{ (log.description or '-')[:50] }}</td><td>{{ log.created_at|to_jalali }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

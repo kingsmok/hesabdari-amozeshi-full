@@ -1,0 +1,32 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات بله{% endblock %}
+{% block breadcrumb %}<li>ربات‌ها</li><li class="active">بله</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-chat-dots"></i> تنظیمات ربات بله<small>پیام‌رسان ایرانی</small></h1></div>
+    <div class="card mb-4" style="max-width: 700px;">
+        <div class="card-head"><h5>تنظیمات اتصال</h5></div>
+        <div class="card-body-padded">
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3">
+                    <div class="col-md-8"><label class="form-label">توکن بات بله</label><input type="text" name="bale_bot_token" class="form-control" value="{{ settings.bale_bot_token or '' }}" placeholder="توکن از @bale_bot"></div>
+                    <div class="col-md-12"><label class="form-label">آدرس وب‌هوک</label><input type="text" name="bale_webhook_url" class="form-control" value="{{ settings.bale_webhook_url or '' }}" placeholder="https://your-domain.com/webhook/bale"></div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+            </form>
+        </div>
+    </div>
+    <div class="card" style="max-width: 700px;">
+        <div class="card-head"><h5>راهنمای راه‌اندازی</h5></div>
+        <div class="card-body-padded">
+            <ol style="font-size: 13px; line-height: 2.2;">
+                <li>به <a href="https://ble.ir/BaleBot" target="_blank">@BaleBot</a> در بله پیام دهید</li>
+                <li>دستور <code>/newbot</code> را بزنید</li>
+                <li>توکن را در فیلد بالا وارد کنید</li>
+                <li>وب‌هوک را روی <code>/webhook/bale</code> تنظیم کنید</li>
+            </ol>
+            <p style="font-size: 12px; color: #78909c;">API بله: <code>https://tapi.bale.ai/bot{TOKEN}/sendMessage</code></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

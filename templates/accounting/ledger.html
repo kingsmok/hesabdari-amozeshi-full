@@ -1,0 +1,29 @@
+{% extends "base/layout.html" %}
+{% block title %}دفتر معین{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('accounting.ledger') }}">حسابداری</a></li>
+<li class="active">دفتر معین</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-book me-2 text-info"></i>دفتر معین<small>انتخاب حساب برای مشاهده جزئیات</small></h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>کد</th><th>نام حساب</th><th>مانده</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for acc in accounts %}
+                    <tr>
+                        <td><code>{{ acc.code }}</code></td>
+                        <td>{{ acc.name }}</td>
+                        <td>{{ acc.balance|currency }}</td>
+                        <td><a href="{{ url_for('accounting.account_ledger', account_id=acc.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

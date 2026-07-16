@@ -1,0 +1,38 @@
+{% extends "base/layout.html" %}
+{% block title %}چک‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.checks') }}">مالی</a></li>
+<li class="active">چک‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-file-earmark-check me-2 text-info"></i>مدیریت چک‌ها</h1>
+        <a href="{{ url_for('finance.add_check') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>چک جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if checks %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>شماره</th><th>بانک</th><th>مبلغ</th><th>صادرکننده</th><th>سررسید</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for c in checks %}
+                    <tr>
+                        <td><code>{{ c.check_number }}</code></td>
+                        <td>{{ c.bank_name }}</td>
+                        <td>{{ c.amount|currency }} ت</td>
+                        <td>{{ c.issuer_name or '-' }}</td>
+                        <td>{{ c.due_date|to_jalali }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if c.status == 'cashed' else ('pending' if c.status == 'received' else 'inactive') }}">{{ c.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">چکی ثبت نشده</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

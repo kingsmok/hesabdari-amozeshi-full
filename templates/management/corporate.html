@@ -1,0 +1,21 @@
+{% extends "base/layout.html" %}
+{% block title %}مشتریان سازمانی{% endblock %}
+{% block breadcrumb %}<li>مدیریت</li><li class="active">سازمانی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-building"></i> مشتریان سازمانی<small>قراردادهای گروهی</small></h1>
+        <a href="{{ url_for('features2.add_corporate') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> قرارداد جدید</a>
+    </div>
+    <div class="card"><div class="card-body-padded" style="padding: 0;">
+        <table class="table mb-0">
+            <thead><tr><th>نام</th><th>موبایل</th><th>وضعیت</th></tr></thead>
+            <tbody>
+                {% for c in corporates %}
+                <tr><td>{{ c.full_name }}</td><td>{{ c.mobile }}</td><td><span class="badge-status badge-active">فعال</span></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

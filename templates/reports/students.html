@@ -1,0 +1,18 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش هنرجویان{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('reports.student_report') }}">گزارش‌ها</a></li>
+<li class="active">هنرجویان</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-people me-2 text-primary"></i>گزارش هنرجویان</h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-card"><div class="stat-label">کل</div><div class="stat-value">{{ stats.total }}</div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-label">فعال</div><div class="stat-value" style="color: #27ae60;">{{ stats.active }}</div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-label">فارغ‌التحصیل</div><div class="stat-value" style="color: #3498db;">{{ stats.graduated }}</div></div></div>
+        <div class="col-md-3"><div class="stat-card"><div class="stat-label">انصرافی</div><div class="stat-value" style="color: #e74c3c;">{{ stats.withdrawn }}</div></div></div>
+    </div>
+</div>
+{% endblock %}

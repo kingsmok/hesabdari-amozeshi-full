@@ -1,0 +1,35 @@
+{% extends "base/layout.html" %}
+{% block title %}تیکت جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('tickets.index') }}">تیکت‌ها</a></li>
+<li class="active">تیکت جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-info"></i>ثبت تیکت جدید</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-8"><label class="form-label">موضوع <span class="text-danger">*</span></label><input type="text" name="subject" class="form-control" required></div>
+                    <div class="col-md-4"><label class="form-label">اولویت</label>
+                        <select name="priority" class="form-select">
+                            <option value="low">پایین</option>
+                            <option value="medium" selected>متوسط</option>
+                            <option value="high">بالا</option>
+                            <option value="urgent">فوری</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12"><label class="form-label">توضیحات</label><textarea name="description" class="form-control" rows="5"></textarea></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('tickets.index') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ثبت تیکت</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

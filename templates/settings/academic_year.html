@@ -1,0 +1,43 @@
+{% extends "base/layout.html" %}
+{% block title %}سال آموزشی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('settings.academic_year') }}">تنظیمات</a></li>
+<li class="active">سال آموزشی</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-calendar3 me-2 text-primary"></i>سال آموزشی</h1></div>
+    <div class="card-custom mb-4">
+        <div class="card-body-custom">
+            <form method="POST" action="{{ url_for('settings.add_academic_year') }}" class="row g-3 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-2"><label class="form-label">سال</label><input type="text" name="year_name" class="form-control" required placeholder="1405"></div>
+                <div class="col-md-2"><label class="form-label">ترم</label><input type="text" name="term_name" class="form-control" placeholder="بهار"></div>
+                <div class="col-md-2"><label class="form-label">از تاریخ</label><input type="date" name="start_date" class="form-control"></div>
+                <div class="col-md-2"><label class="form-label">تا تاریخ</label><input type="date" name="end_date" class="form-control"></div>
+                <div class="col-md-2"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="is_current"><label class="form-check-label">جاری</label></div></div>
+                <div class="col-md-2"><button type="submit" class="btn btn-success-custom w-100"><i class="bi bi-plus me-1"></i> افزودن</button></div>
+            </form>
+        </div>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>سال</th><th>ترم</th><th>از</th><th>تا</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for y in years %}
+                    <tr>
+                        <td>{{ y.year_name }}</td>
+                        <td>{{ y.term_name or '-' }}</td>
+                        <td>{{ y.start_date|to_jalali if y.start_date else '-' }}</td>
+                        <td>{{ y.end_date|to_jalali if y.end_date else '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if y.is_current else 'completed' }}">{{ 'جاری' if y.is_current else ('بسته' if y.is_closed else 'غیرفعال') }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

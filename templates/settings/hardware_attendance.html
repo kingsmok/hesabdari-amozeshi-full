@@ -1,0 +1,37 @@
+{% extends "base/layout.html" %}
+{% block title %}دستگاه حضور و غیاب{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('features2.attendance_device') }}">سخت‌افزار</a></li><li class="active">حضور و غیاب</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-fingerprint"></i> دستگاه حضور و غیاب<small>اتصال و مدیریت دستگاه بیومتریک</small></h1></div>
+    <div class="card mb-4">
+        <div class="card-head"><h5>تنظیمات اتصال</h5></div>
+        <div class="card-body-padded">
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">نوع دستگاه</label>
+                        <select name="device_type" class="form-select"><option value="fingerprint">اثر انگشت</option><option value="card">کارت RFID</option><option value="face">تشخیص چهره</option></select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">برند</label><input type="text" name="device_brand" class="form-control" placeholder="ZKTeco, ..."></div>
+                    <div class="col-md-3"><label class="form-label">IP دستگاه</label><input type="text" name="device_ip" class="form-control" placeholder="192.168.1.100"></div>
+                    <div class="col-md-3"><label class="form-label">پورت</label><input type="text" name="device_port" class="form-control" placeholder="4370"></div>
+                </div>
+                <div class="mt-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+                    <form method="POST" action="{{ url_for('features2.sync_attendance') }}" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-success"><i class="bi bi-arrow-repeat me-1"></i> همگام‌سازی</button></form>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-head"><h5>راهنمای اتصال</h5></div>
+        <div class="card-body-padded">
+            <div class="row g-3">
+                <div class="col-md-4"><div class="stat-box"><h6>۱. اتصال فیزیکی</h6><p style="font-size: 12px; color: #78909c;">دستگاه را به شبکه محلی متصل کنید و IP ثابت اختصاص دهید.</p></div></div>
+                <div class="col-md-4"><div class="stat-box"><h6>۲. تنظیمات نرم‌افزار</h6><p style="font-size: 12px; color: #78909c;">IP و پورت دستگاه را در فرم بالا وارد کنید.</p></div></div>
+                <div class="col-md-4"><div class="stat-box"><h6>۳. همگام‌سازی</h6><p style="font-size: 12px; color: #78909c;">روی دکمه همگام‌سازی کلیک کنید تا داده‌ها دریافت شود.</p></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

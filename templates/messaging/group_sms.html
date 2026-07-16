@@ -1,0 +1,38 @@
+{% extends "base/layout.html" %}
+{% block title %}پیامک گروهی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('messaging.group_sms') }}">پیام‌رسانی</a></li>
+<li class="active">گروهی</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-broadcast me-2 text-warning"></i>ارسال پیامک گروهی</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">گروه هدف</label>
+                        <select name="target" class="form-select">
+                            <option value="all_students">همه هنرجویان</option>
+                            <option value="all_teachers">همه مدرسین</option>
+                            <option value="class">یک کلاس خاص</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">کلاس (در صورت انتخاب)</label>
+                        <select name="class_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                            <option value="">انتخاب...</option>
+                            {% for c in classes %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-12"><label class="form-label">متن پیام</label><textarea name="message_text" class="form-control" rows="4" required></textarea></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-send me-2"></i>ارسال گروهی</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

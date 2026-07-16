@@ -1,0 +1,34 @@
+{% extends "base/layout.html" %}
+{% block title %}کد تخفیف جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.discounts') }}">کدهای تخفیف</a></li>
+<li class="active">کد جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-success"></i>ایجاد کد تخفیف</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">کد تخفیف</label><input type="text" name="code" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">نوع</label>
+                        <select name="discount_type" class="form-select"><option value="percentage">درصدی</option><option value="fixed">مبلغ ثابت</option></select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">مقدار</label><input type="number" name="discount_value" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">حداکثر استفاده</label><input type="number" name="max_uses" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">از تاریخ</label><input type="date" name="valid_from" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">تا تاریخ</label><input type="date" name="valid_until" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">توضیحات</label><input type="text" name="description" class="form-control"></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('finance.discounts') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ایجاد</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

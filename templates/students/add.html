@@ -1,0 +1,195 @@
+{% extends "base/layout.html" %}
+{% block title %}ثبت هنرجو جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('students.index') }}">هنرجویان</a></li>
+<li class="active">ثبت هنرجو</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-person-plus me-2 text-primary"></i>ثبت هنرجو جدید<small>ایجاد پرونده جدید برای هنرجو</small></h1>
+    </div>
+
+    <form method="POST" action="{{ url_for('students.add') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <!-- Personal Info -->
+        <div class="card-custom mb-4">
+            <div class="card-header-custom">
+                <h5><i class="bi bi-person me-2"></i>اطلاعات شخصی</h5>
+            </div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">نام <span class="text-danger">*</span></label>
+                        <input type="text" name="first_name" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">نام خانوادگی <span class="text-danger">*</span></label>
+                        <input type="text" name="last_name" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">نام پدر</label>
+                        <input type="text" name="father_name" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">کد ملی</label>
+                        <input type="text" name="national_code" class="form-control" maxlength="10">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">شماره شناسنامه</label>
+                        <input type="text" name="birth_certificate_no" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">تاریخ تولد</label>
+                        <input type="date" name="birth_date" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">جنسیت</label>
+                        <select name="gender" class="form-select">
+                            <option value="">انتخاب...</option>
+                            <option value="male">مرد</option>
+                            <option value="female">زن</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">وضعیت تأهل</label>
+                        <select name="marital_status" class="form-select">
+                            <option value="">انتخاب...</option>
+                            <option value="single">مجرد</option>
+                            <option value="married">متأهل</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">سطح تحصیلات</label>
+                        <input type="text" name="education_level" class="form-control" placeholder="مثال: دیپلم">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">شغل</label>
+                        <input type="text" name="job" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">محل کار</label>
+                        <input type="text" name="workplace" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">دسته‌بندی</label>
+                        <select name="category" class="form-select">
+                            <option value="">انتخاب...</option>
+                            <option value="teen">نوجوان</option>
+                            <option value="adult">بزرگسال</option>
+                            <option value="vip">VIP</option>
+                            <option value="corporate">سازمانی</option>
+                            <option value="special">ویژه</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="card-custom mb-4">
+            <div class="card-header-custom">
+                <h5><i class="bi bi-telephone me-2"></i>اطلاعات تماس</h5>
+            </div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">موبایل <span class="text-danger">*</span></label>
+                        <input type="text" name="mobile" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">موبایل دوم</label>
+                        <input type="text" name="mobile2" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">تلفن ثابت</label>
+                        <input type="text" name="phone" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">ایمیل</label>
+                        <input type="email" name="email" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">آدرس</label>
+                        <input type="text" name="address" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">کدپستی</label>
+                        <input type="text" name="postal_code" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">تلفن اضطراری</label>
+                        <input type="text" name="emergency_phone" class="form-control">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parent Info -->
+        <div class="card-custom mb-4">
+            <div class="card-header-custom">
+                <h5><i class="bi bi-people me-2"></i>اطلاعات والدین (برای زیر ۱۸ سال)</h5>
+            </div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">نام پدر</label>
+                        <input type="text" name="parent_name" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">موبایل والد</label>
+                        <input type="text" name="parent_mobile" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">شغل والد</label>
+                        <input type="text" name="parent_job" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">نسبت</label>
+                        <select name="parent_relation" class="form-select">
+                            <option value="">انتخاب...</option>
+                            <option value="father">پدر</option>
+                            <option value="mother">مادر</option>
+                            <option value="guardian">سرپرست</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Referral -->
+        <div class="card-custom mb-4">
+            <div class="card-header-custom">
+                <h5><i class="bi bi-share me-2"></i>منبع معرفی</h5>
+            </div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">نحوه آشنایی</label>
+                        <select name="referral_source" class="form-select">
+                            <option value="">انتخاب...</option>
+                            <option value="instagram">اینستاگرام</option>
+                            <option value="friend">معرفی دوستان</option>
+                            <option value="website">سایت</option>
+                            <option value="phone">تماس تلفنی</option>
+                            <option value="ad">تبلیغات</option>
+                            <option value="other">سایر</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">توضیحات</label>
+                        <input type="text" name="notes" class="form-control" placeholder="توضیحات تکمیلی...">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('students.index') }}" class="btn btn-outline-secondary"><i class="bi bi-x-circle me-1"></i> انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ثبت هنرجو</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

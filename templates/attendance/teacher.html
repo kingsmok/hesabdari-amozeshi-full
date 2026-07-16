@@ -1,0 +1,35 @@
+{% extends "base/layout.html" %}
+{% block title %}حضور مدرس{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('attendance.index') }}">حضور</a></li><li class="active">{{ teacher.full_name }}</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-person-workspace"></i> حضور مدرس<small>{{ teacher.full_name }}</small></h1></div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">کل جلسات</div><div class="stat-val">{{ total_sessions }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">حاضر</div><div class="stat-val" style="color: #2e7d32;">{{ present_count }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">ساعات تدریس</div><div class="stat-val" style="color: #1565c0;">{{ total_hours }}</div></div></div>
+    </div>
+
+    <div class="card">
+        <div class="card-head"><h5>سوابق حضور</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>جلسه</th><th>وضعیت</th><th>ورود</th><th>خروج</th><th>ساعات</th><th>تاریخ</th></tr></thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr>
+                        <td>{{ r.session.session_number if r.session else '-' }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if r.status == 'present' else 'inactive' }}">{{ r.status }}</span></td>
+                        <td>{{ r.arrival_time or '-' }}</td>
+                        <td>{{ r.departure_time or '-' }}</td>
+                        <td>{{ r.teaching_hours or 0 }} ساعت</td>
+                        <td>{{ r.created_at|to_jalali }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

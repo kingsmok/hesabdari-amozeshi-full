@@ -1,0 +1,163 @@
+{% extends "base/layout.html" %}
+{% block title %}ثبت‌نام جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('registration.index') }}">ثبت‌نام</a></li>
+<li class="active">ثبت‌نام جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-success"></i>ثبت‌نام جدید</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-header-custom"><h5>اطلاعات ثبت‌نام</h5></div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">هنرجو <span class="text-danger">*</span></label>
+                        <select name="student_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                            <option value="">انتخاب هنرجو...</option>
+                            {% for s in students %}<option value="{{ s.id }}">{{ s.full_name }} ({{ s.student_code }})</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">دوره <span class="text-danger">*</span></label>
+                        <select name="course_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                            <option value="">انتخاب دوره...</option>
+                            {% for c in courses %}<option value="{{ c.id }}">{{ c.title }} - {{ c.total_fee|currency }} ت</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">کلاس</label>
+                        <select name="class_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                            <option value="">انتخاب کلاس...</option>
+                            {% for cl in classes %}<option value="{{ cl.id }}">{{ cl.name }} ({{ cl.available_capacity }} ظرفیت)</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">تاریخ شروع</label><input type="date" name="start_date" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">شهریه پایه</label><input type="number" name="base_fee" class="form-control" placeholder="自动 از دوره"></div>
+                    <div class="col-md-2"><label class="form-label">نوع تخفیف</label>
+                        <select name="discount_type" class="form-select">
+                            <option value="">بدون تخفیف</option>
+                            <option value="percentage">درصدی</option>
+                            <option value="fixed">مبلغ ثابت</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2"><label class="form-label">مبلغ تخفیف</label><input type="number" name="discount_value" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">کد تخفیف</label><input type="text" name="discount_code" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">پرداخت اولیه</label><input type="number" name="initial_payment" class="form-control" value="0"></div>
+                    <div class="col-md-3"><label class="form-label">روش پرداخت</label>
+                        <select name="payment_method" class="form-select">
+                            <option value="cash">نقدی</option>
+                            <option value="card">کارت بانکی</option>
+                            <option value="online">آنلاین</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6"><label class="form-label">توضیحات</label><input type="text" name="notes" class="form-control"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- بخش پرداخت مدرس -->
+        <div class="card-custom mb-4">
+            <div class="card-header-custom"><h5><i class="bi bi-person-workspace me-2"></i>تنظیمات پرداخت مدرس</h5></div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">نوع پرداخت مدرس</label>
+                        <select name="teacher_payment_type" class="form-select" id="teacherPayType" onchange="showTeacherPayFields()">
+                            <option value="">انتخاب کنید...</option>
+                            <option value="percentage">درصدی (از شهریه)</option>
+                            <option value="fixed">مبلغ ثابت</option>
+                            <option value="hourly">ساعتی</option>
+                            <option value="session">جلسه‌ای</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3" id="teacherPercentField">
+                        <label class="form-label">درصد مدرس (%)</label>
+                        <input type="number" name="teacher_payment_value" class="form-control" value="0" step="0.5" id="teacherPayValue" oninput="calcTeacherPay()">
+                        <small class="text-muted">مثال: 50 = نصف شهریه</small>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">مبلغ قابل پرداخت به مدرس</label>
+                        <input type="text" id="teacherPayAmount" class="form-control" readonly style="background: #f8f9fa; font-weight: 700; color: #0d47a1;">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">مبلغ شهریه (برای محاسبه)</label>
+                        <input type="text" id="feeForCalc" class="form-control" readonly style="background: #f8f9fa;">
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setTeacherPay('percentage', 50)">۵۰٪</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setTeacherPay('percentage', 40)">۴۰٪</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setTeacherPay('percentage', 30)">۳۰٪</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="setTeacherPay('percentage', 25)">۲۵٪</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setTeacherPay('fixed', 0)">ثابت</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('registration.index') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ثبت‌نام</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function showTeacherPayFields() {
+    const type = document.getElementById('teacherPayType').value;
+    const field = document.getElementById('teacherPercentField');
+    if (type === 'percentage') {
+        field.querySelector('label').textContent = 'درصد مدرس (%)';
+        field.querySelector('small').textContent = 'مثال: 50 = نصف شهریه';
+    } else if (type === 'fixed') {
+        field.querySelector('label').textContent = 'مبلغ ثابت (تومان)';
+        field.querySelector('small').textContent = 'مبلغ ثابت';
+    } else if (type === 'hourly') {
+        field.querySelector('label').textContent = 'نرخ ساعتی (تومان)';
+        field.querySelector('small').textContent = 'مبلغ هر ساعت';
+    } else if (type === 'session') {
+        field.querySelector('label').textContent = 'نرخ جلسه‌ای (تومان)';
+        field.querySelector('small').textContent = 'مبلغ هر جلسه';
+    }
+    calcTeacherPay();
+}
+
+function setTeacherPay(type, value) {
+    document.getElementById('teacherPayType').value = type;
+    document.getElementById('teacherPayValue').value = value;
+    showTeacherPayFields();
+    calcTeacherPay();
+}
+
+function calcTeacherPay() {
+    const type = document.getElementById('teacherPayType').value;
+    const value = parseFloat(document.getElementById('teacherPayValue').value) || 0;
+    const baseFee = parseFloat(document.querySelector('[name="base_fee"]').value) || 0;
+    const discountValue = parseFloat(document.querySelector('[name="discount_value"]').value) || 0;
+    const discountType = document.querySelector('[name="discount_type"]').value;
+    
+    let discount = 0;
+    if (discountType === 'percentage') discount = baseFee * (discountValue / 100);
+    else if (discountType === 'fixed') discount = discountValue;
+    
+    const totalFee = baseFee - discount;
+    document.getElementById('feeForCalc').value = totalFee.toLocaleString('fa-IR') + ' تومان';
+    
+    let teacherPay = 0;
+    if (type === 'percentage') teacherPay = totalFee * (value / 100);
+    else if (type === 'fixed') teacherPay = value;
+    else teacherPay = value;
+    
+    document.getElementById('teacherPayAmount').value = teacherPay.toLocaleString('fa-IR') + ' تومان';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    calcTeacherPay();
+    document.querySelector('[name="base_fee"]').addEventListener('input', calcTeacherPay);
+    document.querySelector('[name="discount_value"]').addEventListener('input', calcTeacherPay);
+    document.querySelector('[name="discount_type"]').addEventListener('change', calcTeacherPay);
+});
+</script>
+{% endblock %}

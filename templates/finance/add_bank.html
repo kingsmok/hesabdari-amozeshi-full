@@ -1,0 +1,31 @@
+{% extends "base/layout.html" %}
+{% block title %}حساب بانکی جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.bank') }}">بانک</a></li>
+<li class="active">حساب جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-primary"></i>حساب بانکی جدید</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">نام بانک</label><input type="text" name="bank_name" class="form-control" required></div>
+                    <div class="col-md-4"><label class="form-label">شماره حساب</label><input type="text" name="account_number" class="form-control"></div>
+                    <div class="col-md-4"><label class="form-label">شماره کارت</label><input type="text" name="card_number" class="form-control"></div>
+                    <div class="col-md-4"><label class="form-label">شبا</label><input type="text" name="sheba" class="form-control"></div>
+                    <div class="col-md-4"><label class="form-label">شعبه</label><input type="text" name="branch_name" class="form-control"></div>
+                    <div class="col-md-4"><label class="form-label">موجودی اولیه</label><input type="number" name="balance" class="form-control" value="0"></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('finance.bank') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ذخیره</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

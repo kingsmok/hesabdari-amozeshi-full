@@ -1,0 +1,33 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات پیامک{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('settings.sms') }}">تنظیمات</a></li>
+<li class="active">پیامک</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-phone me-2 text-success"></i>تنظیمات پیامک</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">سرویس‌دهنده</label>
+                        <select name="sms_provider" class="form-select">
+                            <option value="kavenegar" {{ 'selected' if settings.sms_provider == 'kavenegar' }}>کاوه‌نگار</option>
+                            <option value="melipayamak" {{ 'selected' if settings.sms_provider == 'melipayamak' }}>ملی پیامک</option>
+                            <option value="smsir" {{ 'selected' if settings.sms_provider == 'smsir' }}>اس‌ام‌اس ایران</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">API Key</label><input type="text" name="sms_api_key" class="form-control" value="{{ settings.sms_api_key or '' }}"></div>
+                    <div class="col-md-4"><label class="form-label">شماره فرستنده</label><input type="text" name="sms_sender" class="form-control" value="{{ settings.sms_sender or '' }}"></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ذخیره</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

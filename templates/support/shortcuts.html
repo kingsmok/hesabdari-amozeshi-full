@@ -1,0 +1,14 @@
+{% extends "base/layout.html" %}
+{% block title %}میانبرها{% endblock %}
+{% block breadcrumb %}<li>راهنما</li><li class="active">میانبرها</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-keyboard"></i> میانبرهای صفحه‌کلید</h1></div>
+    <div class="card"><div class="card-body-padded" style="padding: 0;">
+        <table class="table mb-0">
+            <thead><tr><th>کلیدها</th><th>عملکرد</th></tr></thead>
+            <tbody>{% for s in shortcuts %}<tr><td><code>{{ s.keys }}</code></td><td>{{ s.action }}</td></tr>{% endfor %}</tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

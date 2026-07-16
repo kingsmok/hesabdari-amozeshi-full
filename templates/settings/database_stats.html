@@ -1,0 +1,18 @@
+{% extends "base/layout.html" %}
+{% block title %}آمار دیتابیس{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('features.system_health') }}">سیستم</a></li><li class="active">آمار دیتابیس</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-database"></i> آمار جداول دیتابیس</h1></div>
+    <div class="card"><div class="card-body-padded" style="padding: 0;">
+        <table class="table mb-0">
+            <thead><tr><th>جدول</th><th>تعداد رکورد</th></tr></thead>
+            <tbody>
+                {% for s in stats %}
+                <tr><td><code>{{ s.name }}</code></td><td>{{ s.count }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اطلاعات شبکه — Academy Manager Pro</title>
+    <link rel="stylesheet" href="/static/fonts/Vazirmatn-font-face.css">
+    <link rel="stylesheet" href="/static/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
+    <style>
+        * { font-family: Vazirmatn, Tahoma, sans-serif; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0a1628 0%, #0d47a1 50%, #1565c0 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container { max-width: 900px; width: 100%; }
+        .card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(20px);
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #0d47a1, #1565c0);
+            color: white;
+            padding: 24px 32px;
+            border: none;
+        }
+        .card-header h2 { margin: 0; font-size: 22px; font-weight: 800; }
+        .card-header p { margin: 4px 0 0; opacity: 0.7; font-size: 13px; }
+        .card-body { padding: 32px; }
+        .url-box {
+            background: #f8f9fa;
+            border: 2px solid #e0e4e8;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .url-box:hover {
+            border-color: #0d47a1;
+            background: #e3f2fd;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(13,71,161,0.1);
+        }
+        .url-box .label {
+            font-size: 12px;
+            color: #78909c;
+            margin-bottom: 2px;
+        }
+        .url-box .url {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0d47a1;
+            direction: ltr;
+            text-align: left;
+            word-break: break-all;
+        }
+        .url-box .copy-btn {
+            background: #0d47a1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .url-box .copy-btn:hover {
+            background: #1565c0;
+            transform: scale(1.05);
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        .info-row:last-child { border: none; }
+        .info-label { color: #78909c; }
+        .info-value { font-weight: 700; color: #263238; direction: ltr; }
+        .status-dot {
+            width: 10px; height: 10px;
+            background: #00c853;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 6px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        .badge-tag {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #1a237e;
+            margin: 24px 0 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title:first-child { margin-top: 0; }
+        .qr-box {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            margin-top: 16px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 24px;
+            color: rgba(255,255,255,0.5);
+            font-size: 12px;
+        }
+        .copy-toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: #00c853;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+            z-index: 9999;
+        }
+        .copy-toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <h2><i class="bi bi-hdd-network me-2"></i>اطلاعات شبکه و اتصال</h2>
+                <p>آدرس‌های دقیق برای اتصال سایر سیستم‌ها به نرم‌افزار</p>
+            </div>
+            <div class="card-body">
+                
+                <!-- وضعیت سرور -->
+                <div class="section-title">
+                    <span class="status-dot"></span>
+                    وضعیت سرور: فعال
+                </div>
+                
+                <!-- آدرس‌های اتصال -->
+                <div class="section-title"><i class="bi bi-link-45deg"></i> آدرس‌های اتصال</div>
+                
+                <div class="url-box" onclick="copyUrl('{{ info.urls.local }}')">
+                    <div>
+                        <div class="label">🖥️ اتصال از همین کامپیوتر (localhost)</div>
+                        <div class="url">{{ info.urls.local }}</div>
+                    </div>
+                    <button class="copy-btn" onclick="event.stopPropagation(); copyUrl('{{ info.urls.local }}')">
+                        <i class="bi bi-clipboard me-1"></i> کپی
+                    </button>
+                </div>
+                
+                <div class="url-box" onclick="copyUrl('{{ info.urls.network }}')">
+                    <div>
+                        <div class="label">🌐 اتصال از سایر کامپیوترهای شبکه</div>
+                        <div class="url">{{ info.urls.network }}</div>
+                    </div>
+                    <button class="copy-btn" onclick="event.stopPropagation(); copyUrl('{{ info.urls.network }}')">
+                        <i class="bi bi-clipboard me-1"></i> کپی
+                    </button>
+                </div>
+                
+                <div class="url-box" onclick="copyUrl('{{ info.urls.network_info }}')">
+                    <div>
+                        <div class="label">ℹ️ صفحه اطلاعات شبکه (این صفحه)</div>
+                        <div class="url">{{ info.urls.network_info }}</div>
+                    </div>
+                    <button class="copy-btn" onclick="event.stopPropagation(); copyUrl('{{ info.urls.network_info }}')">
+                        <i class="bi bi-clipboard me-1"></i> کپی
+                    </button>
+                </div>
+                
+                {% if info.all_ips|length > 1 %}
+                <div class="section-title"><i class="bi bi-globe2"></i> تمام آدرس‌های IP</div>
+                {% for ip in info.all_ips %}
+                <div class="url-box" onclick="copyUrl('http://{{ ip }}:{{ info.port }}')">
+                    <div>
+                        <div class="label">آدرس {{ loop.index }}</div>
+                        <div class="url">http://{{ ip }}:{{ info.port }}</div>
+                    </div>
+                    <button class="copy-btn" onclick="event.stopPropagation(); copyUrl('http://{{ ip }}:{{ info.port }}')">
+                        <i class="bi bi-clipboard me-1"></i> کپی
+                    </button>
+                </div>
+                {% endfor %}
+                {% endif %}
+                
+                <!-- اطلاعات سیستم -->
+                <div class="section-title"><i class="bi bi-pc-display"></i> اطلاعات سیستم</div>
+                
+                <div class="info-row">
+                    <span class="info-label">نام کامپیوتر</span>
+                    <span class="info-value">{{ info.hostname }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">IP اصلی</span>
+                    <span class="info-value">{{ info.local_ip }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">سیستم‌عامل</span>
+                    <span class="info-value">{{ info.platform }} {{ info.platform_release }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">نسخه پایتون</span>
+                    <span class="info-value">{{ info.python_version }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">پورت سرور</span>
+                    <span class="info-value">{{ info.port }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">معماری</span>
+                    <span class="info-value">{{ info.machine }}</span>
+                </div>
+                
+                <!-- اطلاعات ورود -->
+                <div class="section-title"><i class="bi bi-key"></i> اطلاعات ورود پیش‌فرض</div>
+                
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <div style="background: #e8f5e9; border-radius: 12px; padding: 16px; text-align: center;">
+                            <div style="font-size: 12px; color: #2e7d32;">نام کاربری</div>
+                            <div style="font-size: 24px; font-weight: 900; color: #1b5e20; direction: ltr;">admin</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div style="background: #fff3e0; border-radius: 12px; padding: 16px; text-align: center;">
+                            <div style="font-size: 12px; color: #e65100;">رمز عبور</div>
+                            <div style="font-size: 24px; font-weight: 900; color: #bf360c; direction: ltr;">admin123</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- راهنمای اتصال از سایر سیستم‌ها -->
+                <div class="section-title"><i class="bi bi-info-circle"></i> راهنمای اتصال از سایر سیستم‌ها</div>
+                
+                <div style="background: #e3f2fd; border-radius: 12px; padding: 16px; font-size: 12px; line-height: 2;">
+                    <ol style="margin: 0; padding-right: 20px;">
+                        <li>مطمئن شوید سایر کامپیوترها به <strong>همان شبکه</strong> متصل هستند</li>
+                        <li>در مرورگر سایر سیستم، آدرس <code style="background: #bbdefb; padding: 2px 8px; border-radius: 4px;">{{ info.urls.network }}</code> را وارد کنید</li>
+                        <li>اطلاعات ورود را وارد کنید</li>
+                        <li>اگر فایروال مسدود کرد، پورت <strong>{{ info.port }}</strong> را باز کنید</li>
+                    </ol>
+                </div>
+                
+                <!-- دکمه‌ها -->
+                <div class="text-center mt-4">
+                    <a href="/" class="btn btn-primary" style="border-radius: 10px; padding: 10px 24px;">
+                        <i class="bi bi-box-arrow-in-left me-1"></i> ورود به نرم‌افزار
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Academy Manager Pro — نسخه ۱.۰</p>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="copy-toast" id="copyToast">
+        <i class="bi bi-check-circle me-1"></i> کپی شد!
+    </div>
+    
+    <script>
+        function copyUrl(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast();
+            }).catch(() => {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                showToast();
+            });
+        }
+        
+        function showToast() {
+            const toast = document.getElementById('copyToast');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+        
+        // انیمیشن ورود
+        document.querySelectorAll('.url-box').forEach((box, i) => {
+            box.style.opacity = '0';
+            box.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                box.style.transition = 'all 0.4s ease';
+                box.style.opacity = '1';
+                box.style.transform = 'translateY(0)';
+            }, 200 + i * 100);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,451 @@
+/* ═══════════════════════════════════════════════════════════════
+   انیمیشن‌ها و افکت‌های بصری — Academy Manager Pro
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ===== انیمیشن ورود صفحه ===== */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-24px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInRight {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeInLeft {
+    from { opacity: 0; transform: translateX(-24px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+@keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideInLeft {
+    from { transform: translateX(-100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.anim-fade-in { animation: fadeIn 0.4s ease-out both; }
+.anim-fade-up { animation: fadeInUp 0.4s ease-out both; }
+.anim-fade-down { animation: fadeInDown 0.4s ease-out both; }
+.anim-fade-right { animation: fadeInRight 0.4s ease-out both; }
+.anim-fade-left { animation: fadeInLeft 0.4s ease-out both; }
+.anim-scale-in { animation: scaleIn 0.3s ease-out both; }
+.anim-slide-right { animation: slideInRight 0.4s ease-out both; }
+
+/* تأخیر زمانی */
+.delay-1 { animation-delay: 0.05s; }
+.delay-2 { animation-delay: 0.1s; }
+.delay-3 { animation-delay: 0.15s; }
+.delay-4 { animation-delay: 0.2s; }
+.delay-5 { animation-delay: 0.25s; }
+.delay-6 { animation-delay: 0.3s; }
+.delay-7 { animation-delay: 0.35s; }
+.delay-8 { animation-delay: 0.4s; }
+
+/* ===== انیمیشن کارت‌ها ===== */
+.stat-box, .card {
+    transition: transform 0.3s cubic-bezier(.4,0,.2,1), 
+                box-shadow 0.3s cubic-bezier(.4,0,.2,1),
+                border-color 0.3s;
+}
+
+.stat-box:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.card:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+}
+
+/* ===== انیمیشن دکمه‌ها ===== */
+.btn {
+    transition: all 0.25s cubic-bezier(.4,0,.2,1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 0; height: 0;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s;
+}
+
+.btn:active::after {
+    width: 300px;
+    height: 300px;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+}
+
+.btn:active {
+    transform: translateY(0) scale(0.98);
+}
+
+/* ===== انیمیشن سایدبار ===== */
+.nav-link-item {
+    transition: all 0.2s cubic-bezier(.4,0,.2,1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-link-item::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0;
+    width: 0; height: 100%;
+    background: rgba(255,255,255,0.05);
+    transition: width 0.3s;
+}
+
+.nav-link-item:hover::after {
+    width: 100%;
+}
+
+.nav-link-item:hover {
+    transform: translateX(-4px);
+}
+
+.nav-link-item.active {
+    animation: activeMenuPulse 2s ease-in-out infinite;
+}
+
+@keyframes activeMenuPulse {
+    0%, 100% { box-shadow: 0 2px 8px rgba(13,71,161,0.3); }
+    50% { box-shadow: 0 2px 12px rgba(13,71,161,0.5); }
+}
+
+/* ===== انیمیشن جداول ===== */
+.table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table tbody tr:hover {
+    background: rgba(13,71,161,0.03) !important;
+    transform: scale(1.002);
+}
+
+.table tbody tr td {
+    transition: color 0.2s;
+}
+
+/* ===== انیمیشن فرم‌ها ===== */
+.form-control, .form-select {
+    transition: all 0.3s cubic-bezier(.4,0,.2,1) !important;
+}
+
+.form-control:focus, .form-select:focus {
+    transform: scale(1.01);
+    box-shadow: 0 0 0 3px rgba(13,71,161,0.1), 0 4px 12px rgba(13,71,161,0.05) !important;
+}
+
+/* ===== انیمیشن بج‌ها ===== */
+.badge-status {
+    transition: all 0.2s;
+}
+
+.badge-status:hover {
+    transform: scale(1.1);
+}
+
+/* ===== انیمیشن نوتیفیکیشن ===== */
+.alert {
+    animation: slideInRight 0.4s ease-out both;
+}
+
+/* ===== انیمیشن لودینگ ===== */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.loading-pulse { animation: pulse 1.5s ease-in-out infinite; }
+.loading-spin { animation: spin 1s linear infinite; }
+.loading-bounce { animation: bounce 0.6s ease-in-out infinite; }
+
+/* ===== انیمیشن عددشمار ===== */
+@keyframes countUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.count-up {
+    animation: countUp 0.5s ease-out both;
+}
+
+/* ===== انیمیشن پروگرس بار ===== */
+.progress-bar {
+    transition: width 1s cubic-bezier(.4,0,.2,1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* ===== انیمیشن مودال ===== */
+.modal.show .modal-dialog {
+    animation: scaleIn 0.3s ease-out;
+}
+
+.modal.show .modal-content {
+    animation: fadeInUp 0.3s ease-out 0.1s both;
+}
+
+/* ===== انیمیشن تولتیپ ===== */
+.tooltip.show {
+    animation: fadeIn 0.2s ease-out;
+}
+
+/* ===== انیمیشن سایدبار موبایل ===== */
+@media (max-width: 992px) {
+    .sidebar.open {
+        animation: slideInRight 0.3s ease-out;
+    }
+}
+
+/* ===== انیمیشن اسکرول ===== */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.6s cubic-bezier(.4,0,.2,1);
+}
+
+.scroll-reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ===== انیمیشن ویجت داشبورد ===== */
+.widget-enter {
+    animation: fadeInUp 0.5s ease-out both;
+}
+
+.widget-enter:nth-child(1) { animation-delay: 0s; }
+.widget-enter:nth-child(2) { animation-delay: 0.1s; }
+.widget-enter:nth-child(3) { animation-delay: 0.2s; }
+.widget-enter:nth-child(4) { animation-delay: 0.3s; }
+.widget-enter:nth-child(5) { animation-delay: 0.4s; }
+.widget-enter:nth-child(6) { animation-delay: 0.5s; }
+
+/* ===== انیمیشن خوش‌آمدگویی ===== */
+.welcome-banner {
+    animation: fadeInDown 0.6s ease-out;
+}
+
+.welcome-banner h2 {
+    animation: fadeInRight 0.6s ease-out 0.2s both;
+}
+
+.welcome-banner p {
+    animation: fadeInRight 0.6s ease-out 0.3s both;
+}
+
+.quick-btn {
+    animation: fadeInUp 0.4s ease-out both;
+}
+
+.quick-btn:nth-child(1) { animation-delay: 0.1s; }
+.quick-btn:nth-child(2) { animation-delay: 0.2s; }
+.quick-btn:nth-child(3) { animation-delay: 0.3s; }
+.quick-btn:nth-child(4) { animation-delay: 0.4s; }
+
+/* ===== انیمیشن نمودار ===== */
+canvas {
+    animation: fadeIn 0.8s ease-out 0.3s both;
+}
+
+/* ===== افکت شیشه‌ای (Glassmorphism) ===== */
+.glass {
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.3);
+}
+
+/* ===== افکت نئومورفیسم ===== */
+.neumorphism {
+    background: #f0f2f5;
+    box-shadow: 6px 6px 12px rgba(0,0,0,0.08),
+                -6px -6px 12px rgba(255,255,255,0.8);
+    border-radius: 12px;
+}
+
+/* ===== انیمیشن آیکون‌ها ===== */
+.bi {
+    transition: transform 0.2s, color 0.2s;
+}
+
+.nav-link-item:hover .bi {
+    transform: scale(1.15);
+}
+
+.stat-icon i {
+    transition: transform 0.3s;
+}
+
+.stat-box:hover .stat-icon i {
+    transform: scale(1.2) rotate(5deg);
+}
+
+/* ===== انیمیشن اسکرولبار ===== */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #b0bec5;
+    border-radius: 10px;
+    transition: background 0.3s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #78909c;
+}
+
+/* ===== انیمیشن چاپ ===== */
+@media print {
+    .anim-fade-up, .anim-fade-in, .anim-scale-in {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+}
+
+/* ===== Dark Mode ===== */
+body.dark-mode {
+    --clr-body: #121212;
+    --clr-card: #1e1e1e;
+    --clr-border: #333;
+}
+
+body.dark-mode .top-bar {
+    background: #1e1e1e;
+    border-bottom-color: #333;
+}
+
+body.dark-mode .stat-box {
+    background: #1e1e1e;
+    border-color: #333;
+}
+
+body.dark-mode .table thead th {
+    background: #252525;
+    color: #aaa;
+}
+
+body.dark-mode .table tbody td {
+    color: #ccc;
+    border-bottom-color: #333;
+}
+
+body.dark-mode .form-control, body.dark-mode .form-select {
+    background: #252525;
+    border-color: #444;
+    color: #eee;
+}
+
+body.dark-mode .page-head h1 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .card-head {
+    border-bottom-color: #333;
+}
+
+body.dark-mode .stat-val {
+    color: #e0e0e0;
+}
+
+body.dark-mode .stat-label {
+    color: #888;
+}
+
+body.dark-mode .user-meta .name {
+    color: #e0e0e0;
+}
+
+body.dark-mode .btn-toggle-sidebar {
+    background: #252525;
+    border-color: #444;
+    color: #aaa;
+}
+
+body.dark-mode .top-icon-btn {
+    background: #252525;
+    border-color: #444;
+    color: #aaa;
+}
+
+body.dark-mode .alert {
+    background: #252525;
+    color: #eee;
+}
+
+body.dark-mode .welcome-banner {
+    background: linear-gradient(135deg, #1a237e, #0d47a1);
+}
+
+body.dark-mode .modal-content {
+    background: #1e1e1e;
+    color: #eee;
+}
+
+body.dark-mode .user-dropdown {
+    background: #1e1e1e;
+    border-color: #333;
+}
+
+body.dark-mode .user-dropdown a {
+    color: #ccc;
+}
+
+body.dark-mode .user-dropdown a:hover {
+    background: #252525;
+}

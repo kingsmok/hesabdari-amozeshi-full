@@ -1,0 +1,24 @@
+{% extends "base/layout.html" %}
+{% block title %}هنرجویان من{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('teacher_portal.my_dashboard') }}">پنل مدرس</a></li><li class="active">هنرجویان</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-people"></i> هنرجویان من<small>{{ students_data|length }} نفر</small></h1></div>
+    <div class="card"><div class="card-body-padded" style="padding:0;">
+        <table class="table mb-0">
+            <thead><tr><th>#</th><th>نام</th><th>کد</th><th>کلاس</th><th>موبایل</th></tr></thead>
+            <tbody>
+                {% for item in students_data %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><strong>{{ item.student.full_name }}</strong></td>
+                    <td><code>{{ item.student.student_code }}</code></td>
+                    <td>{{ item.class.name }}</td>
+                    <td>{{ item.student.mobile }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

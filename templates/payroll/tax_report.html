@@ -1,0 +1,33 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش مالیاتی{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('payroll.dashboard') }}">حقوق</a></li><li class="active">مالیات</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-percent"></i> گزارش مالیاتی<small>خلاصه مالیات و بیمه</small></h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع ناخالص</div><div class="stat-val" style="font-size: 18px;">{{ total_gross|currency }} ت</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع مالیات</div><div class="stat-val" style="font-size: 18px; color: #c62828;">{{ total_tax|currency }} ت</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع بیمه</div><div class="stat-val" style="font-size: 18px; color: #e65100;">{{ total_insurance|currency }} ت</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع خالص</div><div class="stat-val" style="font-size: 18px; color: #2e7d32;">{{ total_net|currency }} ت</div></div></div>
+    </div>
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>فیش</th><th>دوره</th><th>ناخالص</th><th>بیمه</th><th>مالیات</th><th>خالص</th></tr></thead>
+                <tbody>
+                    {% for p in payslips %}
+                    <tr>
+                        <td><code>{{ p.payslip_number }}</code></td>
+                        <td>{{ p.period }}</td>
+                        <td>{{ p.gross_amount|currency }} ت</td>
+                        <td style="color: #e65100;">{{ p.insurance|currency }} ت</td>
+                        <td style="color: #c62828;">{{ p.tax|currency }} ت</td>
+                        <td style="color: #2e7d32; font-weight: 700;">{{ p.net_amount|currency }} ت</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

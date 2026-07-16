@@ -1,0 +1,58 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات ارسال خودکار{% endblock %}
+{% block breadcrumb %}<li>تنظیمات</li><li class="active">ارسال خودکار</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-robot"></i> تنظیمات ارسال خودکار پیامک<small>trigger‌های سیستمی</small></h1></div>
+    <div class="card mb-4" style="max-width: 700px;">
+        <div class="card-head"><h5>پیامک‌های خودکار</h5></div>
+        <div class="card-body-padded">
+            <div class="stat-box mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><h6>✅ پیامک تایید ثبت‌نام</h6><p style="font-size: 11px; color: #78909c;">بعد از هر ثبت‌نام، پیامک تایید ارسال شود</p></div>
+                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div>
+                </div>
+            </div>
+            <div class="stat-box mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><h6>📅 یادآوری کلاس</h6><p style="font-size: 11px; color: #78909c;">قبل از هر جلسه، یادآوری ارسال شود</p></div>
+                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div>
+                </div>
+            </div>
+            <div class="stat-box mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><h6>❌ پیامک غیبت</h6><p style="font-size: 11px; color: #78909c;">بعد از ثبت غیبت، پیامک ارسال شود</p></div>
+                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox"></div>
+                </div>
+            </div>
+            <div class="stat-box mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><h6>💰 یادآوری قسط</h6><p style="font-size: 11px; color: #78909c;">قبل از سررسید قسط، یادآوری ارسال شود</p></div>
+                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div>
+                </div>
+            </div>
+            <div class="stat-box mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><h6>💳 پیامک بدهی</h6><p style="font-size: 11px; color: #78909c;">به بدهکاران پیامک بدهی ارسال شود</p></div>
+                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox"></div>
+                </div>
+            </div>
+            <div class="stat-box mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><h6>🎉 پیامک تولد</h6><p style="font-size: 11px; color: #78909c;">در روز تولد هنرجو، تبریک ارسال شود</p></div>
+                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox"></div>
+                </div>
+            </div>
+            <div class="stat-box mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div><h6>✅ پیامک تایید پرداخت</h6><p style="font-size: 11px; color: #78909c;">بعد از هر پرداخت، رسید پیامک شود</p></div>
+                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" checked></div>
+                </div>
+            </div>
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-primary mt-2"><i class="bi bi-check-circle me-1"></i> ذخیره تنظیمات</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

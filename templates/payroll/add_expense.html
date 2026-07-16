@@ -1,0 +1,56 @@
+{% extends "base/layout.html" %}
+{% block title %}هزینه جدید{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('payroll.advanced_expenses') }}">هزینه‌ها</a></li><li class="active">جدید</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-plus-circle"></i> ثبت هزینه جدید</h1></div>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-4">
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">دسته‌بندی <span class="text-danger">*</span></label>
+                        <select name="category_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                            {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">مبلغ <span class="text-danger">*</span></label>
+                        <input type="number" name="amount" class="form-control" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">تاریخ</label>
+                        <input type="date" name="expense_date" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">روش پرداخت</label>
+                        <select name="payment_method" class="form-select">
+                            <option value="cash">نقدی</option>
+                            <option value="card">کارت</option>
+                            <option value="check">چک</option>
+                            <option value="transfer">انتقال</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">پرداخت‌کننده</label>
+                        <input type="text" name="paid_to" class="form-control">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">توضیحات</label>
+                        <input type="text" name="description" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">فاکتور/رسید (PDF, تصویر)</label>
+                        <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.png">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('payroll.advanced_expenses') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> ثبت هزینه</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

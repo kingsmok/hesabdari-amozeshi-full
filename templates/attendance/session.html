@@ -1,0 +1,67 @@
+{% extends "base/layout.html" %}
+{% block title %}حضور جلسه {{ session.session_number }}{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('attendance.index') }}">حضور</a></li><li><a href="{{ url_for('attendance.class_attendance', class_id=session.class_id) }}">{{ session.class_group.name }}</a></li><li class="active">جلسه {{ session.session_number }}</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-pencil"></i> ثبت حضور و غیاب<small>جلسه {{ session.session_number }} — {{ session.session_date|to_jalali }}</small></h1>
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-success btn-sm" onclick="markAll('present')"><i class="bi bi-check-all me-1"></i> همه حاضر</button>
+            <button type="button" class="btn btn-outline-danger btn-sm" onclick="markAll('absent')"><i class="bi bi-x-lg me-1"></i> همه غایب</button>
+        </div>
+    </div>
+
+    <form method="POST" id="attendanceForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card">
+            <div class="card-body-padded" style="padding: 0;">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">#</th>
+                            <th>نام</th>
+                            <th>کد</th>
+                            <th style="width: 120px;">وضعیت</th>
+                            <th style="width: 100px;">ورود</th>
+                            <th style="width: 100px;">خروج</th>
+                            <th>توضیحات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in students %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ item.student.full_name }}</strong></td>
+                            <td><code>{{ item.student.student_code }}</code></td>
+                            <td>
+                                <select name="status_{{ item.student.id }}" class="form-select form-select-sm">
+                                    <option value="present" {{ 'selected' if item.attendance and item.attendance.status == 'present' }}>حاضر</option>
+                                    <option value="absent" {{ 'selected' if item.attendance and item.attendance.status == 'absent' }}>غایب</option>
+                                    <option value="late" {{ 'selected' if item.attendance and item.attendance.status == 'late' }}>تأخیر</option>
+                                    <option value="leave" {{ 'selected' if item.attendance and item.attendance.status == 'leave' }}>مرخصی</option>
+                                </select>
+                            </td>
+                            <td><input type="time" name="arrival_{{ item.student.id }}" class="form-control form-control-sm" value="{{ item.attendance.arrival_time if item.attendance else '' }}"></td>
+                            <td><input type="time" name="departure_{{ item.student.id }}" class="form-control form-control-sm" value="{{ item.attendance.departure_time if item.attendance else '' }}"></td>
+                            <td><input type="text" name="notes_{{ item.student.id }}" class="form-control form-control-sm" value="{{ item.attendance.notes if item.attendance else '' }}" placeholder="توضیحات..."></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="d-flex justify-content-between mt-3 mb-4">
+            <a href="{{ url_for('attendance.class_attendance', class_id=session.class_id) }}" class="btn btn-outline-secondary"><i class="bi bi-arrow-right me-1"></i> بازگشت</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> ثبت حضور و غیاب</button>
+        </div>
+    </form>
+</div>
+
+<script>
+function markAll(status) {
+    document.querySelectorAll('select[name^="status_"]').forEach(sel => {
+        sel.value = status;
+    });
+}
+</script>
+{% endblock %}

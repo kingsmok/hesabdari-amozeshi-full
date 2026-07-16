@@ -1,0 +1,84 @@
+{% extends "base/layout.html" %}
+{% block title %}حضور و غیاب{% endblock %}
+{% block breadcrumb %}<li class="active">حضور و غیاب</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-clipboard2-check-fill"></i> حضور و غیاب<small>مدیریت حضور هنرجویان و مدرسین</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('attendance.report') }}" class="btn btn-outline-primary"><i class="bi bi-bar-chart me-1"></i> گزارش</a>
+            <a href="{{ url_for('attendance.statistics') }}" class="btn btn-outline-info"><i class="bi bi-graph-up me-1"></i> آمار</a>
+        </div>
+    </div>
+
+    <!-- آمار امروز -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="stat-box">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">کل رکوردهای امروز</div>
+                        <div class="stat-val">{{ today_total }}</div>
+                    </div>
+                    <div class="stat-icon" style="background: #e3f2fd; color: #1565c0;"><i class="bi bi-clipboard-check"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-box">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">حاضر امروز</div>
+                        <div class="stat-val" style="color: #2e7d32;">{{ today_present }}</div>
+                    </div>
+                    <div class="stat-icon" style="background: #e8f5e9; color: #2e7d32;"><i class="bi bi-person-check"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-box">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">نرخ حضور</div>
+                        <div class="stat-val" style="color: {{ '#2e7d32' if today_total > 0 and (today_present/today_total*100) >= 80 else '#e65100' }};">
+                            {{ ((today_present / today_total * 100)|round(1)) if today_total > 0 else 0 }}%
+                        </div>
+                    </div>
+                    <div class="stat-icon" style="background: #fff3e0; color: #e65100;"><i class="bi bi-percent"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- لیست کلاس‌ها -->
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-easel2"></i> انتخاب کلاس برای حضور و غیاب</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            {% if classes %}
+            <table class="table mb-0">
+                <thead><tr><th>کلاس</th><th>دوره</th><th>مدرس</th><th>هنرجویان</th><th>ساعت</th><th>عملیات</th></tr></thead>
+                <tbody>
+                    {% for cls in classes %}
+                    <tr>
+                        <td><strong>{{ cls.name }}</strong></td>
+                        <td>{{ cls.course.title if cls.course else '-' }}</td>
+                        <td>{{ cls.teacher.full_name if cls.teacher else '-' }}</td>
+                        <td><span class="badge-status badge-active">{{ cls.current_count }} نفر</span></td>
+                        <td>{{ cls.start_time or '-' }} - {{ cls.end_time or '-' }}</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('attendance.class_attendance', class_id=cls.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-clipboard-check me-1"></i> حضور</a>
+                                <a href="{{ url_for('attendance.class_attendance', class_id=cls.id) }}" class="btn btn-sm btn-outline-info"><i class="bi bi-list"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #b0bec5;"><p>کلاس فعالی وجود ندارد</p></div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

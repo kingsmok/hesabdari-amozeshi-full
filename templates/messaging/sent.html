@@ -1,0 +1,28 @@
+{% extends "base/layout.html" %}
+{% block title %}ارسال شده{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('messaging.sent') }}">پیام‌رسانی</a></li>
+<li class="active">ارسال شده</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-send me-2 text-success"></i>پیام‌های ارسال شده</h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>گیرنده</th><th>موضوع</th><th>تاریخ</th></tr></thead>
+                <tbody>
+                    {% for m in messages %}
+                    <tr>
+                        <td>{{ m.receiver.full_name if m.receiver else '-' }}</td>
+                        <td><a href="{{ url_for('messaging.view_message', id=m.id) }}">{{ m.subject or '(بدون موضوع)' }}</a></td>
+                        <td>{{ m.created_at|to_jalali }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

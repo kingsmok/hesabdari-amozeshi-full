@@ -1,0 +1,36 @@
+{% extends "base/layout.html" %}
+{% block title %}نظرسنجی جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('surveys.index') }}">نظرسنجی‌ها</a></li>
+<li class="active">جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-success"></i>ایجاد نظرسنجی</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">عنوان</label><input type="text" name="title" class="form-control" required></div>
+                    <div class="col-md-3"><label class="form-label">نوع</label>
+                        <select name="survey_type" class="form-select">
+                            <option value="general">عمومی</option>
+                            <option value="teacher">مدرس</option>
+                            <option value="course">دوره</option>
+                            <option value="service">خدمات</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3"><label class="form-label">از تاریخ</label><input type="date" name="start_date" class="form-control"></div>
+                    <div class="col-md-12"><label class="form-label">توضیحات</label><textarea name="description" class="form-control" rows="3"></textarea></div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('surveys.index') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ایجاد</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

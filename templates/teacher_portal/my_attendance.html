@@ -1,0 +1,27 @@
+{% extends "base/layout.html" %}
+{% block title %}حضور من{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('teacher_portal.my_dashboard') }}">پنل مدرس</a></li><li class="active">حضور</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-clipboard-check"></i> حضور و غیاب من</h1></div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">کل جلسات</div><div class="stat-val">{{ total_sessions }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">حاضر</div><div class="stat-val" style="color:#2e7d32;">{{ present }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">ساعات تدریس</div><div class="stat-val" style="color:#1565c0;">{{ total_hours }}</div></div></div>
+    </div>
+    <div class="card"><div class="card-body-padded" style="padding:0;">
+        <table class="table mb-0">
+            <thead><tr><th>تاریخ</th><th>وضعیت</th><th>ساعات</th></tr></thead>
+            <tbody>
+                {% for r in records %}
+                <tr>
+                    <td>{{ r.created_at|to_jalali }}</td>
+                    <td><span class="badge-status badge-{{ 'active' if r.status == 'present' else 'inactive' }}">{{ r.status }}</span></td>
+                    <td>{{ r.teaching_hours or 0 }} ساعت</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

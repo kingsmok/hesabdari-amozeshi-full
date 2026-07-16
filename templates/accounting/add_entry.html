@@ -1,0 +1,71 @@
+{% extends "base/layout.html" %}
+{% block title %}سند جدید{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('accounting.journal') }}">روزنامه</a></li>
+<li class="active">سند جدید</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-plus-circle me-2 text-primary"></i>ثبت سند حسابداری</h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-custom mb-4">
+            <div class="card-header-custom"><h5>اطلاعات سند</h5></div>
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">تاریخ</label><input type="date" name="entry_date" class="form-control"></div>
+                    <div class="col-md-3"><label class="form-label">نوع سند</label>
+                        <select name="entry_type" class="form-select">
+                            <option value="income">درآمد</option>
+                            <option value="expense">هزینه</option>
+                            <option value="adjustment">اصلاحی</option>
+                            <option value="transfer">انتقالی</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6"><label class="form-label">شرح</label><input type="text" name="description" class="form-control"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card-custom mb-4">
+            <div class="card-header-custom">
+                <h5>آیتم‌های سند</h5>
+                <button type="button" class="btn btn-sm-custom btn-outline-primary" onclick="addRow()"><i class="bi bi-plus"></i> افزودن ردیف</button>
+            </div>
+            <div class="card-body-custom" style="padding: 0;">
+                <table class="table table-custom mb-0" id="itemsTable">
+                    <thead><tr><th>حساب</th><th>بدهکار</th><th>بستانکار</th><th>شرح</th><th></th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <select name="item_account[]" class="form-select form-select-sm">
+                                    {% for acc in accounts %}<option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>{% endfor %}
+                                </select>
+                            </td>
+                            <td><input type="number" name="item_debit[]" class="form-control form-control-sm" value="0"></td>
+                            <td><input type="number" name="item_credit[]" class="form-control form-control-sm" value="0"></td>
+                            <td><input type="text" name="item_desc[]" class="form-control form-control-sm"></td>
+                            <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('accounting.journal') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ثبت سند</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function addRow() {
+    const tbody = document.querySelector('#itemsTable tbody');
+    const row = tbody.querySelector('tr').cloneNode(true);
+    row.querySelectorAll('input').forEach(i => i.value = i.type === 'number' ? '0' : '');
+    tbody.appendChild(row);
+}
+</script>
+{% endblock %}

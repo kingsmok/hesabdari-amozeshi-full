@@ -1,0 +1,37 @@
+{% extends "base/layout.html" %}
+{% block title %}بانک سوالات{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('exams.index') }}">آزمون‌ها</a></li>
+<li class="active">بانک سوالات</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-database me-2 text-warning"></i>بانک سوالات<small>{{ questions.total }} سوال</small></h1>
+        <a href="{{ url_for('exams.add_question') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>سوال جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if questions.items %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>#</th><th>سوال</th><th>نوع</th><th>سختی</th><th>نمره</th></tr></thead>
+                <tbody>
+                    {% for q in questions.items %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ q.question_text[:80] }}{% if q.question_text|length > 80 %}...{% endif %}</td>
+                        <td>{{ q.question_type }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if q.difficulty == 'easy' else ('pending' if q.difficulty == 'medium' else 'inactive') }}">{{ q.difficulty }}</span></td>
+                        <td>{{ q.marks }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">سوالی وجود ندارد</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

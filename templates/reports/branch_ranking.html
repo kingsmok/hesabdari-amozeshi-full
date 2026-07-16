@@ -1,0 +1,30 @@
+{% extends "base/layout.html" %}
+{% block title %}رتبه‌بندی شعب{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('features.branch_ranking') }}">گزارش‌ها</a></li>
+<li class="active">رتبه‌بندی شعب</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-building"></i> رتبه‌بندی شعب<small>بر اساس عملکرد</small></h1></div>
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>رتبه</th><th>شعبه</th><th>هنرجویان</th><th>ثبت‌نام‌ها</th><th>درآمد</th></tr></thead>
+                <tbody>
+                    {% for r in rankings %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><strong>{{ r.branch.name }}</strong></td>
+                        <td>{{ r.students }}</td>
+                        <td>{{ r.registrations }}</td>
+                        <td style="color: #2e7d32; font-weight: 700;">{{ r.revenue|currency }} ت</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

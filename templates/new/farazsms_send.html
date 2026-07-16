@@ -1,0 +1,43 @@
+{% extends "base/layout.html" %}
+{% block title %}ارسال پیامک فراز{% endblock %}
+{% block breadcrumb %}<li>پیامک</li><li class="active">ارسال فراز</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-send"></i> ارسال پیامک از فراز<small>FARAZSMS — تبلیغاتی و اقساط</small></h1></div>
+    <div class="card mb-4" style="max-width: 700px;">
+        <div class="card-head"><h5>ارسال پیامک</h5></div>
+        <div class="card-body-padded">
+            <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">گروه هدف</label>
+                        <select name="target" class="form-select">
+                            <option value="all_students">همه هنرجویان</option>
+                            <option value="debtors">فقط بدهکاران</option>
+                            <option value="specific">شماره خاص</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6"><label class="form-label">شماره (در صورت انتخاب شماره خاص)</label><input type="text" name="phone" class="form-control" placeholder="0912..."></div>
+                    <div class="col-md-12"><label class="form-label">متن پیامک</label><textarea name="message_text" class="form-control" rows="4" required placeholder="متن پیام...&#10;از {نام} برای نام هنرجو استفاده کنید"></textarea></div>
+                    <div class="col-md-4"><label class="form-label">نوع ارسال</label>
+                        <select name="send_type" class="form-select">
+                            <option value="manual">دستی</option>
+                            <option value="advertisement">تبلیغاتی</option>
+                            <option value="installment_reminder">یادآوری قسط</option>
+                        </select>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success mt-3"><i class="bi bi-send me-1"></i> ارسال</button>
+            </form>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-head"><h5>یادآوری خودکار اقساط</h5></div>
+        <div class="card-body-padded">
+            <p style="font-size: 13px;">ارسال یادآوری قسط به هنرجویانی که قسط‌شان ظ� ۳ روز آینده سررسید می‌شود:</p>
+            <form method="POST" action="{{ url_for('new_features.send_installment_reminders') }}" style="display: inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-warning"><i class="bi bi-bell me-1"></i> ارسال یادآوری اقساط</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

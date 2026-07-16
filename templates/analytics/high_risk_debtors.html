@@ -1,0 +1,23 @@
+{% extends "base/layout.html" %}
+{% block title %}بدهکاران پرریسک{% endblock %}
+{% block breadcrumb %}<li>تحلیل</li><li class="active">بدهکاران پرریسک</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-exclamation-diamond"></i> بدهکاران پرریسک<small>{{ risk_list|length }} نفر</small></h1></div>
+    <div class="card"><div class="card-body-padded" style="padding: 0;">
+        <table class="table mb-0">
+            <thead><tr><th>هنرجو</th><th>بدهی</th><th>اقساط عقب‌افتاده</th><th>سطح ریسک</th></tr></thead>
+            <tbody>
+                {% for r in risk_list %}
+                <tr>
+                    <td><a href="{{ url_for('students.view', id=r.student.id) }}">{{ r.student.full_name }}</a></td>
+                    <td style="color: #c62828; font-weight: 700;">{{ r.debt|currency }} ت</td>
+                    <td>{{ r.overdue_installments }}</td>
+                    <td><span class="badge-status badge-{{ 'inactive' if r.risk_level == 'بالا' else 'pending' }}">{{ r.risk_level }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div></div>
+</div>
+{% endblock %}

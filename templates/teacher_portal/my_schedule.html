@@ -1,0 +1,30 @@
+{% extends "base/layout.html" %}
+{% block title %}برنامه هفتگی{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('teacher_portal.my_dashboard') }}">پنل مدرس</a></li><li class="active">برنامه</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-calendar3"></i> برنامه هفتگی من</h1></div>
+    <div class="row g-2">
+        {% for day_idx in range(7) %}
+        <div class="col-md">
+            <div class="card" style="min-height: 200px;">
+                <div class="card-head" style="background: {{ '#e3f2fd' if day_idx < 5 else '#f3e5f5' }};"><h5 style="font-size: 13px;">{{ days[day_idx] }}</h5></div>
+                <div class="card-body-padded" style="padding: 8px;">
+                    {% if schedule[day_idx] %}
+                    {% for cls in schedule[day_idx] %}
+                    <div style="background: #e8f5e9; border-right: 3px solid #2e7d32; padding: 8px; border-radius: 6px; margin-bottom: 6px; font-size: 12px;">
+                        <strong>{{ cls.name }}</strong><br>
+                        <span style="color: #78909c;">{{ cls.start_time }}-{{ cls.end_time }}</span><br>
+                        <span style="color: #78909c;">{{ cls.room.name if cls.room else '' }}</span>
+                    </div>
+                    {% endfor %}
+                    {% else %}
+                    <div style="text-align: center; color: #b0bec5; padding: 20px; font-size: 12px;">آزاد</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

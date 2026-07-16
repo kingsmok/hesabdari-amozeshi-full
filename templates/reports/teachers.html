@@ -1,0 +1,28 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش مدرسین{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('reports.teacher_report') }}">گزارش‌ها</a></li>
+<li class="active">مدرسین</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-person-lines-fill me-2 text-success"></i>گزارش مدرسین</h1></div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            <table class="table table-custom mb-0">
+                <thead><tr><th>مدرس</th><th>کلاس‌ها</th><th>هنرجویان</th></tr></thead>
+                <tbody>
+                    {% for s in teacher_stats %}
+                    <tr>
+                        <td>{{ s.teacher.full_name }}</td>
+                        <td>{{ s.classes }}</td>
+                        <td>{{ s.students }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

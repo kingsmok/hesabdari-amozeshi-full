@@ -1,0 +1,56 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ cls.name }}{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('teacher_portal.my_classes') }}">کلاس‌ها</a></li><li class="active">{{ cls.name }}</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-easel2"></i> {{ cls.name }}<small>{{ cls.course.title if cls.course else '' }}</small></h1>
+        <a href="{{ url_for('attendance.class_attendance', class_id=cls.id) }}" class="btn btn-primary"><i class="bi bi-clipboard-check me-1"></i> حضور و غیاب</a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">هنرجویان</div><div class="stat-val">{{ students|length }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جلسات</div><div class="stat-val">{{ sessions|length }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">برگزار شده</div><div class="stat-val" style="color:#2e7d32;">{{ sessions|selectattr('status','equalto','completed')|list|length }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">ساعت</div><div class="stat-val">{{ cls.start_time }} - {{ cls.end_time }}</div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-people"></i> هنرجویان</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>#</th><th>نام</th><th>کد</th><th>موبایل</th></tr></thead>
+                        <tbody>
+                            {% for s in students %}
+                            <tr><td>{{ loop.index }}</td><td>{{ s.full_name }}</td><td><code>{{ s.student_code }}</code></td><td>{{ s.mobile }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-calendar-event"></i> جلسات</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>#</th><th>تاریخ</th><th>موضوع</th><th>وضعیت</th></tr></thead>
+                        <tbody>
+                            {% for s in sessions[:10] %}
+                            <tr>
+                                <td>{{ s.session_number }}</td>
+                                <td>{{ s.session_date|to_jalali }}</td>
+                                <td>{{ s.topic or '-' }}</td>
+                                <td><span class="badge-status badge-{{ 'completed' if s.status == 'completed' else 'pending' }}">{{ s.status }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

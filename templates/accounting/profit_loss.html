@@ -1,0 +1,38 @@
+{% extends "base/layout.html" %}
+{% block title %}سود و زیان{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('accounting.profit_loss') }}">حسابداری</a></li>
+<li class="active">سود و زیان</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header"><h1><i class="bi bi-graph-up-arrow me-2 text-success"></i>صورت سود و زیان</h1></div>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5 style="color: #27ae60;">درآمدها</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    <table class="table table-custom mb-0">
+                        {% for acc in revenue_accounts %}
+                        <tr><td>{{ acc.name }}</td><td style="color: #27ae60;">{{ acc.balance|currency }} ت</td></tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5 style="color: #e74c3c;">هزینه‌ها</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    <table class="table table-custom mb-0">
+                        {% for acc in expense_accounts %}
+                        <tr><td>{{ acc.name }}</td><td style="color: #e74c3c;">{{ acc.balance|currency }} ت</td></tr>
+                        {% endfor %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

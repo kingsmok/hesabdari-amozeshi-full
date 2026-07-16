@@ -1,0 +1,66 @@
+{% extends "base/layout.html" %}
+{% block title %}پشتیبان‌گیری{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('settings_panel.control_panel') }}">پنل</a></li><li class="active">پشتیبان‌گیری</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-cloud-arrow-up"></i> پشتیبان‌گیری<small>مدیریت نسخه‌های پشتیبان</small></h1>
+        <form method="POST" action="{{ url_for('settings_panel.create_backup') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-success"><i class="bi bi-cloud-arrow-up me-1"></i> پشتیبان‌گیری فوری</button>
+        </form>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-head"><h5>تنظیمات خودکار</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="auto_backup" {{ 'checked' if settings.auto_backup }}>
+                                <label class="form-check-label">پشتیبان‌گیری خودکار</label>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-md-4"><label class="form-label">فاصله (ساعت)</label><input type="number" name="backup_interval_hours" class="form-control" value="{{ settings.backup_interval_hours or 24 }}"></div>
+                            <div class="col-md-4"><label class="form-label">حداکثر نسخه</label><input type="number" name="max_backups" class="form-control" value="{{ settings.max_backups or 30 }}"></div>
+                            <div class="col-md-4"><label class="form-label">مسیر</label><input type="text" name="backup_path" class="form-control" value="{{ settings.backup_path or '' }}"></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5>لیست پشتیبان‌ها ({{ backups|length }})</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    {% if backups %}
+                    <table class="table mb-0">
+                        <thead><tr><th>نام</th><th>حجم</th><th>تاریخ</th></tr></thead>
+                        <tbody>
+                            {% for b in backups %}
+                            <tr>
+                                <td><i class="bi bi-file-earmark-zip me-1" style="color: #ff9800;"></i> {{ b.name }}</td>
+                                <td>{{ b.size }} KB</td>
+                                <td>{{ b.date }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #b0bec5;">
+                        <i class="bi bi-cloud" style="font-size: 36px;"></i>
+                        <p class="mt-2">هنوز پشتیبانی تهیه نشده</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

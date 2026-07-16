@@ -1,0 +1,45 @@
+{% extends "base/layout.html" %}
+{% block title %}هشدار چک‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('finance.checks') }}">چک‌ها</a></li>
+<li class="active">هشدارها</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-exclamation-triangle"></i> هشدار چک‌های سررسید</h1></div>
+    {% if overdue %}
+    <div class="card mb-4" style="border: 2px solid #c62828;">
+        <div class="card-head" style="background: #ffebee;"><h5 style="color: #c62828;"><i class="bi bi-exclamation-circle"></i> چک‌های سررسید گذشته ({{ overdue|length }})</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>شماره</th><th>بانک</th><th>مبلغ</th><th>سررسید</th></tr></thead>
+                <tbody>
+                    {% for c in overdue %}
+                    <tr><td>{{ c.check_number }}</td><td>{{ c.bank_name }}</td><td style="color: #c62828; font-weight: 700;">{{ c.amount|currency }} ت</td><td>{{ c.due_date|to_jalali }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% if near_due %}
+    <div class="card" style="border: 2px solid #ff8f00;">
+        <div class="card-head" style="background: #fff8e1;"><h5 style="color: #ff8f00;"><i class="bi bi-clock"></i> چک‌های نزدیک سررسید ({{ near_due|length }})</h5></div>
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>شماره</th><th>بانک</th><th>مبلغ</th><th>سررسید</th></tr></thead>
+                <tbody>
+                    {% for c in near_due %}
+                    <tr><td>{{ c.check_number }}</td><td>{{ c.bank_name }}</td><td>{{ c.amount|currency }} ت</td><td>{{ c.due_date|to_jalali }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% if not overdue and not near_due %}
+    <div class="card"><div class="card-body-padded text-center" style="color: #2e7d32;"><i class="bi bi-check-circle" style="font-size: 48px;"></i><h5 class="mt-3">چک سررسید گذشته‌ای نداریم</h5></div></div>
+    {% endif %}
+</div>
+{% endblock %}

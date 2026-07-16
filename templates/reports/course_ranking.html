@@ -1,0 +1,31 @@
+{% extends "base/layout.html" %}
+{% block title %}رتبه‌بندی دوره‌ها{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('features.course_ranking') }}">گزارش‌ها</a></li>
+<li class="active">رتبه‌بندی دوره‌ها</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-trophy"></i> رتبه‌بندی دوره‌ها<small>بر اساس محبوبیت و فروش</small></h1></div>
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            <table class="table mb-0">
+                <thead><tr><th>رتبه</th><th>دوره</th><th>رشته</th><th>کل ثبت‌نام</th><th>فعال</th><th>درآمد</th></tr></thead>
+                <tbody>
+                    {% for r in rankings %}
+                    <tr>
+                        <td>{% if loop.index <= 3 %}<span style="font-size: 18px;">{{ ['🥇','🥈','🥉'][loop.index0] }}</span>{% else %}{{ loop.index }}{% endif %}</td>
+                        <td><strong>{{ r.course.title }}</strong></td>
+                        <td>{{ r.course.field.name if r.course.field else '-' }}</td>
+                        <td>{{ r.total_registrations }}</td>
+                        <td><span class="badge-status badge-active">{{ r.active_registrations }}</span></td>
+                        <td style="color: #2e7d32; font-weight: 700;">{{ r.total_revenue|currency }} ت</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

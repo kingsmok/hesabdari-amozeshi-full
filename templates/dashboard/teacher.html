@@ -1,0 +1,75 @@
+{% extends "base/layout.html" %}
+{% block title %}داشبورد مدرس{% endblock %}
+{% block breadcrumb %}<li class="active">داشبورد مدرس</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="welcome-banner mb-4">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2><i class="bi bi-person-workspace me-2"></i> سلام {{ current_user.full_name }}</h2>
+                <p>پنل مدیریت کلاس‌ها و حضور و غیاب</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('attendance.index') }}" class="quick-btn"><i class="bi bi-clipboard-check"></i> حضور و غیاب</a>
+                <a href="{{ url_for('exams.add') }}" class="quick-btn"><i class="bi bi-journal-text"></i> آزمون جدید</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">کلاس‌های من</div><div class="stat-val">{{ my_classes|length }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">هنرجویان</div><div class="stat-val">{{ total_students }}</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">جلسات برگزار شده</div><div class="stat-val">{{ total_sessions }}</div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-calendar-event" style="color: #1565c0;"></i> کلاس‌های امروز</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    {% if today_classes %}
+                    <table class="table mb-0">
+                        <thead><tr><th>کلاس</th><th>ساعت</th><th>اتاق</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                            {% for cls in today_classes %}
+                            <tr>
+                                <td><strong>{{ cls.name }}</strong></td>
+                                <td>{{ cls.start_time }} - {{ cls.end_time }}</td>
+                                <td>{{ cls.room.name if cls.room else '-' }}</td>
+                                <td><a href="{{ url_for('attendance.class_attendance', class_id=cls.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-clipboard-check"></i></a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #b0bec5;"><p>کلاسی برای امروز ندارید</p></div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-easel2" style="color: #2e7d32;"></i> کلاس‌های من</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>کلاس</th><th>دوره</th><th>هنرجویان</th><th>عملیات</th></tr></thead>
+                        <tbody>
+                            {% for cls in my_classes %}
+                            <tr>
+                                <td><strong>{{ cls.name }}</strong></td>
+                                <td>{{ cls.course.title if cls.course else '-' }}</td>
+                                <td><span class="badge-status badge-active">{{ cls.current_count }}/{{ cls.max_capacity }}</span></td>
+                                <td>
+                                    <a href="{{ url_for('attendance.class_attendance', class_id=cls.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-clipboard-check"></i></a>
+                                    <a href="{{ url_for('classes.view', id=cls.id) }}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

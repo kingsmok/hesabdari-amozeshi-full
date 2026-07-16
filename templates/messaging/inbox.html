@@ -1,0 +1,36 @@
+{% extends "base/layout.html" %}
+{% block title %}صندوق ورودی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('messaging.inbox') }}">پیام‌رسانی</a></li>
+<li class="active">صندوق ورودی</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-inbox me-2 text-primary"></i>صندوق ورودی</h1>
+        <a href="{{ url_for('messaging.compose') }}" class="btn btn-primary-custom"><i class="bi bi-pencil me-1"></i> پیام جدید</a>
+    </div>
+    <div class="card-custom">
+        <div class="card-body-custom" style="padding: 0;">
+            {% if messages %}
+            <table class="table table-custom mb-0">
+                <thead><tr><th>فرستنده</th><th>موضوع</th><th>تاریخ</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                    {% for m in messages %}
+                    <tr style="{{ 'font-weight: 700;' if not m.is_read }}">
+                        <td>{{ m.sender.full_name if m.sender else '-' }}</td>
+                        <td><a href="{{ url_for('messaging.view_message', id=m.id) }}">{{ m.subject or '(بدون موضوع)' }}</a></td>
+                        <td>{{ m.created_at|to_jalali }}</td>
+                        <td><span class="badge-status badge-{{ 'active' if m.is_read else 'pending' }}">{{ 'خوانده' if m.is_read else 'جدید' }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #aaa;">پیامی ندارید</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

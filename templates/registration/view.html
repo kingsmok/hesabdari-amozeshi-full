@@ -1,0 +1,80 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ reg.reg_code }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('registration.index') }}">ثبت‌نام</a></li>
+<li class="active">{{ reg.reg_code }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="animate-in">
+    <div class="page-header">
+        <h1><i class="bi bi-pencil-square me-2 text-success"></i>جزئیات ثبت‌نام<small>{{ reg.reg_code }}</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('registration.installments', id=reg.id) }}" class="btn btn-info text-white"><i class="bi bi-calendar3 me-1"></i> اقساط</a>
+            <form method="POST" action="{{ url_for('registration.cancel', id=reg.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger" onclick="return confirm('آیا مطمئن هستید؟')"><i class="bi bi-x-circle me-1"></i> لغو</button>
+            </form>
+        </div>
+    </div>
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card-custom">
+                <div class="card-header-custom"><h5>اطلاعات ثبت‌نام</h5></div>
+                <div class="card-body-custom">
+                    <table class="table table-sm table-borderless mb-0" style="font-size: 12.5px;">
+                        <tr><td style="color: #888;">هنرجو</td><td><strong>{{ reg.student.full_name if reg.student else '-' }}</strong></td></tr>
+                        <tr><td style="color: #888;">دوره</td><td>{{ reg.course.title if reg.course else '-' }}</td></tr>
+                        <tr><td style="color: #888;">کلاس</td><td>{{ reg.class_group.name if reg.class_group else '-' }}</td></tr>
+                        <tr><td style="color: #888;">تاریخ ثبت‌نام</td><td>{{ reg.registration_date|to_jalali }}</td></tr>
+                        <tr><td style="color: #888;">وضعیت</td><td><span class="badge-status badge-{{ 'active' if reg.status == 'active' else 'inactive' }}">{{ reg.status }}</span></td></tr>
+                        <tr><td style="color: #888;">نوع پرداخت مدرس</td><td>
+                            {% if reg.teacher_payment_type == 'percentage' %}درصدی ({{ reg.teacher_payment_value }}%)
+                            {% elif reg.teacher_payment_type == 'fixed' %}ثابت ({{ reg.teacher_payment_value|currency }} ت)
+                            {% elif reg.teacher_payment_type == 'hourly' %}ساعتی
+                            {% elif reg.teacher_payment_type == 'session' %}جلسه‌ای
+                            {% else %}-{% endif %}
+                        </td></tr>
+                        <tr><td style="color: #0d47a1; font-weight: 700;">سهم مدرس</td><td style="color: #0d47a1; font-weight: 700;">{{ (reg.teacher_payment_amount or 0)|currency }} تومان</td></tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="card-custom mb-3">
+                <div class="card-header-custom"><h5>خلاصه مالی</h5></div>
+                <div class="card-body-custom">
+                    <div class="row g-3 text-center">
+                        <div class="col-md-3"><div style="background: #f8f9fa; border-radius: 10px; padding: 16px;"><div style="font-size: 18px; font-weight: 800;">{{ reg.base_fee|currency }}</div><div style="font-size: 11px; color: #888;">شهریه پایه</div></div></div>
+                        <div class="col-md-3"><div style="background: #fdedec; border-radius: 10px; padding: 16px;"><div style="font-size: 18px; font-weight: 800; color: #e74c3c;">-{{ reg.discount_amount|currency }}</div><div style="font-size: 11px; color: #888;">تخفیف</div></div></div>
+                        <div class="col-md-3"><div style="background: #eafaf1; border-radius: 10px; padding: 16px;"><div style="font-size: 18px; font-weight: 800; color: #27ae60;">{{ reg.paid_amount|currency }}</div><div style="font-size: 11px; color: #888;">پرداختی</div></div></div>
+                        <div class="col-md-3"><div style="background: {{ '#fdedec' if reg.remaining_amount > 0 else '#eafaf1' }}; border-radius: 10px; padding: 16px;"><div style="font-size: 18px; font-weight: 800; color: {{ '#e74c3c' if reg.remaining_amount > 0 else '#27ae60' }};">{{ reg.remaining_amount|currency }}</div><div style="font-size: 11px; color: #888;">مانده</div></div></div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-custom">
+                <div class="card-header-custom"><h5>پرداخت‌ها</h5></div>
+                <div class="card-body-custom" style="padding: 0;">
+                    {% if payments %}
+                    <table class="table table-custom mb-0">
+                        <thead><tr><th>رسید</th><th>مبلغ</th><th>تاریخ</th><th>روش</th></tr></thead>
+                        <tbody>
+                            {% for p in payments %}
+                            <tr>
+                                <td><code>{{ p.receipt_no }}</code></td>
+                                <td>{{ p.amount|currency }} ت</td>
+                                <td>{{ p.payment_date|to_jalali }}</td>
+                                <td>{{ p.payment_method }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="text-center py-4" style="color: #aaa;">پرداختی ثبت نشده</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
