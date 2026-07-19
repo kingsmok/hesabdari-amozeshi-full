@@ -7,7 +7,13 @@
         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
             <div>
                 <h2><i class="bi bi-sun-fill me-2"></i> خوش آمدید، {{ current_user.full_name }}</h2>
-                <p>امروز {{ "now"|to_jalali }} | {{ app_name }}</p>
+                <p style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="background: rgba(255,255,255,.15); padding: 4px 12px; border-radius: 20px; font-size: 12px;">
+                        <i class="bi bi-calendar3 me-1"></i> {{ "now"|to_jalali }}
+                    </span>
+                    <span style="opacity: .6;">|</span>
+                    <span>{{ app_name }}</span>
+                </p>
             </div>
             <div class="d-flex gap-2 flex-wrap">
                 <a href="{{ url_for('students.add') }}" class="quick-btn"><i class="bi bi-person-plus"></i> هنرجو جدید</a>
