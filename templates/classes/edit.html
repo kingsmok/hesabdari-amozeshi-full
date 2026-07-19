@@ -1,0 +1,111 @@
+{% extends "base/layout.html" %}
+{% block title %}ویرایش کلاس{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('classes.index') }}">کلاس‌ها</a></li>
+<li><a href="{{ url_for('classes.view', id=class_group.id) }}">{{ class_group.name }}</a></li>
+<li class="active">ویرایش</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-pencil-square"></i> ویرایش کلاس <small>{{ class_group.class_code }}</small></h1>
+    </div>
+    
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        
+        <div class="card mb-4">
+            <div class="card-head"><h5><i class="bi bi-info-circle" style="color: #1565c0;"></i> اطلاعات کلاس</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">نام کلاس <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" value="{{ class_group.name }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">دوره <span class="text-danger">*</span></label>
+                        <select name="course_id" class="form-select" required>
+                            <option value="">انتخاب...</option>
+                            {% for c in courses %}
+                            <option value="{{ c.id }}" {{ 'selected' if c.id == class_group.course_id }}>{{ c.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">مدرس</label>
+                        <select name="teacher_id" class="form-select">
+                            <option value="">انتخاب...</option>
+                            {% for t in teachers %}
+                            <option value="{{ t.id }}" {{ 'selected' if t.id == class_group.teacher_id }}>{{ t.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">اتاق</label>
+                        <select name="room_id" class="form-select">
+                            <option value="">انتخاب...</option>
+                            {% for r in rooms %}
+                            <option value="{{ r.id }}" {{ 'selected' if r.id == class_group.room_id }}>{{ r.name }} ({{ r.capacity }} نفر)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">ظرفیت</label>
+                        <input type="number" name="max_capacity" class="form-control" value="{{ class_group.max_capacity }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">وضعیت</label>
+                        <select name="status" class="form-select">
+                            <option value="active" {{ 'selected' if class_group.status == 'active' }}>فعال</option>
+                            <option value="completed" {{ 'selected' if class_group.status == 'completed' }}>تکمیل شده</option>
+                            <option value="cancelled" {{ 'selected' if class_group.status == 'cancelled' }}>لغو شده</option>
+                            <option value="archived" {{ 'selected' if class_group.status == 'archived' }}>آرشیو</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">ساعت شروع</label>
+                        <input type="time" name="start_time" class="form-control" value="{{ class_group.start_time or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">ساعت پایان</label>
+                        <input type="time" name="end_time" class="form-control" value="{{ class_group.end_time or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">روزهای تشکیل</label>
+                        <select name="days" class="form-select" multiple>
+                            <option value="0" {{ 'selected' if '0' in (class_group.days_of_week or '') }}>شنبه</option>
+                            <option value="1" {{ 'selected' if '1' in (class_group.days_of_week or '') }}>یکشنبه</option>
+                            <option value="2" {{ 'selected' if '2' in (class_group.days_of_week or '') }}>دوشنبه</option>
+                            <option value="3" {{ 'selected' if '3' in (class_group.days_of_week or '') }}>سه‌شنبه</option>
+                            <option value="4" {{ 'selected' if '4' in (class_group.days_of_week or '') }}>چهارشنبه</option>
+                            <option value="5" {{ 'selected' if '5' in (class_group.days_of_week or '') }}>پنجشنبه</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">تاریخ شروع</label>
+                        <input type="date" name="start_date" class="form-control" value="{{ class_group.start_date }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">تاریخ پایان</label>
+                        <input type="date" name="end_date" class="form-control" value="{{ class_group.end_date }}">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label">یادداشت</label>
+                        <textarea name="notes" class="form-control" rows="3">{{ class_group.notes or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="d-flex justify-content-between mb-4">
+            <a href="{{ url_for('classes.view', id=class_group.id) }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-right me-1"></i> بازگشت
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-circle me-1"></i> ذخیره تغییرات
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

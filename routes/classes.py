@@ -147,6 +147,78 @@ def close(id):
     return redirect(url_for('classes.view', id=id))
 
 
+@classes_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit(id):
+    class_group = ClassGroup.query.get_or_404(id)
+    
+    if request.method == 'POST':
+        class_group.name = request.form['name']
+        class_group.course_id = request.form['course_id']
+        class_group.teacher_id = request.form.get('teacher_id') or None
+        class_group.room_id = request.form.get('room_id') or None
+        class_group.max_capacity = int(request.form.get('max_capacity', 20))
+        class_group.days_of_week = str(request.form.getlist('days'))
+        class_group.start_time = request.form.get('start_time')
+        class_group.end_time = request.form.get('end_time')
+        class_group.start_date = get_jalali_date(request.form, 'start_date') if request.form.get('start_date') else None
+        class_group.end_date = get_jalali_date(request.form, 'end_date') if request.form.get('end_date') else None
+        class_group.notes = request.form.get('notes')
+        class_group.status = request.form.get('status', class_group.status)
+        
+        log = ActivityLog(
+            user_id=current_user.id, action='edit', module='classes',
+            entity_type='class', entity_id=id,
+            description=f'ویرایش کلاس: {class_group.name}',
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        flash(f'کلاس "{class_group.name}" بروزرسانی شد', 'success')
+        return redirect(url_for('classes.view', id=id))
+    
+    courses = Course.query.filter_by(is_active=True).all()
+    teachers = Teacher.query.filter_by(is_active=True).all()
+    rooms = Room.query.filter_by(status='available').all()
+    
+    return render_template('classes/edit.html', 
+                         class_group=class_group, 
+                         courses=courses, 
+                         teachers=teachers, 
+                         rooms=rooms)
+
+
+@classes_bp.route('/<int:id>/delete', methods=['POST'])
+@login_required
+def delete(id):
+    class_group = ClassGroup.query.get_or_404(id)
+    
+    # بررسی ثبت‌نام فعال
+    active_regs = class_group.registrations.filter_by(status='active').count()
+    if active_regs > 0:
+        flash(f'این کلاس دارای {active_regs} هنرجوی فعال است و قابل حذف نیست. ابتدا هنرجویان را منتقل یا حذف کنید.', 'danger')
+        return redirect(url_for('classes.view', id=id))
+    
+    # حذف جلسات مرتبط
+    ClassSession.query.filter_by(class_id=id).delete()
+    
+    class_name = class_group.name
+    db.session.delete(class_group)
+    
+    log = ActivityLog(
+        user_id=current_user.id, action='delete', module='classes',
+        entity_type='class',
+        description=f'حذف کلاس: {class_name}',
+        ip_address=request.remote_addr
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f'کلاس "{class_name}" حذف شد', 'success')
+    return redirect(url_for('classes.index'))
+
+
 @classes_bp.route('/<int:class_id>/transfer', methods=['GET', 'POST'])
 @login_required
 def transfer(class_id):

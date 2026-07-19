@@ -6,29 +6,122 @@
 {% endblock %}
 
 {% block content %}
-<div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-tags me-2 text-warning"></i>دسته‌بندی هزینه‌ها</h1></div>
-    <div class="card-custom mb-4">
-        <div class="card-body-custom">
-            <form method="POST" action="{{ url_for('settings.add_expense_category') }}" class="row g-3 align-items-end">
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-tags"></i> دسته‌بندی هزینه‌ها <small>مدیریت دسته‌بندی‌های هزینه‌های آموزشگاه</small></h1>
+    </div>
+
+    <!-- فرم افزودن / ویرایش -->
+    <div class="card mb-4">
+        <div class="card-head">
+            <h5>
+                <i class="bi bi-{% if edit_cat %}pencil-square{% else %}plus-circle{% endif %}" style="color: {% if edit_cat %}#1565c0{% else %}#2e7d32{% endif %};"></i>
+                {% if edit_cat %}ویرایش دسته‌بندی{% else %}افزودن دسته‌بندی جدید{% endif %}
+            </h5>
+        </div>
+        <div class="card-body-padded">
+            <form method="POST" action="{% if edit_cat %}{{ url_for('settings.edit_expense_category', id=edit_cat.id) }}{% else %}{{ url_for('settings.add_expense_category') }}{% endif %}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="col-md-4"><label class="form-label">نام</label><input type="text" name="name" class="form-control" required></div>
-                <div class="col-md-3"><label class="form-label">کد</label><input type="text" name="code" class="form-control"></div>
-                <div class="col-md-3"><label class="form-label">توضیحات</label><input type="text" name="description" class="form-control"></div>
-                <div class="col-md-2"><button type="submit" class="btn btn-success-custom w-100"><i class="bi bi-plus me-1"></i> افزودن</button></div>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label">نام دسته‌بندی <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" value="{{ edit_cat.name if edit_cat else '' }}" required placeholder="مثال: اجاره، قبض برق...">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">کد</label>
+                        <input type="text" name="code" class="form-control" value="{{ edit_cat.code if edit_cat else '' }}" placeholder="اختیاری">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">توضیحات</label>
+                        <input type="text" name="description" class="form-control" value="{{ edit_cat.description if edit_cat else '' }}" placeholder="توضیح کوتاه">
+                    </div>
+                    {% if edit_cat %}
+                    <div class="col-md-2">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {{ 'checked' if edit_cat.is_active else '' }}>
+                            <label class="form-check-label" for="is_active">فعال</label>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-{% if edit_cat %}check-circle{% else %}plus{% endif %} me-1"></i>
+                            {% if edit_cat %}بروزرسانی{% else %}افزودن{% endif %}
+                        </button>
+                    </div>
+                    {% if edit_cat %}
+                    <div class="col-md-2">
+                        <a href="{{ url_for('settings.expense_categories') }}" class="btn btn-outline-secondary w-100">
+                            <i class="bi bi-x-circle me-1"></i> انصراف
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
             </form>
         </div>
     </div>
-    <div class="card-custom">
-        <div class="card-body-custom" style="padding: 0;">
-            <table class="table table-custom mb-0">
-                <thead><tr><th>کد</th><th>نام</th><th>توضیحات</th></tr></thead>
+
+    <!-- لیست دسته‌بندی‌ها -->
+    <div class="card">
+        <div class="card-head">
+            <h5><i class="bi bi-list-ul" style="color: #00838f;"></i> لیست دسته‌بندی‌ها</h5>
+            <span class="badge-status badge-active">{{ categories|length }} مورد</span>
+        </div>
+        <div class="card-body-padded" style="padding: 0;">
+            {% if categories %}
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>کد</th>
+                        <th>نام دسته‌بندی</th>
+                        <th>توضیحات</th>
+                        <th>وضعیت</th>
+                        <th>تعداد هزینه</th>
+                        <th style="width: 120px;">عملیات</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for c in categories %}
-                    <tr><td><code>{{ c.code or '-' }}</code></td><td>{{ c.name }}</td><td>{{ c.description or '-' }}</td></tr>
+                    <tr {% if edit_cat and edit_cat.id == c.id %}style="background: #e3f2fd;"{% endif %}>
+                        <td><code style="background: #eceff1; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{{ c.code or '-' }}</code></td>
+                        <td><strong>{{ c.name }}</strong></td>
+                        <td style="color: #78909c;">{{ c.description or '-' }}</td>
+                        <td>
+                            {% if c.is_active %}
+                            <span class="badge-status badge-active">فعال</span>
+                            {% else %}
+                            <span class="badge-status badge-inactive">غیرفعال</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="background: {% if c.expenses %}#e3f2fd{% else %}#f5f5f5{% endif %}; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                                {{ c.expenses|length }} هزینه
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('settings.edit_expense_category', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="ویرایش">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('settings.delete_expense_category', id=c.id) }}" style="display: inline;" onsubmit="return confirm('آیا از حذف «{{ c.name }}» مطمئن هستید؟');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف">
+                                        <i class="bi bi-trash3"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {% else %}
+            <div class="text-center py-5" style="color: #b0bec5;">
+                <i class="bi bi-tags" style="font-size: 48px;"></i>
+                <p class="mt-3">هنوز دسته‌بندی هزینه‌ای تعریف نشده</p>
+                <p style="font-size: 12px;">از فرم بالا اولین دسته‌بندی را اضافه کنید</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>
