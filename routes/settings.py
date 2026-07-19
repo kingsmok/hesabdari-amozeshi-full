@@ -268,6 +268,36 @@ def add_expense_category():
     return redirect(url_for('settings.expense_categories'))
 
 
+@settings_bp.route('/expense-categories/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_expense_category(id):
+    cat = ExpenseCategory.query.get_or_404(id)
+    if request.method == 'POST':
+        cat.name = request.form['name']
+        cat.code = request.form.get('code')
+        cat.description = request.form.get('description')
+        cat.is_active = 'is_active' in request.form
+        db.session.commit()
+        flash('دسته‌بندی هزینه بروزرسانی شد', 'success')
+        return redirect(url_for('settings.expense_categories'))
+    categories = ExpenseCategory.query.all()
+    return render_template('settings/expense_categories.html', categories=categories, edit_cat=cat)
+
+
+@settings_bp.route('/expense-categories/<int:id>/delete', methods=['POST'])
+@login_required
+def delete_expense_category(id):
+    cat = ExpenseCategory.query.get_or_404(id)
+    # بررسی اینکه آیا هزینه‌ای با این دسته‌بندی ثبت شده
+    if cat.expenses:
+        flash('این دسته‌بندی دارای هزینه ثبت شده است و قابل حذف نیست', 'danger')
+    else:
+        db.session.delete(cat)
+        db.session.commit()
+        flash('دسته‌بندی هزینه حذف شد', 'success')
+    return redirect(url_for('settings.expense_categories'))
+
+
 # ===== SMS Settings =====
 @settings_bp.route('/sms', methods=['GET', 'POST'])
 @login_required

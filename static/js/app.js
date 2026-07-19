@@ -387,18 +387,56 @@ function initPopovers() {
    ═══════════════════════════════════════════════════════════════ */
 function initLiveClock() {
     const clockEl = document.getElementById('liveClock');
-    if (!clockEl) return;
+    const dateEl = document.getElementById('liveJalaliDate');
     
     function updateClock() {
         const now = new Date();
         const hours = String(now.getHours()).padStart(2, '0');
         const minutes = String(now.getMinutes()).padStart(2, '0');
         const seconds = String(now.getSeconds()).padStart(2, '0');
-        clockEl.textContent = `${hours}:${minutes}:${seconds}`;
+        if (clockEl) clockEl.textContent = `${hours}:${minutes}:${seconds}`;
+    }
+    
+    function updateJalaliDate() {
+        if (!dateEl) return;
+        const now = new Date();
+        // تبدیل میلادی به شمسی
+        const jalali = gregorianToJalali(now.getFullYear(), now.getMonth() + 1, now.getDate());
+        const weekdays = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+        const months = ['', 'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+        const weekday = weekdays[now.getDay()];
+        dateEl.textContent = `${weekday}، ${jalali[2]} ${months[jalali[1]]} ${jalali[0]}`;
     }
     
     updateClock();
+    updateJalaliDate();
     setInterval(updateClock, 1000);
+    // بروزرسانی تاریخ هر دقیقه
+    setInterval(updateJalaliDate, 60000);
+}
+
+// تبدیل میلادی به شمسی (محاسباتی)
+function gregorianToJalali(gy, gm, gd) {
+    var g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+    var gy2 = (gm > 2) ? (gy + 1) : gy;
+    var days = 355666 + (365 * gy) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100) + Math.floor((gy2 + 399) / 400) + gd + g_d_m[gm - 1];
+    var jy = -1595 + (33 * Math.floor(days / 12053));
+    days %= 12053;
+    jy += 4 * Math.floor(days / 1461);
+    days %= 1461;
+    if (days > 365) {
+        jy += Math.floor((days - 1) / 365);
+        days = (days - 1) % 365;
+    }
+    var jm, jd;
+    if (days < 186) {
+        jm = 1 + Math.floor(days / 31);
+        jd = 1 + (days % 31);
+    } else {
+        jm = 7 + Math.floor((days - 186) / 30);
+        jd = 1 + ((days - 186) % 30);
+    }
+    return [jy, jm, jd];
 }
 
 

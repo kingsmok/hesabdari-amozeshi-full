@@ -7,14 +7,21 @@
 
 {% block content %}
 <div class="animate-in">
-    <div class="page-header">
-        <h1><i class="bi bi-easel me-2 text-success"></i>{{ class_group.name }}<small>{{ class_group.class_code }} | {{ class_group.course.title if class_group.course else '' }}</small></h1>
+    <div class="page-head">
+        <h1><i class="bi bi-easel"></i> {{ class_group.name }} <small>{{ class_group.class_code }} | {{ class_group.course.title if class_group.course else '' }}</small></h1>
         <div class="d-flex gap-2">
+            <a href="{{ url_for('classes.edit', id=class_group.id) }}" class="btn btn-warning">
+                <i class="bi bi-pencil me-1"></i> ویرایش
+            </a>
             <form method="POST" action="{{ url_for('classes.generate_sessions', id=class_group.id) }}" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-info text-white"><i class="bi bi-calendar-plus me-1"></i> تولید جلسات</button>
             </form>
-            <a href="{{ url_for('attendance.class_attendance', class_id=class_group.id) }}" class="btn btn-primary-custom"><i class="bi bi-clipboard-check me-1"></i> حضور و غیاب</a>
+            <a href="{{ url_for('attendance.class_attendance', class_id=class_group.id) }}" class="btn btn-primary"><i class="bi bi-clipboard-check me-1"></i> حضور و غیاب</a>
+            <form method="POST" action="{{ url_for('classes.delete', id=class_group.id) }}" style="display: inline;" onsubmit="return confirm('آیا از حذف کلاس «{{ class_group.name }}» مطمئن هستید؟\nاین عمل قابل بازگشت نیست.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-danger"><i class="bi bi-trash3 me-1"></i> حذف</button>
+            </form>
         </div>
     </div>
     <div class="row g-3">
