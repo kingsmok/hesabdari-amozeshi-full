@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.jalali import current_jalali_year
 from models.exam import Exam, QuestionBank, ExamResult, Grade
 from models.course import Course
 from models.classes import ClassGroup
@@ -25,24 +26,43 @@ def index():
 @login_required
 def add():
     if request.method == 'POST':
+        course_id = request.form.get('course_id', type=int)
+        class_id = request.form.get('class_id', type=int)
+        course = Course.query.filter_by(id=course_id, is_active=True).first() if course_id else None
+        class_group = ClassGroup.query.filter_by(id=class_id, status='active').first() if class_id else None
+        if not course or (class_group and class_group.course_id != course.id):
+            flash('دوره یا کلاس انتخاب‌شده معتبر و هماهنگ نیست', 'danger')
+            return redirect(url_for('exams.add'))
+
+        theory_weight = safe_float(request.form.get('theory_weight'), 60)
+        practical_weight = safe_float(request.form.get('practical_weight'), 40)
+        if round(theory_weight + practical_weight, 5) != 100:
+            flash('مجموع وزن نمره نظری و عملی باید ۱۰۰ درصد باشد', 'danger')
+            return redirect(url_for('exams.add'))
+        total_marks = max(1, safe_float(request.form.get('total_marks'), 100))
+        passing_marks = max(0, safe_float(request.form.get('passing_marks'), 50))
+        if passing_marks > total_marks:
+            flash('نمره قبولی نمی‌تواند بیشتر از نمره کل باشد', 'danger')
+            return redirect(url_for('exams.add'))
+
         last = Exam.query.order_by(Exam.id.desc()).first()
         next_num = (last.id + 1) if last else 1
-        code = f'EXM-1405-{next_num:03d}'
+        code = f'EXM-{current_jalali_year()}-{next_num:03d}'
         
         exam = Exam(
             title=request.form['title'],
             exam_code=code,
-            course_id=request.form['course_id'],
-            class_id=request.form.get('class_id') or None,
+            course_id=course.id,
+            class_id=class_group.id if class_group else None,
             exam_type=request.form.get('exam_type', 'written'),
             exam_date=get_jalali_date(request.form, 'exam_date') if request.form.get('exam_date') else None,
             start_time=request.form.get('start_time'),
             end_time=request.form.get('end_time'),
-            duration_minutes=int(request.form.get('duration_minutes', 60)),
-            total_marks=float(request.form.get('total_marks', 100)),
-            passing_marks=float(request.form.get('passing_marks', 50)),
-            theory_weight=float(request.form.get('theory_weight', 60)),
-            practical_weight=float(request.form.get('practical_weight', 40)),
+            duration_minutes=max(1, safe_int(request.form.get('duration_minutes'), 60)),
+            total_marks=total_marks,
+            passing_marks=passing_marks,
+            theory_weight=theory_weight,
+            practical_weight=practical_weight,
             status='draft',
             notes=request.form.get('notes'),
             created_by=current_user.id
@@ -75,8 +95,9 @@ def grade(id):
         if exam.class_id:
             registrations = exam.class_group.registrations.filter_by(status='active').all()
             for reg in registrations:
-                theory = float(request.form.get(f'theory_{reg.student_id}', 0))
-                practical = float(request.form.get(f'practical_{reg.student_id}', 0))
+                max_score = exam.total_marks or 100
+                theory = max(0, min(safe_float(request.form.get(f'theory_{reg.student_id}')), max_score))
+                practical = max(0, min(safe_float(request.form.get(f'practical_{reg.student_id}')), max_score))
                 
                 total = (theory * exam.theory_weight / 100) + (practical * exam.practical_weight / 100)
                 passed = total >= exam.passing_marks
@@ -170,7 +191,7 @@ def grades():
 @exams_bp.route('/<int:exam_id>/appeal/<int:result_id>', methods=['POST'])
 @login_required
 def appeal(exam_id, result_id):
-    result = ExamResult.query.get_or_404(result_id)
+    result = ExamResult.query.filter_by(id=result_id, exam_id=exam_id).first_or_404()
     result.appeal_requested = True
     result.appeal_description = request.form.get('description')
     result.appeal_status = 'pending'

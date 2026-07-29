@@ -24,7 +24,7 @@
                     <div class="col-md-3"><label class="form-label">ایمیل</label><input type="email" name="email" class="form-control"></div>
                     <div class="col-md-3"><label class="form-label">تلفن</label><input type="text" name="phone" class="form-control"></div>
                     <div class="col-md-3"><label class="form-label">شعبه</label>
-                        <select name="branch_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                        <select name="branch_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید...">
                             <option value="">همه شعب</option>
                             {% for b in branches %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
                         </select>

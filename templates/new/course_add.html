@@ -12,7 +12,7 @@
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label">عنوان دوره <span class="text-danger">*</span></label><input type="text" name="title" class="form-control" required placeholder="مثال: Python مقدماتی"></div>
                     <div class="col-md-3"><label class="form-label">رشته آموزشی <span class="text-danger">*</span></label>
-                        <select name="field_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                        <select name="field_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
                             <option value="">انتخاب...</option>
                             {% for f in fields %}<option value="{{ f.id }}">{{ f.name }}</option>{% endfor %}
                         </select>

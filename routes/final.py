@@ -359,23 +359,11 @@ def advanced_health():
     from models.registration import Registration
     from models.finance import Payment, Expense
     from models.classes import ClassGroup
-    from flask import current_app
-    import platform, sqlite3
-    
-    db_path = os.path.join(current_app.root_path, '..', 'instance', 'academy.db')
-    
-    # آمار جداول
-    conn = sqlite3.connect(db_path)
-    table_stats = []
-    for (table,) in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
-        try:
-            count = conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
-            table_stats.append({'name': table, 'count': count})
-        except:
-            pass
-    conn.close()
-    
-    db_size = os.path.getsize(db_path) if os.path.exists(db_path) else 0
+    import platform
+    from utils.database_tools import collect_table_stats, database_size_bytes
+
+    table_stats = collect_table_stats()
+    db_size = database_size_bytes()
     
     # آمار کلی
     stats = {

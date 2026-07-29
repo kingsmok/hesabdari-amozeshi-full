@@ -3,7 +3,7 @@
 """
 import os, json, requests
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from extensions import db
 
@@ -20,26 +20,31 @@ def control_panel():
     """پنل مدیریت اتصالات"""
     from models.system import SystemSettings
     settings = SystemSettings.query.first()
+    from utils.bot_services import bale_polling_manager
+    bale_status = bale_polling_manager.status()
     
-    # بررسی وضعیت اتصالات
+    # وضعیت «تنظیم‌شده» از وضعیت اجرایی جداست تا اتصال کاذب نمایش داده نشود.
     connections = {
         'telegram': {
             'name': 'ربات تلگرام',
             'icon': 'bi-telegram',
             'configured': bool(settings and settings.telegram_bot_token),
-            'status': 'connected' if settings and settings.telegram_bot_token else 'not_configured',
+            'status': 'configured' if settings and settings.telegram_bot_token else 'not_configured',
+            'label': 'تنظیم‌شده' if settings and settings.telegram_bot_token else 'تنظیم نشده',
         },
         'bale': {
             'name': 'ربات بله',
             'icon': 'bi-chat-dots',
             'configured': bool(settings and settings.bale_bot_token),
-            'status': 'connected' if settings and settings.bale_bot_token else 'not_configured',
+            'status': 'running' if bale_status['running'] else 'stopped',
+            'label': 'در حال دریافت' if bale_status['running'] else ('متوقف' if settings and settings.bale_bot_token else 'تنظیم نشده'),
         },
         'farazsms': {
-            'name': 'فراز اس‌ام‌اس',
+            'name': 'پنل پیامکی فراز',
             'icon': 'bi-phone',
             'configured': bool(settings and settings.farazsms_api_key),
-            'status': 'connected' if settings and settings.farazsms_api_key else 'not_configured',
+            'status': 'configured' if settings and settings.farazsms_api_key else 'not_configured',
+            'label': 'تنظیم‌شده' if settings and settings.farazsms_api_key else 'تنظیم نشده',
         },
     }
     
@@ -189,79 +194,94 @@ def test_telegram_message():
 @settings_panel_bp.route('/bale', methods=['GET', 'POST'])
 @login_required
 def bale_config():
-    """تنظیمات کامل ربات بله"""
+    """تنظیمات ربات بله با Long Polling و بدون وب‌هوک."""
     from models.system import SystemSettings
+    from utils.bot_services import bale_polling_manager
+
     settings = SystemSettings.query.first()
-    
     if request.method == 'POST':
-        settings.bale_bot_token = request.form.get('bale_bot_token', '').strip()
-        settings.bale_webhook_url = request.form.get('bale_webhook_url', '').strip()
+        token = request.form.get('bale_bot_token', '').strip()
+        settings.bale_bot_token = token
+        settings.bale_webhook_url = None
         db.session.commit()
-        
-        # تست اتصال به بله
-        if settings.bale_bot_token:
+
+        if token:
             try:
-                resp = requests.get(
-                    f'https://tapi.bale.ai/bot{settings.bale_bot_token}/getMe',
-                    timeout=10
-                ).json()
-                if resp.get('ok'):
-                    bot_info = resp.get('result', {})
-                    flash(f'اتصال موفق! نام بات: @{bot_info.get("username", "?")}', 'success')
+                response = requests.get(f'https://tapi.bale.ai/bot{token}/getMe', timeout=10)
+                result = response.json()
+                if result.get('ok'):
+                    bot_info = result.get('result', {})
+                    started, message = bale_polling_manager.start(current_app._get_current_object(), token)
+                    flash(f'اتصال موفق به @{bot_info.get("username", "?")} — {message}', 'success' if started else 'warning')
                 else:
-                    flash(f'خطا در اتصال: {resp.get("description", "نامشخص")}', 'error')
-            except Exception as e:
-                flash(f'خطا در اتصال به بله: {str(e)}', 'error')
-        
+                    flash(f'توکن ذخیره شد اما اتصال ناموفق بود: {result.get("description", "نامشخص")}', 'danger')
+            except (requests.RequestException, ValueError) as exc:
+                flash(f'توکن ذخیره شد؛ ارتباط با بله برقرار نشد: {exc}', 'warning')
+        else:
+            bale_polling_manager.stop()
+            flash('توکن بله پاک و دریافت خودکار متوقف شد', 'success')
         return redirect(url_for('settings_panel.bale_config'))
-    
+
     bot_info = None
     if settings and settings.bale_bot_token:
         try:
-            resp = requests.get(
-                f'https://tapi.bale.ai/bot{settings.bale_bot_token}/getMe',
-                timeout=10
+            result = requests.get(
+                f'https://tapi.bale.ai/bot{settings.bale_bot_token}/getMe', timeout=10
             ).json()
-            if resp.get('ok'):
-                bot_info = resp.get('result', {})
-        except:
+            if result.get('ok'):
+                bot_info = result.get('result', {})
+        except (requests.RequestException, ValueError):
             pass
-    
-    return render_template('settings_panel/bale.html', settings=settings, bot_info=bot_info)
+
+    return render_template(
+        'settings_panel/bale.html',
+        settings=settings,
+        bot_info=bot_info,
+        polling_status=bale_polling_manager.status()
+    )
 
 
 @settings_panel_bp.route('/bale/set-webhook', methods=['POST'])
 @login_required
 def set_bale_webhook():
-    """تنظیم وب‌هوک بله"""
+    """مسیر سازگاری نسخه قبل: وب‌هوک را حذف و Long Polling را فعال می‌کند."""
+    return start_bale_polling()
+
+
+@settings_panel_bp.route('/bale/polling/start', methods=['POST'])
+@login_required
+def start_bale_polling():
     from models.system import SystemSettings
+    from utils.bot_services import bale_polling_manager
+
     settings = SystemSettings.query.first()
-    
     if not settings or not settings.bale_bot_token:
-        flash('ابتدا توکن بات را وارد کنید', 'error')
+        flash('ابتدا توکن ربات بله را وارد کنید', 'danger')
         return redirect(url_for('settings_panel.bale_config'))
-    
-    webhook_url = request.form.get('webhook_url', '').strip()
-    if not webhook_url:
-        flash('آدرس وب‌هوک را وارد کنید', 'error')
-        return redirect(url_for('settings_panel.bale_config'))
-    
+
     try:
-        result = requests.get(
-            f'https://tapi.bale.ai/bot{settings.bale_bot_token}/setWebhook',
-            params={'url': webhook_url},
-            timeout=10
-        ).json()
-        
-        if result.get('ok'):
-            settings.bale_webhook_url = webhook_url
-            db.session.commit()
-            flash('وب‌هوک بله با موفقیت تنظیم شد ✓', 'success')
-        else:
-            flash(f'خطا: {result.get("description", "نامشخص")}', 'error')
-    except Exception as e:
-        flash(f'خطا: {str(e)}', 'error')
-    
+        requests.post(
+            f'https://tapi.bale.ai/bot{settings.bale_bot_token}/deleteWebhook', timeout=10
+        )
+    except requests.RequestException:
+        pass
+    settings.bale_webhook_url = None
+    db.session.commit()
+
+    started, message = bale_polling_manager.start(
+        current_app._get_current_object(), settings.bale_bot_token
+    )
+    flash(message, 'success' if started else 'danger')
+    return redirect(url_for('settings_panel.bale_config'))
+
+
+@settings_panel_bp.route('/bale/polling/stop', methods=['POST'])
+@login_required
+def stop_bale_polling():
+    from utils.bot_services import bale_polling_manager
+
+    bale_polling_manager.stop()
+    flash('دریافت خودکار پیام‌های بله متوقف شد', 'success')
     return redirect(url_for('settings_panel.bale_config'))
 
 
@@ -307,45 +327,46 @@ def test_bale_message():
 @settings_panel_bp.route('/farazsms', methods=['GET', 'POST'])
 @login_required
 def farazsms_config():
-    """تنظیمات کامل فراز اس‌ام‌اس"""
+    """تنظیم پنل فراز با API رسمی و تست اعتبار بدون ارسال پیامک."""
     from models.system import SystemSettings
+    from utils.sms_service import check_farazsms_connection
+
     settings = SystemSettings.query.first()
-    
     if request.method == 'POST':
         settings.farazsms_api_key = request.form.get('farazsms_api_key', '').strip()
         settings.farazsms_sender = request.form.get('farazsms_sender', '').strip()
         settings.farazsms_pattern_code = request.form.get('farazsms_pattern_code', '').strip()
+        # تنظیمات عمومی قدیمی نیز با پنل فعال همگام می‌شوند.
+        settings.sms_provider = 'farazsms'
+        settings.sms_api_key = settings.farazsms_api_key
+        settings.sms_sender = settings.farazsms_sender
         db.session.commit()
-        
-        # تست اتصال
-        if settings.farazsms_api_key:
-            try:
-                resp = requests.post(
-                    'https://api.farazsms.com/v1/sms/send',
-                    json={
-                        'sender': settings.farazsms_sender,
-                        'receptor': '09121111111',  # شماره تست
-                        'message': 'تست اتصال'
-                    },
-                    headers={
-                        'Authorization': settings.farazsms_api_key,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout=15
-                ).json()
-                
-                if 'id' in resp or resp.get('status') == 'success':
-                    flash('اتصال به فراز اس‌ام‌اس موفق ✓', 'success')
-                elif resp.get('message'):
-                    flash(f'فراز: {resp.get("message")}', 'info')
-                else:
-                    flash(f'فراز: {json.dumps(resp, ensure_ascii=False)}', 'info')
-            except Exception as e:
-                flash(f'خطا: {str(e)}', 'error')
-        
+
+        result = check_farazsms_connection(settings.farazsms_api_key)
+        if result.get('ok'):
+            balance = result.get('balance_amount')
+            suffix = f' — اعتبار: {balance:,.0f} ریال' if isinstance(balance, (int, float)) else ''
+            flash(f'اتصال پنل پیامکی با موفقیت تأیید شد{suffix}', 'success')
+        else:
+            flash(f'تنظیمات ذخیره شد اما اتصال تأیید نشد: {result.get("error")}', 'danger')
         return redirect(url_for('settings_panel.farazsms_config'))
-    
+
     return render_template('settings_panel/farazsms.html', settings=settings)
+
+
+@settings_panel_bp.route('/farazsms/check', methods=['POST'])
+@login_required
+def check_farazsms():
+    from models.system import SystemSettings
+    from utils.sms_service import check_farazsms_connection
+
+    settings = SystemSettings.query.first()
+    result = check_farazsms_connection(settings.farazsms_api_key if settings else '')
+    if result.get('ok'):
+        flash(f'اتصال برقرار است — تعداد پیامک قابل ارسال: {result.get("balance_count", "نامشخص")}', 'success')
+    else:
+        flash(result.get('error') or 'اتصال پنل ناموفق بود', 'danger')
+    return redirect(url_for('settings_panel.farazsms_config'))
 
 
 @settings_panel_bp.route('/farazsms/test', methods=['POST'])
@@ -366,14 +387,12 @@ def test_farazsms():
         flash('شماره موبایل را وارد کنید', 'error')
         return redirect(url_for('settings_panel.farazsms_config'))
     
-    try:
-        result = send_farazsms_real(settings, phone, message)
-        if result.get('id') or result.get('status') == 'success':
-            flash(f'پیامک ارسال شد! شناسه: {result.get("id", "نامشخص")}', 'success')
-        else:
-            flash(f'فراز: {json.dumps(result, ensure_ascii=False)}', 'info')
-    except Exception as e:
-        flash(f'خطا: {str(e)}', 'error')
+    from utils.sms_service import send_farazsms
+    result = send_farazsms(settings, phone, message)
+    if result.get('ok'):
+        flash(f'پیامک آزمایشی ارسال شد — شناسه: {result.get("provider_id", "نامشخص")}', 'success')
+    else:
+        flash(result.get('error') or 'ارسال پیامک ناموفق بود', 'danger')
     
     return redirect(url_for('settings_panel.farazsms_config'))
 
@@ -427,11 +446,9 @@ def farazsms_bulk():
     for phone, name, student_id in phones:
         personalized = message_text.replace('{نام}', name)
         
-        try:
-            result = send_farazsms_real(settings, phone, personalized)
-            success = bool(result.get('id') or result.get('status') == 'success')
-        except:
-            success = False
+        from utils.sms_service import send_farazsms
+        result = send_farazsms(settings, phone, personalized)
+        success = result.get('ok', False)
         
         log = Message(
             recipient_type='student',
@@ -440,6 +457,8 @@ def farazsms_bulk():
             message_text=personalized,
             send_type=send_type,
             status='sent' if success else 'failed',
+            sent_at=datetime.utcnow() if success else None,
+            error_message=result.get('error') if not success else None,
             created_by=current_user.id
         )
         db.session.add(log)
@@ -450,7 +469,8 @@ def farazsms_bulk():
             failed_count += 1
     
     db.session.commit()
-    flash(f'{sent_count} پیامک ارسال شد' + (f' | {failed_count} ناموفق' if failed_count else ''), 'success')
+    category = 'success' if sent_count else 'danger'
+    flash(f'{sent_count} پیامک ارسال شد' + (f' | {failed_count} ناموفق' if failed_count else ''), category)
     return redirect(url_for('settings_panel.farazsms_config'))
 
 
@@ -488,11 +508,9 @@ def farazsms_installment_reminders():
                 f"لطفاً قبل از سررسید اقدام فرمایید."
             )
             
-            try:
-                result = send_farazsms_real(settings, reg.student.mobile, msg_text)
-                success = bool(result.get('id') or result.get('status') == 'success')
-            except:
-                success = False
+            from utils.sms_service import send_farazsms
+            result = send_farazsms(settings, reg.student.mobile, msg_text)
+            success = result.get('ok', False)
             
             log = Message(
                 recipient_type='student',
@@ -501,17 +519,49 @@ def farazsms_installment_reminders():
                 message_text=msg_text,
                 send_type='installment_reminder',
                 status='sent' if success else 'failed',
+                sent_at=datetime.utcnow() if success else None,
+                error_message=result.get('error') if not success else None,
                 created_by=current_user.id
             )
             db.session.add(log)
             
-            inst.reminder_sent = True
+            # در صورت خطا، قسط برای تلاش مجدد علامت‌گذاری نمی‌شود.
             if success:
+                inst.reminder_sent = True
                 sent += 1
     
     db.session.commit()
     flash(f'{sent} یادآوری قسط ارسال شد', 'success')
     return redirect(url_for('settings_panel.farazsms_config'))
+
+
+# ═══════════════════════════════════════════════════════════════
+#  پایش ارتباطات و ایرادات فنی
+# ═══════════════════════════════════════════════════════════════
+
+@settings_panel_bp.route('/diagnostics')
+@login_required
+def diagnostics():
+    from utils.system_diagnostics import run_system_diagnostics
+    report = run_system_diagnostics()
+    return render_template('settings_panel/diagnostics.html', **report)
+
+
+@settings_panel_bp.route('/diagnostics/repair', methods=['POST'])
+@login_required
+def repair_diagnostics():
+    if not current_user.is_admin:
+        flash('فقط مدیر کل می‌تواند اصلاح خودکار را اجرا کند', 'danger')
+        return redirect(url_for('settings_panel.diagnostics'))
+
+    from utils.system_diagnostics import repair_safe_consistency_issues
+    result = repair_safe_consistency_issues()
+    flash(
+        f'اصلاح امن انجام شد: {result["dates"]} تاریخ و '
+        f'{result["classes"]} ظرفیت کلاس همگام‌سازی شد',
+        'success'
+    )
+    return redirect(url_for('settings_panel.diagnostics'))
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -582,13 +632,12 @@ def backup_config():
 def create_backup():
     """ایجاد پشتیبان"""
     from flask import current_app
-    import shutil, zipfile
+    import zipfile
     
     if not current_user.is_admin:
         flash('فقط مدیر کل', 'error')
         return redirect(url_for('settings_panel.backup_config'))
     
-    db_path = os.path.join(current_app.root_path, '..', 'instance', 'academy.db')
     backup_dir = current_app.config['BACKUP_FOLDER']
     os.makedirs(backup_dir, exist_ok=True)
     
@@ -597,7 +646,8 @@ def create_backup():
     backup_path = os.path.join(backup_dir, backup_name)
     
     try:
-        shutil.copy2(db_path, backup_path)
+        from utils.database_tools import sqlite_backup
+        sqlite_backup(backup_path)
         zip_path = backup_path + '.zip'
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
             zf.write(backup_path, backup_name)
@@ -620,9 +670,11 @@ def api_status():
     from models.system import SystemSettings
     settings = SystemSettings.query.first()
     
+    from utils.bot_services import bale_polling_manager
     result = {
         'telegram': bool(settings and settings.telegram_bot_token),
-        'bale': bool(settings and settings.bale_bot_token),
+        'bale': bale_polling_manager.status()['running'],
+        'bale_configured': bool(settings and settings.bale_bot_token),
         'farazsms': bool(settings and settings.farazsms_api_key),
     }
     return jsonify(result)
@@ -633,30 +685,12 @@ def api_status():
 # ═══════════════════════════════════════════════════════════════
 
 def send_farazsms_real(settings, phone, message, pattern_code=None, pattern_values=None):
-    """ارسال واقعی پیامک از فراز"""
-    if not settings or not settings.farazsms_api_key:
-        return {'error': 'API key not set'}
-    
-    api_url = 'https://api.farazsms.com/v1/sms/send'
-    
-    headers = {
-        'Authorization': settings.farazsms_api_key,
-        'Content-Type': 'application/json'
-    }
-    
-    if pattern_code and pattern_values:
-        payload = {
-            'sender': settings.farazsms_sender,
-            'receptor': phone,
-            'pattern': pattern_code,
-            'params': pattern_values
-        }
-    else:
-        payload = {
-            'sender': settings.farazsms_sender,
-            'receptor': phone,
-            'message': message
-        }
-    
-    resp = requests.post(api_url, json=payload, headers=headers, timeout=15)
-    return resp.json()
+    """نام قدیمی تابع برای سازگاری؛ پیاده‌سازی واقعی در سرویس یکپارچه است."""
+    from utils.sms_service import send_farazsms
+    return send_farazsms(
+        settings,
+        phone,
+        message,
+        pattern_code=pattern_code,
+        pattern_values=pattern_values,
+    )

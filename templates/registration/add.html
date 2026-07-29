@@ -15,19 +15,19 @@
             <div class="card-body-custom">
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label">هنرجو <span class="text-danger">*</span></label>
-                        <select name="student_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                        <select name="student_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
                             <option value="">انتخاب هنرجو...</option>
                             {% for s in students %}<option value="{{ s.id }}">{{ s.full_name }} ({{ s.student_code }})</option>{% endfor %}
                         </select>
                     </div>
                     <div class="col-md-4"><label class="form-label">دوره <span class="text-danger">*</span></label>
-                        <select name="course_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                        <select name="course_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
                             <option value="">انتخاب دوره...</option>
                             {% for c in courses %}<option value="{{ c.id }}">{{ c.title }} - {{ c.total_fee|currency }} ت</option>{% endfor %}
                         </select>
                     </div>
                     <div class="col-md-4"><label class="form-label">کلاس</label>
-                        <select name="class_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                        <select name="class_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید...">
                             <option value="">انتخاب کلاس...</option>
                             {% for cl in classes %}<option value="{{ cl.id }}">{{ cl.name }} ({{ cl.available_capacity }} ظرفیت)</option>{% endfor %}
                         </select>

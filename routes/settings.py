@@ -247,24 +247,89 @@ def add_room():
 
 
 # ===== Expense Categories =====
+def _expense_category_conflict(name, code=None, exclude_id=None):
+    """بررسی تکراری نبودن نام و کد دسته‌بندی."""
+    query = ExpenseCategory.query
+    if exclude_id is not None:
+        query = query.filter(ExpenseCategory.id != exclude_id)
+
+    if query.filter(db.func.lower(ExpenseCategory.name) == name.lower()).first():
+        return 'دسته‌بندی دیگری با این نام وجود دارد'
+
+    if code and query.filter(db.func.lower(ExpenseCategory.code) == code.lower()).first():
+        return 'دسته‌بندی دیگری با این کد وجود دارد'
+
+    return None
+
+
+def _category_form_values():
+    name = (request.form.get('name') or '').strip()
+    code = (request.form.get('code') or '').strip().upper() or None
+    description = (request.form.get('description') or '').strip() or None
+    return name, code, description
+
+
 @settings_bp.route('/expense-categories')
 @login_required
 def expense_categories():
-    categories = ExpenseCategory.query.all()
+    categories = ExpenseCategory.query.order_by(
+        ExpenseCategory.is_active.desc(), ExpenseCategory.name
+    ).all()
     return render_template('settings/expense_categories.html', categories=categories)
+
+
+@settings_bp.route('/expense-categories/pdf')
+@login_required
+def expense_categories_pdf():
+    """فهرست دسته‌بندی‌ها در قالب PDF فارسی."""
+    from utils.pdf_helpers import build_table_pdf
+
+    categories = ExpenseCategory.query.order_by(
+        ExpenseCategory.is_active.desc(), ExpenseCategory.name
+    ).all()
+    rows = [
+        (
+            category.code or '-',
+            category.name,
+            category.description or '-',
+            'فعال' if category.is_active else 'غیرفعال',
+            len(category.expenses)
+        )
+        for category in categories
+    ]
+    return build_table_pdf(
+        'فهرست دسته‌بندی‌های هزینه',
+        ['کد', 'نام دسته‌بندی', 'توضیحات', 'وضعیت', 'تعداد هزینه'],
+        rows,
+        'expense-categories.pdf',
+        subtitle=f'تعداد دسته‌بندی‌ها: {len(rows)}',
+        landscape_mode=True,
+        download=request.args.get('download') == '1'
+    )
 
 
 @settings_bp.route('/expense-categories/add', methods=['POST'])
 @login_required
 def add_expense_category():
+    name, code, description = _category_form_values()
+    if not name:
+        flash('نام دسته‌بندی هزینه الزامی است', 'danger')
+        return redirect(url_for('settings.expense_categories'))
+
+    conflict = _expense_category_conflict(name, code)
+    if conflict:
+        flash(conflict, 'danger')
+        return redirect(url_for('settings.expense_categories'))
+
     cat = ExpenseCategory(
-        name=request.form['name'],
-        code=request.form.get('code'),
-        description=request.form.get('description')
+        name=name,
+        code=code,
+        description=description,
+        is_active=True
     )
     db.session.add(cat)
     db.session.commit()
-    flash('دسته‌بندی هزینه اضافه شد', 'success')
+    flash(f'دسته‌بندی «{name}» اضافه شد', 'success')
     return redirect(url_for('settings.expense_categories'))
 
 
@@ -273,14 +338,27 @@ def add_expense_category():
 def edit_expense_category(id):
     cat = ExpenseCategory.query.get_or_404(id)
     if request.method == 'POST':
-        cat.name = request.form['name']
-        cat.code = request.form.get('code')
-        cat.description = request.form.get('description')
+        name, code, description = _category_form_values()
+        if not name:
+            flash('نام دسته‌بندی هزینه الزامی است', 'danger')
+            return redirect(url_for('settings.edit_expense_category', id=id))
+
+        conflict = _expense_category_conflict(name, code, exclude_id=id)
+        if conflict:
+            flash(conflict, 'danger')
+            return redirect(url_for('settings.edit_expense_category', id=id))
+
+        cat.name = name
+        cat.code = code
+        cat.description = description
         cat.is_active = 'is_active' in request.form
         db.session.commit()
-        flash('دسته‌بندی هزینه بروزرسانی شد', 'success')
+        flash(f'دسته‌بندی «{name}» بروزرسانی شد', 'success')
         return redirect(url_for('settings.expense_categories'))
-    categories = ExpenseCategory.query.all()
+
+    categories = ExpenseCategory.query.order_by(
+        ExpenseCategory.is_active.desc(), ExpenseCategory.name
+    ).all()
     return render_template('settings/expense_categories.html', categories=categories, edit_cat=cat)
 
 
@@ -288,13 +366,17 @@ def edit_expense_category(id):
 @login_required
 def delete_expense_category(id):
     cat = ExpenseCategory.query.get_or_404(id)
-    # بررسی اینکه آیا هزینه‌ای با این دسته‌بندی ثبت شده
+
+    # دسته‌بندی استفاده‌شده یا والد را حذف نمی‌کنیم تا سوابق مالی خراب نشوند.
     if cat.expenses:
-        flash('این دسته‌بندی دارای هزینه ثبت شده است و قابل حذف نیست', 'danger')
+        flash('این دسته‌بندی در هزینه‌های ثبت‌شده استفاده شده و قابل حذف نیست؛ می‌توانید آن را غیرفعال کنید', 'danger')
+    elif cat.children:
+        flash('این دسته‌بندی دارای زیر‌دسته است و تا زمان حذف یا انتقال زیر‌دسته‌ها قابل حذف نیست', 'danger')
     else:
+        name = cat.name
         db.session.delete(cat)
         db.session.commit()
-        flash('دسته‌بندی هزینه حذف شد', 'success')
+        flash(f'دسته‌بندی «{name}» حذف شد', 'success')
     return redirect(url_for('settings.expense_categories'))
 
 
@@ -302,17 +384,17 @@ def delete_expense_category(id):
 @settings_bp.route('/sms', methods=['GET', 'POST'])
 @login_required
 def sms():
-    settings = SystemSettings.query.first()
-    
+    """تنظیمات قدیمی پیامک به پنل اتصال واقعی منتقل شده است."""
     if request.method == 'POST':
-        settings.sms_api_key = request.form.get('sms_api_key')
-        settings.sms_provider = request.form.get('sms_provider')
-        settings.sms_sender = request.form.get('sms_sender')
+        settings = SystemSettings.query.first()
+        settings.sms_api_key = (request.form.get('sms_api_key') or '').strip()
+        settings.sms_provider = request.form.get('sms_provider') or 'farazsms'
+        settings.sms_sender = (request.form.get('sms_sender') or '').strip()
+        if settings.sms_provider == 'farazsms':
+            settings.farazsms_api_key = settings.sms_api_key
+            settings.farazsms_sender = settings.sms_sender
         db.session.commit()
-        flash('تنظیمات پیامک ذخیره شد', 'success')
-        return redirect(url_for('settings.sms'))
-    
-    return render_template('settings/sms.html', settings=settings)
+    return redirect(url_for('settings_panel.farazsms_config'))
 
 
 # ===== Backup Settings =====

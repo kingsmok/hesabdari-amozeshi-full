@@ -33,7 +33,7 @@
     <div class="card">
         <div class="card-head"><h5>یادآوری خودکار اقساط</h5></div>
         <div class="card-body-padded">
-            <p style="font-size: 13px;">ارسال یادآوری قسط به هنرجویانی که قسط‌شان ظ� ۳ روز آینده سررسید می‌شود:</p>
+            <p style="font-size: 13px;">ارسال یادآوری قسط به هنرجویانی که قسط‌شان ظرف ۳ روز آینده سررسید می‌شود:</p>
             <form method="POST" action="{{ url_for('new_features.send_installment_reminders') }}" style="display: inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-warning"><i class="bi bi-bell me-1"></i> ارسال یادآوری اقساط</button>
             </form>

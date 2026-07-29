@@ -1,84 +1,104 @@
 {% extends "base/layout.html" %}
-{% block title %}تنظیمات بله{% endblock %}
+{% block title %}تنظیمات ربات بله{% endblock %}
 {% block breadcrumb %}<li><a href="{{ url_for('settings_panel.control_panel') }}">پنل</a></li><li class="active">بله</li>{% endblock %}
 {% block content %}
 <div class="anim-in">
     <div class="page-head">
-        <h1><i class="bi bi-chat-dots" style="color: #0081ff;"></i> تنظیمات ربات بله<small>پیام‌رسان ایرانی</small></h1>
-        {% if bot_info %}
-        <span class="badge-status badge-active" style="font-size: 13px; padding: 6px 16px;">
-            <i class="bi bi-check-circle me-1"></i> متصل — @{{ bot_info.username }}
-        </span>
+        <h1><i class="bi bi-chat-dots" style="color:#0081ff;"></i> ربات بله<small>دریافت پیام با Long Polling — بدون وب‌هوک و بدون نیاز به دامنه عمومی</small></h1>
+        {% if polling_status.running %}
+        <span class="badge-status badge-active"><i class="bi bi-broadcast me-1"></i> دریافت خودکار فعال</span>
+        {% elif settings and settings.bale_bot_token %}
+        <span class="badge-status badge-pending"><i class="bi bi-pause-circle me-1"></i> متوقف</span>
+        {% else %}
+        <span class="badge-status badge-inactive">تنظیم نشده</span>
         {% endif %}
     </div>
+
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        این اتصال از <strong>getUpdates / Long Polling</strong> استفاده می‌کند؛ وب‌هوک قبلی هنگام شروع به‌صورت خودکار حذف می‌شود.
+    </div>
+
     <div class="row g-3">
         <div class="col-lg-6">
             <div class="card mb-4">
-                <div class="card-head"><h5><i class="bi bi-key"></i> تنظیمات اتصال</h5></div>
+                <div class="card-head"><h5><i class="bi bi-key"></i> توکن اتصال</h5></div>
                 <div class="card-body-padded">
                     <form method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
-                            <label class="form-label">توکن بات بله <span class="text-danger">*</span></label>
-                            <input type="text" name="bale_bot_token" class="form-control" value="{{ settings.bale_bot_token or '' }}" placeholder="توکن از @bale_bot">
+                            <label class="form-label">توکن ربات بله <span class="text-danger">*</span></label>
+                            <input type="password" name="bale_bot_token" class="form-control" value="{{ settings.bale_bot_token or '' }}" autocomplete="off" placeholder="توکن دریافتی از BotFather">
+                            <div class="form-text">با ذخیره توکن، اتصال بررسی و دریافت خودکار پیام‌ها فعال می‌شود.</div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label">آدرس وب‌هوک</label>
-                            <input type="text" name="bale_webhook_url" class="form-control" value="{{ settings.bale_webhook_url or '' }}" placeholder="https://your-domain.com/webhook/bale">
-                        </div>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ذخیره و تست</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> ذخیره، تست و شروع</button>
                     </form>
                 </div>
             </div>
+
+            {% if settings and settings.bale_bot_token %}
             <div class="card mb-4">
-                <div class="card-head"><h5><i class="bi bi-link-45deg"></i> تنظیم وب‌هوک</h5></div>
+                <div class="card-head"><h5><i class="bi bi-play-circle"></i> کنترل دریافت پیام</h5></div>
                 <div class="card-body-padded">
-                    <form method="POST" action="{{ url_for('settings_panel.set_bale_webhook') }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="mb-3">
-                            <label class="form-label">آدرس وب‌هوک</label>
-                            <input type="text" name="webhook_url" class="form-control" value="{{ settings.bale_webhook_url or '' }}">
-                        </div>
-                        <button type="submit" class="btn btn-success"><i class="bi bi-link-45deg me-1"></i> تنظیم</button>
-                    </form>
+                    <div class="d-flex gap-2">
+                        <form method="POST" action="{{ url_for('settings_panel.start_bale_polling') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-success" {{ 'disabled' if polling_status.running else '' }}><i class="bi bi-play-fill"></i> شروع دریافت</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('settings_panel.stop_bale_polling') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-outline-danger" {{ 'disabled' if not polling_status.running else '' }}><i class="bi bi-stop-fill"></i> توقف</button>
+                        </form>
+                    </div>
+                    {% if polling_status.last_update_at %}<div class="form-text mt-3">آخرین پیام: {{ polling_status.last_update_at }}</div>{% endif %}
+                    {% if polling_status.last_error %}<div class="alert alert-warning mt-3 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>{{ polling_status.last_error }}</div>{% endif %}
                 </div>
             </div>
+            {% endif %}
+
             <div class="card">
                 <div class="card-head"><h5><i class="bi bi-send"></i> تست ارسال</h5></div>
                 <div class="card-body-padded">
                     <form method="POST" action="{{ url_for('settings_panel.test_bale_message') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <div class="mb-3"><label class="form-label">Chat ID</label><input type="text" name="chat_id" class="form-control"></div>
-                        <div class="mb-3"><label class="form-label">متن</label><input type="text" name="message" class="form-control" value="تست اتصال ✓"></div>
-                        <button type="submit" class="btn btn-info text-white"><i class="bi bi-send me-1"></i> ارسال</button>
+                        <div class="mb-3"><label class="form-label">شناسه چت</label><input type="text" name="chat_id" class="form-control" required></div>
+                        <div class="mb-3"><label class="form-label">متن</label><input type="text" name="message" class="form-control" value="تست اتصال از سیستم آموزشگاه ✓" required></div>
+                        <button class="btn btn-info text-white"><i class="bi bi-send"></i> ارسال تست</button>
                     </form>
                 </div>
             </div>
         </div>
+
         <div class="col-lg-6">
             {% if bot_info %}
             <div class="card mb-4">
-                <div class="card-head"><h5><i class="bi bi-info-circle"></i> اطلاعات بات</h5></div>
+                <div class="card-head"><h5><i class="bi bi-info-circle"></i> اطلاعات ربات</h5></div>
                 <div class="card-body-padded">
                     <table class="table table-borderless mb-0">
-                        <tr><td style="color: #78909c; width: 100px;">نام</td><td><strong>{{ bot_info.first_name }}</strong></td></tr>
-                        <tr><td style="color: #78909c;">یوزرنیم</td><td><code>@{{ bot_info.username }}</code></td></tr>
-                        <tr><td style="color: #78909c;">شناسه</td><td>{{ bot_info.id }}</td></tr>
+                        <tr><td style="color:#78909c;width:110px;">نام</td><td><strong>{{ bot_info.first_name }}</strong></td></tr>
+                        <tr><td style="color:#78909c;">نام کاربری</td><td><code>@{{ bot_info.username }}</code></td></tr>
+                        <tr><td style="color:#78909c;">شناسه</td><td>{{ bot_info.id }}</td></tr>
+                        <tr><td style="color:#78909c;">روش دریافت</td><td><span class="badge-status badge-active">Long Polling</span></td></tr>
                     </table>
                 </div>
             </div>
             {% endif %}
+
             <div class="card">
-                <div class="card-head"><h5><i class="bi bi-question-circle"></i> راهنما</h5></div>
-                <div class="card-body-padded" style="font-size: 12px;">
+                <div class="card-head"><h5><i class="bi bi-question-circle"></i> راه‌اندازی و قابلیت‌ها</h5></div>
+                <div class="card-body-padded" style="font-size:12px;line-height:2;">
                     <ol>
-                        <li>به <a href="https://ble.ir/BaleBot" target="_blank">@BaleBot</a> در بله پیام دهید</li>
-                        <li>دستور <code>/newbot</code> را بزنید</li>
-                        <li>توکن را کپی کنید</li>
-                        <li>در فیلد بالا وارد کنید</li>
-                        <li>وب‌هوک را تنظیم کنید</li>
+                        <li>در بله به <a href="https://ble.ir/botfather" target="_blank">@botfather</a> پیام دهید.</li>
+                        <li>با دستور <code>/newbot</code> ربات را بسازید.</li>
+                        <li>توکن را در فرم وارد و ذخیره کنید.</li>
+                        <li>برنامه باید در حال اجرا و به اینترنت متصل باشد؛ دامنه و SSL لازم نیست.</li>
                     </ol>
-                    <p class="mt-2">API بله: <code>https://tapi.bale.ai/bot{TOKEN}/</code></p>
+                    <hr>
+                    <ul class="mb-0">
+                        <li><code>/start</code> یا <code>/help</code>: راهنمای ربات</li>
+                        <li>ارسال موبایل: کلاس‌ها و مانده شهریه هنرجو</li>
+                        <li>ارسال نام دوره: مشخصات و کلاس‌های فعال دوره</li>
+                    </ul>
                 </div>
             </div>
         </div>

@@ -17,8 +17,8 @@
                         <i class="bi {{ conn.icon }}" style="font-size: 28px; color: {{ '#2e7d32' if conn.configured else '#b0bec5' }};"></i>
                     </div>
                     <h6 style="font-weight: 700;">{{ conn.name }}</h6>
-                    <span class="badge-status badge-{{ 'active' if conn.configured else 'inactive' }}">
-                        {{ 'متصل' if conn.configured else 'تنظیم نشده' }}
+                    <span class="badge-status badge-{{ 'active' if conn.status == 'running' else ('pending' if conn.configured else 'inactive') }}">
+                        {{ conn.label }}
                     </span>
                     <div class="mt-3">
                         <a href="{{ url_for('settings_panel.' + key + '_config') }}" class="btn btn-sm {{ 'btn-success' if conn.configured else 'btn-outline-primary' }}">
@@ -33,6 +33,14 @@
     
     <!-- لینک‌های سریع -->
     <div class="row g-3">
+        <div class="col-md-3">
+            <a href="{{ url_for('settings_panel.diagnostics') }}" class="text-decoration-none">
+                <div class="stat-box text-center" style="border:2px solid #00c853;">
+                    <i class="bi bi-activity" style="font-size:28px;color:#00c853;"></i>
+                    <h6 class="mt-2">پایش فنی و ارتباطات</h6>
+                </div>
+            </a>
+        </div>
         <div class="col-md-3">
             <a href="{{ url_for('settings_panel.general_config') }}" class="text-decoration-none">
                 <div class="stat-box text-center">
