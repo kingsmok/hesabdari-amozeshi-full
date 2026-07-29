@@ -12,7 +12,7 @@
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label">عنوان</label><input type="text" name="title" class="form-control" value="{{ course.title }}" required></div>
                     <div class="col-md-3"><label class="form-label">رشته</label>
-                        <select name="field_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">{% for f in fields %}<option value="{{ f.id }}" {{ 'selected' if f.id == course.field_id }}>{{ f.name }}</option>{% endfor %}</select>
+                        <select name="field_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید...">{% for f in fields %}<option value="{{ f.id }}" {{ 'selected' if f.id == course.field_id }}>{{ f.name }}</option>{% endfor %}</select>
                     </div>
                     <div class="col-md-2"><label class="form-label">ساعات</label><input type="number" name="duration_hours" class="form-control" value="{{ course.duration_hours }}"></div>
                     <div class="col-md-3"><label class="form-label">جلسات</label><input type="number" name="total_sessions" class="form-control" value="{{ course.total_sessions }}"></div>

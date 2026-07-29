@@ -26,7 +26,7 @@
                 <tr><td style="color: #78909c;">آخرین پشتیبان‌گیری</td><td><strong>{{ stats.last_backup or 'هیچ‌وقت' }}</strong></td></tr>
                 <tr><td style="color: #78909c;">تعداد ثبت‌نام‌ها</td><td>{{ stats.total_registrations }}</td></tr>
                 <tr><td style="color: #78909c;">تعداد پرداخت‌ها</td><td>{{ stats.total_payments }}</td></tr>
-                <tr><td style="color: #78909c;">وضعیت دیتابیس</td><td><span class="badge-status badge-active">سالم</span></td></tr>
+                <tr><td style="color: #78909c;">وضعیت دیتابیس</td><td><span class="badge-status badge-{{ 'active' if stats.db_healthy else 'inactive' }}">{{ 'سالم' if stats.db_healthy else 'دارای خطا' }}</span><small class="d-block text-muted mt-1">{{ stats.db_message }}</small></td></tr>
             </table>
         </div>
     </div>

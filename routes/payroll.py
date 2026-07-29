@@ -9,6 +9,7 @@ from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from extensions import db
+from utils.form_helpers import get_jalali_date
 
 payroll_bp = Blueprint('payroll', __name__)
 
@@ -70,8 +71,8 @@ def add_contract():
             commission_rate=float(request.form.get('commission_rate', 0) or 0),
             insurance_amount=float(request.form.get('insurance_amount', 0) or 0),
             tax_amount=float(request.form.get('tax_amount', 0) or 0),
-            start_date=datetime.strptime(request.form['start_date'], '%Y-%m-%d').date() if request.form.get('start_date') else None,
-            end_date=datetime.strptime(request.form['end_date'], '%Y-%m-%d').date() if request.form.get('end_date') else None,
+            start_date=get_jalali_date(request.form, 'start_date') if request.form.get('start_date') else None,
+            end_date=get_jalali_date(request.form, 'end_date') if request.form.get('end_date') else None,
             is_active=True,
             notes=request.form.get('notes')
         )
@@ -298,14 +299,20 @@ def advanced_expenses():
     
     query = Expense.query
     if category_id:
-        query = query.filter_by(category_id=int(category_id))
+        selected_category_id = request.args.get('category_id', type=int)
+        if selected_category_id:
+            query = query.filter_by(category_id=selected_category_id)
     if date_from:
-        query = query.filter(Expense.expense_date >= datetime.strptime(date_from, '%Y-%m-%d').date())
+        parsed_from = get_jalali_date(request.args, 'date_from')
+        if parsed_from:
+            query = query.filter(Expense.expense_date >= parsed_from)
     if date_to:
-        query = query.filter(Expense.expense_date <= datetime.strptime(date_to, '%Y-%m-%d').date())
+        parsed_to = get_jalali_date(request.args, 'date_to')
+        if parsed_to:
+            query = query.filter(Expense.expense_date <= parsed_to)
     
     expenses = query.order_by(Expense.expense_date.desc()).all()
-    categories = ExpenseCategory.query.filter_by(is_active=True).all()
+    categories = ExpenseCategory.query.filter_by(is_active=True).order_by(ExpenseCategory.name).all()
     
     # آمار
     total = sum(e.amount for e in expenses)
@@ -325,19 +332,35 @@ def advanced_expenses():
 def add_advanced_expense():
     """ثبت هزینه پیشرفته"""
     from models.finance import Expense, ExpenseCategory
+
+    categories = ExpenseCategory.query.filter_by(is_active=True).order_by(ExpenseCategory.name).all()
     
     if request.method == 'POST':
+        category_id = request.form.get('category_id', type=int)
+        category = ExpenseCategory.query.filter_by(id=category_id, is_active=True).first() if category_id else None
+        try:
+            amount = float(request.form.get('amount') or 0)
+        except (TypeError, ValueError):
+            amount = 0
+
+        if not category:
+            flash('لطفاً یک دسته‌بندی هزینه فعال انتخاب کنید', 'danger')
+            return render_template('payroll/add_expense.html', categories=categories), 400
+        if amount <= 0:
+            flash('مبلغ هزینه باید بیشتر از صفر باشد', 'danger')
+            return render_template('payroll/add_expense.html', categories=categories), 400
+
         last = Expense.query.order_by(Expense.id.desc()).first()
         exp_num = f'EXP-{(last.id + 1) if last else 1:06d}'
         
         expense = Expense(
             expense_number=exp_num,
-            category_id=int(request.form['category_id']),
-            amount=float(request.form['amount']),
-            description=request.form.get('description'),
-            expense_date=datetime.strptime(request.form['expense_date'], '%Y-%m-%d').date() if request.form.get('expense_date') else date.today(),
+            category_id=category.id,
+            amount=amount,
+            description=(request.form.get('description') or '').strip() or None,
+            expense_date=get_jalali_date(request.form, 'expense_date') if request.form.get('expense_date') else date.today(),
             payment_method=request.form.get('payment_method'),
-            paid_to=request.form.get('paid_to'),
+            paid_to=(request.form.get('paid_to') or '').strip() or None,
             branch_id=request.form.get('branch_id', 1),
             created_by=current_user.id
         )
@@ -356,36 +379,47 @@ def add_advanced_expense():
         
         db.session.add(expense)
         db.session.commit()
-        flash('هزینه ثبت شد', 'success')
+        flash(f'هزینه در دسته‌بندی «{category.name}» ثبت شد', 'success')
         return redirect(url_for('payroll.advanced_expenses'))
     
-    categories = ExpenseCategory.query.filter_by(is_active=True).all()
     return render_template('payroll/add_expense.html', categories=categories)
 
 
 @payroll_bp.route('/expenses/categories')
 @login_required
 def expense_categories():
-    """مدیریت دسته‌بندی هزینه‌ها"""
-    from models.finance import ExpenseCategory
-    categories = ExpenseCategory.query.all()
-    return render_template('payroll/expense_categories.html', categories=categories)
+    """مسیر قدیمی؛ مدیریت دسته‌بندی‌ها اکنون از یک صفحه واحد انجام می‌شود."""
+    return redirect(url_for('settings.expense_categories'))
 
 
 @payroll_bp.route('/expenses/categories/add', methods=['POST'])
 @login_required
 def add_expense_category():
+    """سازگاری با فرم نسخه‌های قدیمی برنامه."""
     from models.finance import ExpenseCategory
+
+    name = (request.form.get('name') or '').strip()
+    code = (request.form.get('code') or '').strip().upper() or None
+    if not name:
+        flash('نام دسته‌بندی هزینه الزامی است', 'danger')
+        return redirect(url_for('settings.expense_categories'))
+
+    duplicate = ExpenseCategory.query.filter(db.func.lower(ExpenseCategory.name) == name.lower()).first()
+    duplicate_code = code and ExpenseCategory.query.filter(db.func.lower(ExpenseCategory.code) == code.lower()).first()
+    if duplicate or duplicate_code:
+        flash('نام یا کد دسته‌بندی تکراری است', 'danger')
+        return redirect(url_for('settings.expense_categories'))
+
     cat = ExpenseCategory(
-        name=request.form['name'],
-        code=request.form.get('code'),
-        description=request.form.get('description'),
+        name=name,
+        code=code,
+        description=(request.form.get('description') or '').strip() or None,
         is_active=True
     )
     db.session.add(cat)
     db.session.commit()
-    flash('دسته‌بندی اضافه شد', 'success')
-    return redirect(url_for('payroll.expense_categories'))
+    flash(f'دسته‌بندی «{name}» اضافه شد', 'success')
+    return redirect(url_for('settings.expense_categories'))
 
 
 # ═══════════════════════════════════════════

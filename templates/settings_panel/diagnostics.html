@@ -1,0 +1,68 @@
+{% extends "base/layout.html" %}
+{% block title %}پایش ارتباطات و ایرادات فنی{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('settings_panel.control_panel') }}">پنل مدیریت</a></li><li class="active">پایش فنی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-activity"></i> پایش ارتباطات و ایرادات فنی<small>بررسی دیتابیس، ارتباط مدل‌ها، تاریخ‌ها، فایل‌ها، PDF، ربات‌ها و پیامک</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('settings_panel.diagnostics') }}" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat"></i> بررسی مجدد</a>
+            {% if current_user.is_admin %}
+            <form method="POST" action="{{ url_for('settings_panel.repair_diagnostics') }}" onsubmit="return confirm('اصلاح امن تاریخ‌های قدیمی و ظرفیت کلاس‌ها اجرا شود؟');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-success"><i class="bi bi-tools"></i> اصلاح امن</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">بررسی موفق</div><div class="stat-val" style="color:#2e7d32;">{{ summary.ok }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">هشدار</div><div class="stat-val" style="color:#ef6c00;">{{ summary.warning }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">خطای فنی</div><div class="stat-val" style="color:#c62828;">{{ summary.error }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">کل بررسی‌ها</div><div class="stat-val">{{ summary.total }}</div></div></div>
+    </div>
+
+    {% set groups = {
+        'core': 'هسته نرم‌افزار',
+        'database': 'دیتابیس',
+        'relations': 'ارتباط بین اطلاعات',
+        'storage': 'فایل و PDF',
+        'connections': 'اتصالات خارجی'
+    } %}
+    {% for group_key, group_title in groups.items() %}
+    <div class="card mb-3">
+        <div class="card-head"><h5><i class="bi bi-{% if group_key == 'database' %}database{% elif group_key == 'relations' %}diagram-3{% elif group_key == 'storage' %}folder-check{% elif group_key == 'connections' %}broadcast{% else %}cpu{% endif %}"></i> {{ group_title }}</h5></div>
+        <div class="card-body-padded" style="padding:0;">
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead><tr><th style="width:70px;">وضعیت</th><th style="width:230px;">بررسی</th><th>نتیجه</th></tr></thead>
+                    <tbody>
+                    {% for check in checks if check.group == group_key %}
+                        <tr>
+                            <td>
+                                {% if check.status == 'ok' %}<span class="badge-status badge-active"><i class="bi bi-check"></i> سالم</span>
+                                {% elif check.status == 'warning' %}<span class="badge-status badge-pending"><i class="bi bi-exclamation"></i> هشدار</span>
+                                {% elif check.status == 'error' %}<span class="badge-status badge-inactive"><i class="bi bi-x"></i> خطا</span>
+                                {% else %}<span class="badge bg-light text-secondary">اطلاعات</span>{% endif %}
+                            </td>
+                            <td><strong>{{ check.name }}</strong></td>
+                            <td>
+                                {{ check.message }}
+                                {% if check.detail %}
+                                    {% if check.detail is string %}<small class="d-block text-muted mt-1" dir="ltr">{{ check.detail }}</small>
+                                    {% else %}<ul class="small text-muted mb-0 mt-1">{% for item in check.detail %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="alert alert-light border mt-3"><i class="bi bi-shield-check me-2"></i>این صفحه در حالت بررسی هیچ اطلاعاتی را تغییر نمی‌دهد. دکمه «اصلاح امن» فقط تاریخ‌های قدیمی و شمارنده ظرفیت کلاس‌ها را بدون حذف رکورد اصلاح می‌کند.</div>
+</div>
+{% endblock %}

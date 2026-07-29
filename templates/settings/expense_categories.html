@@ -1,7 +1,7 @@
 {% extends "base/layout.html" %}
 {% block title %}دسته‌بندی هزینه{% endblock %}
 {% block breadcrumb %}
-<li><a href="{{ url_for('settings.expense_categories') }}">تنظیمات</a></li>
+<li><a href="{{ url_for('finance.expenses') }}">هزینه‌ها</a></li>
 <li class="active">دسته‌بندی هزینه</li>
 {% endblock %}
 
@@ -9,6 +9,11 @@
 <div class="anim-in">
     <div class="page-head">
         <h1><i class="bi bi-tags"></i> دسته‌بندی هزینه‌ها <small>مدیریت دسته‌بندی‌های هزینه‌های آموزشگاه</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('settings.expense_categories_pdf') }}" target="_blank" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> خروجی PDF</a>
+            <a href="{{ url_for('finance.expenses') }}" class="btn btn-outline-secondary"><i class="bi bi-list-ul"></i> لیست هزینه‌ها</a>
+            <a href="{{ url_for('finance.add_expense') }}" class="btn btn-success"><i class="bi bi-plus-circle"></i> ثبت هزینه</a>
+        </div>
     </div>
 
     <!-- فرم افزودن / ویرایش -->
@@ -69,52 +74,60 @@
         </div>
         <div class="card-body-padded" style="padding: 0;">
             {% if categories %}
-            <table class="table mb-0">
-                <thead>
-                    <tr>
-                        <th>کد</th>
-                        <th>نام دسته‌بندی</th>
-                        <th>توضیحات</th>
-                        <th>وضعیت</th>
-                        <th>تعداد هزینه</th>
-                        <th style="width: 120px;">عملیات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for c in categories %}
-                    <tr {% if edit_cat and edit_cat.id == c.id %}style="background: #e3f2fd;"{% endif %}>
-                        <td><code style="background: #eceff1; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{{ c.code or '-' }}</code></td>
-                        <td><strong>{{ c.name }}</strong></td>
-                        <td style="color: #78909c;">{{ c.description or '-' }}</td>
-                        <td>
-                            {% if c.is_active %}
-                            <span class="badge-status badge-active">فعال</span>
-                            {% else %}
-                            <span class="badge-status badge-inactive">غیرفعال</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span style="background: {% if c.expenses %}#e3f2fd{% else %}#f5f5f5{% endif %}; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">
-                                {{ c.expenses|length }} هزینه
-                            </span>
-                        </td>
-                        <td>
-                            <div class="d-flex gap-1">
-                                <a href="{{ url_for('settings.edit_expense_category', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="ویرایش">
-                                    <i class="bi bi-pencil"></i>
-                                </a>
-                                <form method="POST" action="{{ url_for('settings.delete_expense_category', id=c.id) }}" style="display: inline;" onsubmit="return confirm('آیا از حذف «{{ c.name }}» مطمئن هستید؟');">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف">
-                                        <i class="bi bi-trash3"></i>
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th>کد</th>
+                            <th>نام دسته‌بندی</th>
+                            <th>توضیحات</th>
+                            <th>وضعیت</th>
+                            <th>تعداد هزینه</th>
+                            <th style="width: 120px;">عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in categories %}
+                        <tr {% if edit_cat and edit_cat.id == c.id %}style="background: #e3f2fd;"{% endif %}>
+                            <td><code style="background: #eceff1; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{{ c.code or '-' }}</code></td>
+                            <td><strong>{{ c.name }}</strong></td>
+                            <td style="color: #78909c;">{{ c.description or '-' }}</td>
+                            <td>
+                                {% if c.is_active %}
+                                <span class="badge-status badge-active">فعال</span>
+                                {% else %}
+                                <span class="badge-status badge-inactive">غیرفعال</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span style="background: {% if c.expenses %}#e3f2fd{% else %}#f5f5f5{% endif %}; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;">
+                                    {{ c.expenses|length }} هزینه
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('settings.edit_expense_category', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="ویرایش یا تغییر وضعیت">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    {% if not c.expenses and not c.children %}
+                                    <form method="POST" action="{{ url_for('settings.delete_expense_category', id=c.id) }}" style="display: inline;" onsubmit="return confirm('آیا از حذف «{{ c.name }}» مطمئن هستید؟');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="دسته‌بندی استفاده‌شده را غیرفعال کنید">
+                                        <i class="bi bi-lock"></i>
                                     </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
             <div class="text-center py-5" style="color: #b0bec5;">
                 <i class="bi bi-tags" style="font-size: 48px;"></i>

@@ -25,6 +25,7 @@ a = Analysis(
     hiddenimports=[
         'flask', 'flask_sqlalchemy', 'flask_login', 'flask_wtf',
         'flask_migrate', 'jdatetime', 'requests', 'reportlab',
+        'arabic_reshaper', 'bidi', 'bidi.algorithm', 'qrcode',
         'PyQt6', 'PyQt6.QtWidgets', 'PyQt6.QtCore', 'PyQt6.QtGui',
         'PyQt6.QtWebEngineWidgets', 'PyQt6.QtWebEngineCore',
         'models', 'models.user', 'models.student', 'models.teacher',

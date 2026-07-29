@@ -111,11 +111,18 @@ def my_schedule():
     for cls in classes:
         if cls.days_of_week:
             try:
-                day_indices = eval(cls.days_of_week)
-                for d in day_indices:
-                    schedule[d].append(cls)
-            except:
-                pass
+                import json
+                try:
+                    day_indices = json.loads(cls.days_of_week)
+                except json.JSONDecodeError:
+                    from ast import literal_eval
+                    day_indices = literal_eval(cls.days_of_week)
+                for day in day_indices:
+                    day = int(day)
+                    if day in schedule:
+                        schedule[day].append(cls)
+            except (TypeError, ValueError, SyntaxError):
+                continue
     return render_template('teacher_portal/my_schedule.html', teacher=teacher, schedule=schedule, days=days)
 
 

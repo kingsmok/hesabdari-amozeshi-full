@@ -114,6 +114,7 @@ class Certificate(db.Model):
     issued_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     
     student = db.relationship('Student', backref='certificates')
+    registration = db.relationship('Registration', backref='certificates')
     template = db.relationship('CertificateTemplate', backref='issued_certificates')
     course = db.relationship('Course', backref='certificates')
 

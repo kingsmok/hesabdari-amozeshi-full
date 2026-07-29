@@ -39,33 +39,41 @@ def gregorian_to_jalali_obj(g_date):
 
 
 def parse_jalali_date(date_str):
-    """پردازش رشته تاریخ شمسی → تاریخ میلادی
-    
-    فرمت: 1405/01/16 یا 1405-01-16
+    """پردازش تاریخ فرم به میلادی.
+
+    فرمت شمسی 1405/01/16 و فرمت استاندارد میلادی 2026-04-05 پذیرفته می‌شود
+    تا فرم حتی در صورت غیرفعال بودن JavaScript نیز اطلاعات را از دست ندهد.
     """
-    if not date_str or not date_str.strip():
+    if not date_str or not str(date_str).strip():
         return None
-    
-    date_str = date_str.strip().replace('-', '/')
-    
+
+    normalized = str(date_str).strip().translate(
+        str.maketrans('۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩', '01234567890123456789')
+    ).replace('-', '/')
+
     try:
-        parts = date_str.split('/')
-        if len(parts) == 3:
-            jy = int(parts[0])
-            jm = int(parts[1])
-            jd = int(parts[2])
-            
-            if 1300 <= jy <= 1500 and 1 <= jm <= 12 and 1 <= jd <= 31:
-                return jalali_to_gregorian(jy, jm, jd)
-    except:
-        pass
-    
+        parts = normalized.split('/')
+        if len(parts) != 3:
+            return None
+        year, month, day = map(int, parts)
+
+        if 1300 <= year <= 1500:
+            return jalali_to_gregorian(year, month, day)
+        if 1700 <= year <= 2500:
+            return date(year, month, day)
+    except (ValueError, TypeError):
+        return None
     return None
 
 
 def today_jalali():
     """تاریخ امروز به شمسی"""
     return jdatetime.date.today().strftime('%Y/%m/%d')
+
+
+def current_jalali_year():
+    """سال جاری شمسی برای شماره‌گذاری پویا."""
+    return str(jdatetime.date.today().year)
 
 
 def jalali_month_name(month_num):

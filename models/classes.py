@@ -45,11 +45,11 @@ class ClassGroup(db.Model):
     
     @property
     def available_capacity(self):
-        return self.max_capacity - self.current_count
+        return max(0, (self.max_capacity or 0) - (self.current_count or 0))
     
     @property
     def is_full(self):
-        return self.current_count >= self.max_capacity
+        return (self.current_count or 0) >= (self.max_capacity or 0)
     
     @property
     def total_sessions_count(self):

@@ -102,8 +102,8 @@ def create_app():
     app.register_blueprint(perms_bp, url_prefix='/perms')
     app.register_blueprint(teacher_bp)
     
-    # وب‌هوک‌ها نیاز به CSRF ندارند
-    csrf.exempt(new_features_bp)
+    # فقط خود endpoint تلگرام از CSRF معاف است؛ فرم‌های مالی و مدیریتی
+    # داخل new_features باید همچنان محافظت شوند.
     
     # Favicon
     @app.route('/favicon.ico')
@@ -274,7 +274,17 @@ def create_app():
             
             db.create_all()
             create_default_data()
+            # اصلاح خودکار تاریخ‌های شمسی که در نسخه‌های قدیمی به‌اشتباه
+            # مستقیماً در ستون میلادی ذخیره شده بودند (عملیات idempotent است).
+            from utils.database_tools import repair_legacy_jalali_dates
+            repaired_dates = repair_legacy_jalali_dates()
+            if repaired_dates:
+                app.logger.warning('%s legacy Jalali date values were repaired', repaired_dates)
             app._db_initialized = True
+
+        # ربات بله در حالت Long Polling کار می‌کند و به دامنه عمومی/وب‌هوک نیاز ندارد.
+        from utils.bot_services import start_bale_polling_if_configured
+        start_bale_polling_if_configured(app)
     
     return app
 
@@ -415,7 +425,27 @@ def create_default_data():
         db.session.add(branch)
         db.session.commit()
 
+    # دسته‌بندی‌های پایه هزینه برای نصب‌های جدید
+    from models.finance import ExpenseCategory
+    if ExpenseCategory.query.count() == 0:
+        default_expense_categories = [
+            ('اجاره', 'EXP-01'),
+            ('حقوق و دستمزد', 'EXP-02'),
+            ('قبوض و خدمات', 'EXP-03'),
+            ('تجهیزات و ملزومات', 'EXP-04'),
+            ('تبلیغات', 'EXP-05'),
+            ('تعمیر و نگهداری', 'EXP-06'),
+            ('حمل و نقل', 'EXP-07'),
+            ('سایر هزینه‌ها', 'EXP-99'),
+        ]
+        db.session.add_all([
+            ExpenseCategory(name=name, code=code, is_active=True)
+            for name, code in default_expense_categories
+        ])
+        db.session.commit()
+
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # reloader چند پردازه می‌سازد و برای Long Polling بله مناسب نیست.
+    app.run(debug=False, host='0.0.0.0', port=5000, use_reloader=False)

@@ -32,19 +32,29 @@ def send_sms():
             if phone:
                 phones = [phone]
         
+        from utils.sms_service import send_configured_sms
+        sent_count = 0
+        failed_count = 0
         for phone in phones:
+            result = send_configured_sms(phone, message_text)
+            success = result.get('ok', False)
             msg = Message(
                 recipient_type=recipient_type,
                 phone=phone,
                 message_text=message_text,
                 send_type='manual',
-                status='pending',
+                status='sent' if success else 'failed',
+                sent_at=datetime.utcnow() if success else None,
+                error_message=result.get('error') if not success else None,
                 created_by=current_user.id
             )
             db.session.add(msg)
+            sent_count += int(success)
+            failed_count += int(not success)
         
         db.session.commit()
-        flash(f'{len(phones)} پیامک ارسال شد', 'success')
+        category = 'success' if sent_count else 'danger'
+        flash(f'{sent_count} پیامک ارسال شد' + (f'؛ {failed_count} ناموفق' if failed_count else ''), category)
         return redirect(url_for('messaging.sms'))
     
     students = Student.query.filter_by(status='active').all()
@@ -74,19 +84,29 @@ def group_sms():
             teachers = Teacher.query.filter_by(is_active=True).all()
             phones = [t.mobile for t in teachers if t.mobile]
         
+        from utils.sms_service import send_configured_sms
+        sent_count = 0
+        failed_count = 0
         for phone in phones:
+            result = send_configured_sms(phone, message_text)
+            success = result.get('ok', False)
             msg = Message(
                 recipient_type='group',
                 phone=phone,
                 message_text=message_text,
                 send_type='manual',
-                status='pending',
+                status='sent' if success else 'failed',
+                sent_at=datetime.utcnow() if success else None,
+                error_message=result.get('error') if not success else None,
                 created_by=current_user.id
             )
             db.session.add(msg)
+            sent_count += int(success)
+            failed_count += int(not success)
         
         db.session.commit()
-        flash(f'{len(phones)} پیامک ارسال شد', 'success')
+        category = 'success' if sent_count else 'danger'
+        flash(f'{sent_count} پیامک ارسال شد' + (f'؛ {failed_count} ناموفق' if failed_count else ''), category)
         return redirect(url_for('messaging.sms'))
     
     from models.classes import ClassGroup
@@ -117,11 +137,19 @@ def sent():
 @login_required
 def compose():
     if request.method == 'POST':
+        from models.user import User
+        receiver_id = safe_int(request.form.get('receiver_id'))
+        receiver = User.query.filter_by(id=receiver_id, is_active=True).first()
+        body = (request.form.get('body') or '').strip()
+        if not receiver or receiver.id == current_user.id or not body:
+            flash('گیرنده یا متن پیام معتبر نیست', 'danger')
+            return redirect(url_for('messaging.compose'))
+
         msg = InternalMessage(
             sender_id=current_user.id,
-            receiver_id=safe_int(request.form.get('receiver_id')),
-            subject=request.form.get('subject'),
-            body=request.form['body']
+            receiver_id=receiver.id,
+            subject=(request.form.get('subject') or '').strip() or None,
+            body=body
         )
         db.session.add(msg)
         db.session.commit()
@@ -137,6 +165,9 @@ def compose():
 @login_required
 def view_message(id):
     msg = InternalMessage.query.get_or_404(id)
+    if not current_user.is_admin and current_user.id not in (msg.sender_id, msg.receiver_id):
+        flash('اجازه مشاهده این پیام را ندارید', 'danger')
+        return redirect(url_for('messaging.inbox'))
     if msg.receiver_id == current_user.id and not msg.is_read:
         msg.is_read = True
         msg.read_at = datetime.utcnow()

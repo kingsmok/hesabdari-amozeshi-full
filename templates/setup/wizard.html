@@ -87,6 +87,7 @@
             {% if step == 1 %}
             <!-- مرحله ۱: اطلاعات آموزشگاه -->
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="step" value="1">
                 <h5 style="margin-bottom: 20px;">اطلاعات آموزشگاه</h5>
                 <div class="mb-3">
@@ -110,6 +111,7 @@
             {% if step == 2 %}
             <!-- مرحله ۲: انتخاب دیتابیس -->
             <form method="POST" id="dbForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="step" value="2">
                 <h5 style="margin-bottom: 20px;">انتخاب دیتابیس</h5>
                 
@@ -176,6 +178,7 @@
             {% if step == 3 %}
             <!-- مرحله ۳: تنظیمات مدیر -->
             <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="step" value="3">
                 <h5 style="margin-bottom: 20px;">تنظیمات مدیر سیستم</h5>
                 <div class="mb-3">
@@ -250,7 +253,10 @@
             
             fetch('/setup/test-db', {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                },
                 body: JSON.stringify(data)
             })
             .then(r => r.json())
