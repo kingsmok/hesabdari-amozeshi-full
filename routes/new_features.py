@@ -393,115 +393,35 @@ def attendance_sheet(id):
 @new_features_bp.route('/settings/telegram', methods=['GET', 'POST'])
 @login_required
 def telegram_settings():
-    """تنظیمات ربات تلگرام"""
-    from models.system import SystemSettings
-    settings = SystemSettings.query.first()
-    
-    if request.method == 'POST':
-        settings.telegram_bot_token = request.form.get('telegram_bot_token', '')
-        settings.telegram_webhook_url = request.form.get('telegram_webhook_url', '')
-        db.session.commit()
-        flash('تنظیمات تلگرام ذخیره شد', 'success')
-        return redirect(url_for('new_features.telegram_settings'))
-    
-    return render_template('new/telegram_settings.html', settings=settings)
+    """مسیر قدیمی؛ تنظیمات ربات‌ها در پنل اتصال یکپارچه شده است."""
+    return redirect(url_for('settings_panel.telegram_config'))
 
 
 @new_features_bp.route('/webhook/telegram', methods=['POST'])
+@csrf.exempt
 def telegram_webhook():
-    """وب‌هوک تلگرام — پیام‌های دریافتی از بات"""
-    from models.student import Student
-    from models.registration import Registration
-    from models.course import Course
+    """دریافت پیام تلگرام؛ منطق پاسخ با ربات بله مشترک است."""
     from models.system import SystemSettings
-    
-    data = request.get_json(silent=True)
-    if not data or 'message' not in data:
+    from utils.bot_services import build_academy_bot_response, send_bot_message
+
+    data = request.get_json(silent=True) or {}
+    message = data.get('message') or data.get('edited_message')
+    if not message or not message.get('chat') or not message.get('text'):
         return jsonify({'ok': True})
-    
-    msg = data['message']
-    text = msg.get('text', '').strip()
-    chat_id = str(msg['chat']['id'])
-    
+
     settings = SystemSettings.query.first()
-    bot_token = settings.telegram_bot_token if settings else ''
-    
-    if not bot_token:
-        return jsonify({'ok': True})
-    
-    response_text = ''
-    
-    if text == '/start':
-        response_text = (
-            "🎓 به ربات آموزشگاه خوش آمدید!\n\n"
-            "دستورات:\n"
-            "📱 شماره موبایل خود را ارسال کنید تا اطلاعات کلاس‌هایتان را ببینید\n"
-            "📚 نام دوره را بنویسید تا اطلاعات آن را ببینید\n"
-            "مثال: Python یا 09121234567"
-        )
-    elif text.replace('0', '').replace('9', '').isdigit() and len(text) >= 10:
-        # جستجو با شماره موبایل
-        phone = text if text.startswith('0') else '0' + text
-        student = Student.query.filter(
-            (Student.mobile == phone) | (Student.mobile2 == phone)
-        ).first()
-        
-        if student:
-            regs = Registration.query.filter_by(student_id=student.id, status='active').all()
-            if regs:
-                lines = [f"👤 {student.full_name} ({student.student_code})\n"]
-                lines.append("📚 کلاس‌های فعال شما:\n")
-                for r in regs:
-                    cls = r.class_group
-                    course = r.course
-                    lines.append(
-                        f"  ▸ {course.title if course else '-'}\n"
-                        f"    کلاس: {cls.name if cls else '-'}\n"
-                        f"    مدرس: {cls.teacher.full_name if cls and cls.teacher else '-'}\n"
-                        f"    ساعت: {cls.start_time}-{cls.end_time if cls else '-'}\n"
-                        f"    مانده شهریه: {r.remaining_amount:,.0f} تومان\n"
-                    )
-                response_text = '\n'.join(lines)
-            else:
-                response_text = f"👤 {student.full_name}\nشما ثبت‌نام فعالی ندارید."
-        else:
-            response_text = "❌ هنرجویی با این شماره یافت نشد."
-    
-    else:
-        # جستجوی نام دوره
-        course = Course.query.filter(Course.title.contains(text)).first()
-        if course:
-            from models.classes import ClassGroup
-            classes = ClassGroup.query.filter_by(course_id=course.id, status='active').all()
-            lines = [f"📚 دوره: {course.title}\n"]
-            lines.append(f"⏱ مدت دوره: {course.duration_hours} ساعت ({course.total_sessions} جلسه)")
-            lines.append(f"💰 شهریه: {course.total_fee:,.0f} تومان\n")
-            if course.description:
-                lines.append(f"📝 {course.description}\n")
-            if classes:
-                lines.append("🕐 کلاس‌های فعال:")
-                for c in classes:
-                    lines.append(
-                        f"  ▸ {c.name} | مدرس: {c.teacher.full_name if c.teacher else '-'} | "
-                        f"ظرفیت: {c.available_capacity} نفر | "
-                        f"ساعت: {c.start_time}-{c.end_time}"
-                    )
-            response_text = '\n'.join(lines)
-        else:
-            response_text = (
-                "🔍 متوجه نشدم.\n"
-                "شماره موبایل بفرستید: اطلاعات کلاس‌ها\n"
-                "نام دوره بفرستید: اطلاعات دوره"
-            )
-    
-    # ارسال پاسخ
-    if response_text:
-        requests.post(
-            f'https://api.telegram.org/bot{bot_token}/sendMessage',
-            json={'chat_id': chat_id, 'text': response_text, 'parse_mode': 'HTML'},
-            timeout=10
-        )
-    
+    token = settings.telegram_bot_token if settings else ''
+    if not token:
+        return jsonify({'ok': False, 'description': 'توکن تلگرام تنظیم نشده'}), 503
+
+    try:
+        answer = build_academy_bot_response(message.get('text', ''))
+        result = send_bot_message('telegram', token, message['chat']['id'], answer)
+        if not result.get('ok'):
+            return jsonify(result), 502
+    except Exception as exc:
+        current_app.logger.exception('Telegram bot response failed')
+        return jsonify({'ok': False, 'description': str(exc)}), 500
     return jsonify({'ok': True})
 
 
@@ -541,77 +461,18 @@ def set_telegram_webhook():
 @new_features_bp.route('/settings/bale', methods=['GET', 'POST'])
 @login_required
 def bale_settings():
-    """تنظیمات ربات بله"""
-    from models.system import SystemSettings
-    settings = SystemSettings.query.first()
-    
-    if request.method == 'POST':
-        settings.bale_bot_token = request.form.get('bale_bot_token', '')
-        settings.bale_webhook_url = request.form.get('bale_webhook_url', '')
-        db.session.commit()
-        flash('تنظیمات بله ذخیره شد', 'success')
-        return redirect(url_for('new_features.bale_settings'))
-    
-    return render_template('new/bale_settings.html', settings=settings)
+    """مسیر قدیمی؛ بله اکنون بدون وب‌هوک و با Long Polling اجرا می‌شود."""
+    return redirect(url_for('settings_panel.bale_config'))
 
 
 @new_features_bp.route('/webhook/bale', methods=['POST'])
+@csrf.exempt
 def bale_webhook():
-    """وب‌هوک بله — مشابه تلگرام"""
-    from models.student import Student
-    from models.registration import Registration
-    from models.course import Course
-    from models.system import SystemSettings
-    
-    data = request.get_json(silent=True)
-    if not data or 'message' not in data:
-        return jsonify({'ok': True})
-    
-    msg = data['message']
-    text = msg.get('text', '').strip()
-    chat_id = str(msg['chat']['id'])
-    
-    settings = SystemSettings.query.first()
-    bot_token = settings.bale_bot_token if settings else ''
-    
-    if not bot_token:
-        return jsonify({'ok': True })
-    
-    # منطق مشابه تلگرام
-    response_text = ''
-    
-    if text == '/start':
-        response_text = "🎓 خوش آمدید!\nشماره موبایل یا نام دوره را ارسال کنید."
-    elif len(text) >= 10 and text.replace('0', '').replace('9', '').isdigit():
-        phone = text if text.startswith('0') else '0' + text
-        student = Student.query.filter((Student.mobile == phone) | (Student.mobile2 == phone)).first()
-        if student:
-            regs = Registration.query.filter_by(student_id=student.id, status='active').all()
-            if regs:
-                lines = [f"👤 {student.full_name}\n"]
-                for r in regs:
-                    cls = r.class_group
-                    lines.append(f"📚 {r.course.title if r.course else '-'} | {cls.name if cls else '-'} | {cls.start_time if cls else ''}-{cls.end_time if cls else ''}")
-                response_text = '\n'.join(lines)
-            else:
-                response_text = f"👤 {student.full_name}\nثبت‌نام فعال ندارید."
-        else:
-            response_text = "❌ یافت نشد."
-    else:
-        course = Course.query.filter(Course.title.contains(text)).first()
-        if course:
-            response_text = f"📚 {course.title}\n💰 شهریه: {course.total_fee:,.0f} تومان\n⏱ {course.duration_hours} ساعت"
-        else:
-            response_text = "🔍 نام دوره یا شماره موبایل بفرستید."
-    
-    if response_text:
-        requests.post(
-            f'https://tapi.bale.ai/bot{bot_token}/sendMessage',
-            json={'chat_id': chat_id, 'text': response_text},
-            timeout=10
-        )
-    
-    return jsonify({'ok': True })
+    """وب‌هوک بله عمداً غیرفعال است؛ دریافت پیام فقط با Long Polling انجام می‌شود."""
+    return jsonify({
+        'ok': False,
+        'description': 'Bale webhook is disabled; the application uses getUpdates long polling.'
+    }), 410
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -621,57 +482,19 @@ def bale_webhook():
 @new_features_bp.route('/settings/farazsms', methods=['GET', 'POST'])
 @login_required
 def farazsms_settings():
-    """تنظیمات فراز اس‌ام‌اس"""
-    from models.system import SystemSettings
-    settings = SystemSettings.query.first()
-    
-    if request.method == 'POST':
-        settings.farazsms_api_key = request.form.get('farazsms_api_key', '')
-        settings.farazsms_sender = request.form.get('farazsms_sender', '')
-        settings.farazsms_pattern_code = request.form.get('farazsms_pattern_code', '')
-        db.session.commit()
-        flash('تنظیمات فراز اس‌ام‌اس ذخیره شد', 'success')
-        return redirect(url_for('new_features.farazsms_settings'))
-    
-    return render_template('new/farazsms_settings.html', settings=settings)
+    """مسیر قدیمی؛ تنظیم پنل پیامکی در پنل اتصال یکپارچه شده است."""
+    return redirect(url_for('settings_panel.farazsms_config'))
 
 
 def send_farazsms(phone, message, pattern_code=None, pattern_values=None):
-    """ارسال پیامک از طریق فراز اس‌ام‌اس"""
-    from models.system import SystemSettings
-    settings = SystemSettings.query.first()
-    
-    if not settings or not settings.farazsms_api_key:
-        return {'ok': False, 'error': 'API key not set'}
-    
-    api_url = 'https://api.farazsms.com/v1/sms/send'
-    
-    headers = {
-        'Authorization': settings.farazsms_api_key,
-        'Content-Type': 'application/json'
-    }
-    
-    if pattern_code and pattern_values:
-        # ارسال با الگو (سریع‌تر)
-        payload = {
-            'sender': settings.farazsms_sender,
-            'receptor': phone,
-            'pattern': pattern_code,
-            'params': pattern_values
-        }
-    else:
-        # ارسال عادی
-        payload = {
-            'sender': settings.farazsms_sender,
-            'receptor': phone,
-            'message': message
-        }
-    
-    try:
-        result = requests.post(api_url, json=payload, headers=headers, timeout=15)
-        return result.json()
-    except Exception as e:
-        return {'ok': False, 'error': str(e)}
+    """تابع سازگار قدیمی که از سرویس رسمی و یکپارچه پیامک استفاده می‌کند."""
+    from utils.sms_service import send_configured_sms
+    return send_configured_sms(
+        phone,
+        message,
+        pattern_code=pattern_code,
+        pattern_values=pattern_values,
+    )
 
 
 @new_features_bp.route('/messaging/farazsms/send', methods=['GET', 'POST'])
@@ -704,16 +527,20 @@ def farazsms_send():
             personalized = message_text.replace('{نام}', name)
             result = send_farazsms(phone, personalized)
             
+            success = result.get('ok', False)
             msg = Message(
                 recipient_type='student',
                 phone=phone,
                 message_text=personalized,
                 send_type=send_type,
-                status='sent' if result.get('ok', True) else 'failed',
+                status='sent' if success else 'failed',
+                sent_at=datetime.utcnow() if success else None,
+                error_message=result.get('error') if not success else None,
                 created_by=current_user.id
             )
             db.session.add(msg)
-            sent_count += 1
+            if success:
+                sent_count += 1
         
         db.session.commit()
         flash(f'{sent_count} پیامک از طریق فراز ارسال شد', 'success')
@@ -758,13 +585,14 @@ def send_installment_reminders():
                 phone=reg.student.mobile,
                 message_text=msg_text,
                 send_type='installment_reminder',
-                status='sent' if result.get('ok', True) else 'failed',
+                status='sent' if result.get('ok', False) else 'failed',
                 created_by=current_user.id
             )
             db.session.add(log)
             
-            inst.reminder_sent = True
-            sent += 1
+            if result.get('ok', False):
+                inst.reminder_sent = True
+                sent += 1
     
     db.session.commit()
     flash(f'{sent} یادآوری قسط ارسال شد', 'success')
@@ -852,6 +680,9 @@ def pay_installment(id):
     if amount <= 0:
         flash('مبلغ نامعتبر', 'error')
         return redirect(url_for('new_features.installment_dashboard'))
+    if inst.status == 'paid' or amount > max(0, inst.remaining):
+        flash('قسط تسویه شده یا مبلغ بیشتر از مانده قسط است', 'danger')
+        return redirect(url_for('new_features.installment_dashboard'))
     
     # بروزرسانی قسط
     inst.paid_amount = (inst.paid_amount or 0) + amount
@@ -884,7 +715,7 @@ def pay_installment(id):
     
     # بروزرسانی ثبت‌نام
     reg.paid_amount = (reg.paid_amount or 0) + amount
-    reg.remaining_amount = reg.total_fee - reg.paid_amount
+    reg.remaining_amount = max(0, (reg.total_fee or 0) - reg.paid_amount)
     
     # بروزرسانی صندوق
     if method == 'cash':

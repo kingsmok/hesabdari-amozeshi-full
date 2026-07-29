@@ -14,7 +14,7 @@
             <div class="card-body-custom">
                 <div class="row g-3">
                     <div class="col-md-6"><label class="form-label">گیرنده</label>
-                        <select name="receiver_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                        <select name="receiver_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
                             {% for u in users %}<option value="{{ u.id }}">{{ u.full_name }}</option>{% endfor %}
                         </select>
                     </div>

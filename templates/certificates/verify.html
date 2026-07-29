@@ -26,8 +26,13 @@
     <div class="card-custom" style="max-width: 600px; border: 2px solid #e74c3c;">
         <div class="card-body-custom text-center">
             <i class="bi bi-x-circle" style="font-size: 64px; color: #e74c3c;"></i>
+            {% if cert and cert.status == 'cancelled' %}
+            <h3 style="color: #e74c3c; margin-top: 16px;">این مدرک باطل شده است</h3>
+            <p style="color: #888;">شماره سریال {{ cert.serial_number }} دیگر اعتبار ندارد.</p>
+            {% else %}
             <h3 style="color: #e74c3c; margin-top: 16px;">مدرک یافت نشد</h3>
-            <p style="color: #888;">شماره سریال وارد شده معتبر نیست</p>
+            <p style="color: #888;">شماره سریال واردشده معتبر نیست.</p>
+            {% endif %}
         </div>
     </div>
     {% endif %}

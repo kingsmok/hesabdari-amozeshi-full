@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.jalali import current_jalali_year
 from models.finance import (
     Payment, Cashbox, CashboxTransaction, BankAccount, BankTransaction,
     Check, Expense, ExpenseCategory, DiscountCode, SalaryContract, Payslip
@@ -39,14 +40,38 @@ def payments():
 @login_required
 def add_payment():
     if request.method == 'POST':
+        student_id = request.form.get('student_id', type=int)
+        registration_id = request.form.get('registration_id', type=int)
+        installment_id = request.form.get('installment_id', type=int)
+        amount = safe_float(request.form.get('amount'))
+        student = Student.query.get(student_id) if student_id else None
+        registration = Registration.query.get(registration_id) if registration_id else None
+        installment = Installment.query.get(installment_id) if installment_id else None
+
+        if not student or amount <= 0:
+            flash('هنرجو یا مبلغ پرداخت معتبر نیست', 'danger')
+            return redirect(url_for('finance.add_payment'))
+        if registration and registration.student_id != student.id:
+            flash('ثبت‌نام انتخاب‌شده متعلق به این هنرجو نیست', 'danger')
+            return redirect(url_for('finance.add_payment'))
+        if installment and (not registration or installment.registration_id != registration.id):
+            flash('قسط انتخاب‌شده با ثبت‌نام مطابقت ندارد', 'danger')
+            return redirect(url_for('finance.add_payment'))
+        if registration and amount > max(0, registration.remaining_amount or 0):
+            flash('مبلغ پرداخت بیشتر از مانده ثبت‌نام است', 'danger')
+            return redirect(url_for('finance.add_payment'))
+        if installment and amount > max(0, installment.remaining):
+            flash('مبلغ پرداخت بیشتر از مانده قسط است', 'danger')
+            return redirect(url_for('finance.add_payment'))
+
         last = Payment.query.order_by(Payment.id.desc()).first()
         import uuid; receipt_num = f'PAY-{datetime.now().strftime("%Y%m%d%H%M%S")}-{uuid.uuid4().hex[:4].upper()}'
         
         payment = Payment(
             receipt_no=receipt_num,
-            student_id=request.form['student_id'],
-            registration_id=request.form.get('registration_id') or None,
-            amount=safe_float(request.form.get('amount')),
+            student_id=student.id,
+            registration_id=registration.id if registration else None,
+            amount=amount,
             payment_method=request.form['payment_method'],
             payment_date=get_jalali_date(request.form, 'payment_date') if request.form.get('payment_date') else datetime.utcnow().date(),
             card_number=request.form.get('card_number'),
@@ -58,21 +83,16 @@ def add_payment():
         )
         
         # Update registration
-        if payment.registration_id:
-            reg = Registration.query.get(payment.registration_id)
-            if reg:
-                reg.paid_amount = (reg.paid_amount or 0) + payment.amount
-                reg.remaining_amount = reg.total_fee - reg.paid_amount
+        if registration:
+            registration.paid_amount = (registration.paid_amount or 0) + payment.amount
+            registration.remaining_amount = max(0, (registration.total_fee or 0) - registration.paid_amount)
         
         # Update installment
-        installment_id = request.form.get('installment_id')
-        if installment_id:
-            inst = Installment.query.get(installment_id)
-            if inst:
-                inst.paid_amount = (inst.paid_amount or 0) + payment.amount
-                inst.paid_date = payment.payment_date
-                inst.status = 'paid' if inst.paid_amount >= inst.amount else 'partial'
-                payment.installment_id = installment_id
+        if installment:
+            installment.paid_amount = (installment.paid_amount or 0) + payment.amount
+            installment.paid_date = payment.payment_date
+            installment.status = 'paid' if installment.paid_amount >= installment.amount + (installment.late_fee or 0) else 'partial'
+            payment.installment_id = installment.id
         
         # Update cashbox
         if payment.payment_method == 'cash':
@@ -123,12 +143,18 @@ def cashbox():
 @login_required
 def cashbox_transaction(id):
     cashbox = Cashbox.query.get_or_404(id)
-    trans_type = request.form['trans_type']  # in or out
+    trans_type = request.form.get('trans_type')
     amount = safe_float(request.form.get('amount'))
+    if trans_type not in ('in', 'out') or amount <= 0:
+        flash('نوع تراکنش یا مبلغ معتبر نیست', 'danger')
+        return redirect(url_for('finance.cashbox'))
     
     if trans_type == 'in':
         cashbox.balance = (cashbox.balance or 0) + amount
     else:
+        if amount > (cashbox.balance or 0):
+            flash('موجودی صندوق برای این برداشت کافی نیست', 'danger')
+            return redirect(url_for('finance.cashbox'))
         cashbox.balance = (cashbox.balance or 0) - amount
     
     tx = CashboxTransaction(
@@ -180,12 +206,18 @@ def add_bank_account():
 @login_required
 def bank_transaction(id):
     account = BankAccount.query.get_or_404(id)
-    trans_type = request.form['trans_type']
+    trans_type = request.form.get('trans_type')
     amount = safe_float(request.form.get('amount'))
+    if trans_type not in ('deposit', 'withdrawal') or amount <= 0:
+        flash('نوع تراکنش یا مبلغ معتبر نیست', 'danger')
+        return redirect(url_for('finance.bank'))
     
     if trans_type == 'deposit':
         account.balance = (account.balance or 0) + amount
     else:
+        if amount > (account.balance or 0):
+            flash('موجودی حساب برای این برداشت کافی نیست', 'danger')
+            return redirect(url_for('finance.bank'))
         account.balance = (account.balance or 0) - amount
     
     tx = BankTransaction(
@@ -245,7 +277,10 @@ def add_check():
 @login_required
 def check_status(id):
     check = Check.query.get_or_404(id)
-    new_status = request.form['status']
+    new_status = request.form.get('status')
+    if new_status not in ('received', 'cashed', 'bounced', 'spent', 'cancelled'):
+        flash('وضعیت چک معتبر نیست', 'danger')
+        return redirect(url_for('finance.checks'))
     check.status = new_status
     if new_status == 'bounced':
         check.bounced_reason = request.form.get('reason')
@@ -264,31 +299,73 @@ def expenses():
     return render_template('finance/expenses.html', expenses=expenses)
 
 
+@finance_bp.route('/expenses/pdf')
+@login_required
+def expenses_pdf():
+    """خروجی چاپی هزینه‌ها فقط با فرمت PDF."""
+    from utils.jalali import gregorian_to_jalali
+    from utils.pdf_helpers import build_table_pdf
+
+    expense_rows = Expense.query.order_by(Expense.expense_date.desc(), Expense.id.desc()).all()
+    rows = [
+        (
+            expense.expense_number,
+            expense.category.name if expense.category else '-',
+            f'{expense.amount:,.0f}',
+            expense.description or '-',
+            gregorian_to_jalali(expense.expense_date),
+            expense.paid_to or '-'
+        )
+        for expense in expense_rows
+    ]
+    return build_table_pdf(
+        'گزارش هزینه‌های آموزشگاه',
+        ['شماره', 'دسته‌بندی', 'مبلغ (تومان)', 'توضیحات', 'تاریخ', 'پرداخت‌شونده'],
+        rows,
+        'expenses-report.pdf',
+        subtitle=f'تعداد رکورد: {len(rows)}',
+        landscape_mode=True,
+        download=request.args.get('download') == '1'
+    )
+
+
 @finance_bp.route('/expenses/add', methods=['GET', 'POST'])
 @login_required
 def add_expense():
+    categories = ExpenseCategory.query.filter_by(is_active=True).order_by(ExpenseCategory.name).all()
+
     if request.method == 'POST':
+        category_id = request.form.get('category_id', type=int)
+        category = ExpenseCategory.query.filter_by(id=category_id, is_active=True).first() if category_id else None
+        amount = safe_float(request.form.get('amount'))
+
+        if not category:
+            flash('لطفاً یک دسته‌بندی هزینه فعال انتخاب کنید', 'danger')
+            return render_template('finance/add_expense.html', categories=categories), 400
+        if amount <= 0:
+            flash('مبلغ هزینه باید بیشتر از صفر باشد', 'danger')
+            return render_template('finance/add_expense.html', categories=categories), 400
+
         last = Expense.query.order_by(Expense.id.desc()).first()
-        exp_num = f'EXP-1405-{(last.id + 1) if last else 1:05d}'
+        exp_num = f'EXP-{current_jalali_year()}-{(last.id + 1) if last else 1:05d}'
         
         expense = Expense(
             expense_number=exp_num,
-            category_id=request.form['category_id'],
-            amount=safe_float(request.form.get('amount')),
-            description=request.form.get('description'),
+            category_id=category.id,
+            amount=amount,
+            description=(request.form.get('description') or '').strip() or None,
             expense_date=get_jalali_date(request.form, 'expense_date') if request.form.get('expense_date') else datetime.utcnow().date(),
             payment_method=request.form.get('payment_method'),
-            paid_to=request.form.get('paid_to'),
-            approved_by=request.form.get('approved_by'),
+            paid_to=(request.form.get('paid_to') or '').strip() or None,
+            approved_by=request.form.get('approved_by') or None,
             branch_id=request.form.get('branch_id', 1),
             created_by=current_user.id
         )
         db.session.add(expense)
         db.session.commit()
-        flash(f'هزینه {exp_num} ثبت شد', 'success')
+        flash(f'هزینه {exp_num} در دسته‌بندی «{category.name}» ثبت شد', 'success')
         return redirect(url_for('finance.expenses'))
     
-    categories = ExpenseCategory.query.filter_by(is_active=True).all()
     return render_template('finance/add_expense.html', categories=categories)
 
 
@@ -336,7 +413,7 @@ def salary():
 def create_payslip():
     if request.method == 'POST':
         last = Payslip.query.order_by(Payslip.id.desc()).first()
-        ps_num = f'PS-1405-{(last.id + 1) if last else 1:05d}'
+        ps_num = f'PS-{current_jalali_year()}-{(last.id + 1) if last else 1:05d}'
         
         base = safe_float(request.form.get('base_amount'))
         teaching = safe_float(request.form.get('teaching_amount'))

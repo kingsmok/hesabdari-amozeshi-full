@@ -10,6 +10,15 @@
     <div class="page-header">
         <h1><i class="bi bi-pencil-square me-2 text-success"></i>جزئیات ثبت‌نام<small>{{ reg.reg_code }}</small></h1>
         <div class="d-flex gap-2">
+            {% set active_certificate = reg.certificates|rejectattr('status', 'equalto', 'cancelled')|first %}
+            {% if active_certificate %}
+            <a href="{{ url_for('certificates.pdf', id=active_certificate.id) }}" target="_blank" class="btn btn-outline-primary"><i class="bi bi-file-earmark-pdf"></i> گواهینامه PDF</a>
+            {% elif reg.status in ['active', 'completed'] %}
+            <form method="POST" action="{{ url_for('certificates.issue_legacy', student_id=reg.student_id, registration_id=reg.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-success"><i class="bi bi-award"></i> صدور گواهینامه</button>
+            </form>
+            {% endif %}
             <a href="{{ url_for('registration.installments', id=reg.id) }}" class="btn btn-info text-white"><i class="bi bi-calendar3 me-1"></i> اقساط</a>
             <form method="POST" action="{{ url_for('registration.cancel', id=reg.id) }}" style="display: inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

@@ -1,8 +1,14 @@
 """
-سیس��م داده نمونه — تست کامل تمام اتصالات
+سیستم داده نمونه — تست کامل تمام اتصالات
 """
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from extensions import db
+from utils.jalali import jalali_to_gregorian
+
+
+def jdate(year, month, day):
+    """تاریخ شمسی داده نمونه را به تاریخ میلادی قابل ذخیره تبدیل می‌کند."""
+    return jalali_to_gregorian(year, month, day)
 
 
 def create_demo_data():
@@ -122,21 +128,21 @@ def create_demo_data():
         class_code='PY-1405-01', name='Python گروه ۱', course_id=c_python.id,
         teacher_id=t_ahmadi.id, room_id=r3.id, max_capacity=12, current_count=0,
         days_of_week='[0, 2]', start_time='16:00', end_time='18:00',
-        start_date=date(1405, 1, 16), end_date=date(1405, 3, 15),
+        start_date=jdate(1405, 1, 16), end_date=jdate(1405, 3, 15),
         status='active', branch_id=branch.id
     )
     cls_icdl = ClassGroup(
         class_code='ICDL-1405-01', name='ICDL گروه ۱', course_id=c_icdl.id,
         teacher_id=t_rezaei.id, room_id=r1.id, max_capacity=15, current_count=0,
         days_of_week='[1, 3]', start_time='10:00', end_time='12:00',
-        start_date=date(1405, 1, 17), end_date=date(1405, 4, 15),
+        start_date=jdate(1405, 1, 17), end_date=jdate(1405, 4, 15),
         status='active', branch_id=branch.id
     )
     cls_accounting = ClassGroup(
         class_code='ACC-1405-01', name='حسابداری گروه ۱', course_id=c_accounting.id,
         teacher_id=t_karimi.id, room_id=r2.id, max_capacity=20, current_count=0,
         days_of_week='[0, 3]', start_time='14:00', end_time='16:00',
-        start_date=date(1405, 2, 1), end_date=date(1405, 5, 1),
+        start_date=jdate(1405, 2, 1), end_date=jdate(1405, 5, 1),
         status='active', branch_id=branch.id
     )
     db.session.add_all([cls_python, cls_icdl, cls_accounting])
@@ -189,8 +195,8 @@ def create_demo_data():
         reg = Registration(
             reg_code=reg_code, student_id=student.id, course_id=course.id,
             class_id=cls.id if cls else None, teacher_id=teacher.id if teacher else None,
-            registration_date=date(1405, 1, 10 + i),
-            start_date=cls.start_date if cls else date(1405, 1, 16),
+            registration_date=jdate(1405, 1, 10 + i),
+            start_date=cls.start_date if cls else jdate(1405, 1, 16),
             base_fee=fee, total_fee=fee, paid_amount=paid, remaining_amount=fee - paid,
             status='active', branch_id=branch.id
         )
@@ -208,7 +214,7 @@ def create_demo_data():
             pay = Payment(
                 receipt_no=f'PAY-1405-{i+1:05d}', student_id=student.id,
                 registration_id=reg.id, amount=paid, payment_method='cash',
-                payment_date=date(1405, 1, 10 + i),
+                payment_date=jdate(1405, 1, 10 + i),
                 description=f'پرداخت اولیه ثبت‌نام {reg_code}',
                 status='confirmed', branch_id=branch.id
             )
@@ -226,7 +232,7 @@ def create_demo_data():
                 inst = Installment(
                     registration_id=reg.id, installment_number=j + 1,
                     amount=round(inst_amount),
-                    due_date=date(1405, 2, 1) + timedelta(days=30 * j),
+                    due_date=jdate(1405, 2, 1) + timedelta(days=30 * j),
                     status='pending'
                 )
                 db.session.add(inst)
@@ -261,7 +267,7 @@ def create_demo_data():
     
     # ═══ ۱۲) جلسات کلاس Python ═══
     for i in range(8):
-        session_date = date(1405, 1, 16) + timedelta(days=2 * i)
+        session_date = jdate(1405, 1, 16) + timedelta(days=2 * i)
         session = ClassSession(
             class_id=cls_python.id, session_number=i + 1,
             session_date=session_date, start_time='16:00', end_time='18:00',
@@ -294,7 +300,7 @@ def create_demo_data():
     exam = Exam(
         title='آزمون میان‌ترم Python', exam_code='EXM-1405-001',
         course_id=c_python.id, class_id=cls_python.id,
-        exam_type='written', exam_date=date(1405, 2, 15),
+        exam_type='written', exam_date=jdate(1405, 2, 15),
         duration_minutes=90, total_marks=100, passing_marks=50,
         theory_weight=60, practical_weight=40, status='completed'
     )

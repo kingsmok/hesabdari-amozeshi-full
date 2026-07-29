@@ -16,7 +16,7 @@
                     <div class="col-md-4"><label class="form-label">نام شکایت‌کننده</label><input type="text" name="complainant_name" class="form-control"></div>
                     <div class="col-md-4"><label class="form-label">تلفن</label><input type="text" name="complainant_phone" class="form-control"></div>
                     <div class="col-md-4"><label class="form-label">هنرجوی مرتبط</label>
-                        <select name="student_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                        <select name="student_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید...">
                             <option value="">انتخاب...</option>
                             {% for s in students %}<option value="{{ s.id }}">{{ s.full_name }}</option>{% endfor %}
                         </select>

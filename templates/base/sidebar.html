@@ -132,6 +132,8 @@
         </div>
         <div class="nav-sub">
             <a href="{{ url_for('payroll.dashboard') }}" class="nav-link-item"><i class="bi bi-calculator"></i> حقوق</a>
+            <a href="{{ url_for('payroll.advanced_expenses') }}" class="nav-link-item"><i class="bi bi-wallet2"></i> هزینه‌ها</a>
+            <a href="{{ url_for('settings.expense_categories') }}" class="nav-link-item"><i class="bi bi-tags"></i> دسته‌بندی هزینه‌ها</a>
             <a href="{{ url_for('tax.dashboard') }}" class="nav-link-item"><i class="bi bi-percent"></i> مالیات</a>
         </div>
         {% endif %}
@@ -179,6 +181,7 @@
             <a href="{{ url_for('settings.branches') }}" class="nav-link-item"><i class="bi bi-building"></i> شعب</a>
             <a href="{{ url_for('settings.backup') }}" class="nav-link-item"><i class="bi bi-cloud-arrow-up"></i> پشتیبان‌گیری</a>
             <a href="{{ url_for('settings.logs') }}" class="nav-link-item"><i class="bi bi-clock-history"></i> لاگ فعالیت‌ها</a>
+            <a href="{{ url_for('settings_panel.diagnostics') }}" class="nav-link-item"><i class="bi bi-activity"></i> پایش فنی و ارتباطات</a>
             <a href="{{ url_for('features.system_health') }}" class="nav-link-item"><i class="bi bi-heart-pulse"></i> سلامت سیستم</a>
         </div>
 
@@ -187,9 +190,9 @@
             <i class="bi bi-chevron-left arrow"></i>
         </div>
         <div class="nav-sub">
-            <a href="{{ url_for('new_features.telegram_settings') }}" class="nav-link-item"><i class="bi bi-telegram"></i> تلگرام</a>
-            <a href="{{ url_for('new_features.bale_settings') }}" class="nav-link-item"><i class="bi bi-chat-dots"></i> بله</a>
-            <a href="{{ url_for('new_features.farazsms_settings') }}" class="nav-link-item"><i class="bi bi-phone"></i> فراز اس‌ام‌اس</a>
+            <a href="{{ url_for('settings_panel.telegram_config') }}" class="nav-link-item"><i class="bi bi-telegram"></i> تلگرام</a>
+            <a href="{{ url_for('settings_panel.bale_config') }}" class="nav-link-item"><i class="bi bi-chat-dots"></i> بله (بدون وب‌هوک)</a>
+            <a href="{{ url_for('settings_panel.farazsms_config') }}" class="nav-link-item"><i class="bi bi-phone"></i> پنل پیامکی</a>
         </div>
         {% endif %}
     </nav>

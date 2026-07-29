@@ -4,7 +4,7 @@
 {% block content %}
 <div class="anim-in">
     <div class="page-head">
-        <h1><i class="bi bi-phone" style="color: #e91e63;"></i> فراز اس‌ام‌اس<small>FARAZSMS.ir — سامانه پیامکی</small></h1>
+        <h1><i class="bi bi-phone" style="color: #e91e63;"></i> پنل پیامکی فراز<small>اتصال مستقیم به API رسمی IranPayamak/FarazSMS، ارسال تکی، گروهی و پترن</small></h1>
         {% if settings and settings.farazsms_api_key %}
         <span class="badge-status badge-active" style="font-size: 13px; padding: 6px 16px;">
             <i class="bi bi-check-circle me-1"></i> تنظیم شده
@@ -35,7 +35,12 @@
                             <input type="text" name="farazsms_pattern_code" class="form-control" value="{{ settings.farazsms_pattern_code or '' }}" placeholder="کد الگوی تایید شده">
                             <small class="text-muted">برای ارسال سریع بدون تایید ناظر — از بخش «ارسال بر اساس پترن»</small>
                         </div>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ذخیره و تست اتصال</button>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i> ذخیره و بررسی اتصال</button>
+                            {% if settings and settings.farazsms_api_key %}
+                            <button type="submit" class="btn btn-outline-success" formaction="{{ url_for('settings_panel.check_farazsms') }}" formmethod="post"><i class="bi bi-arrow-repeat"></i> بررسی مجدد</button>
+                            {% endif %}
+                        </div>
                     </form>
                 </div>
             </div>

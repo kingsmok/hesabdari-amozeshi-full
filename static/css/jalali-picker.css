@@ -1,8 +1,58 @@
 /* استایل تقویم شمسی */
 .jalali-picker-wrapper {
+    /*
+     * تقویم مستقیماً داخل body ساخته می‌شود. fixed بودن آن باعث می‌شود
+     * overflow و stacking-context کارت‌ها نتوانند تقویم را ببرند زیر بخش بعدی.
+     */
+    position: fixed !important;
+    right: auto !important;
+    z-index: 2147483000 !important;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    isolation: isolate;
     font-family: Vazirmatn, Tahoma, sans-serif !important;
     animation: jpIn 0.2s ease-out;
-    z-index: 9999 !important;
+}
+
+/* آیکون باید نسبت به خود input تراز شود، نه کل ستون شامل label. */
+.jalali-input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.jalali-input-wrapper > .form-control {
+    width: 100%;
+}
+
+.jp-input-icon {
+    position: absolute;
+    left: 7px;
+    top: 50%;
+    z-index: 2;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #607d8b;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.jp-input-icon:hover,
+.jp-input-icon:focus-visible {
+    color: #0d47a1;
+    background: #e3f2fd;
+    outline: none;
 }
 
 @keyframes jpIn {
@@ -15,4 +65,21 @@
     background: #f0f4f8 !important;
 }
 
-input.jalali-date { cursor: pointer; }
+input.jalali-date,
+.jalali-input-wrapper > input { cursor: pointer; }
+
+body.dark-mode .jalali-picker-wrapper {
+    background: #1e1e1e !important;
+    border-color: #444 !important;
+    color: #eee;
+}
+
+body.dark-mode .jp-input-icon {
+    color: #b0bec5;
+}
+
+@media (max-width: 360px) {
+    .jalali-picker-wrapper {
+        max-width: calc(100vw - 8px);
+    }
+}

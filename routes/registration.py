@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.jalali import current_jalali_year
 from models.registration import Registration, Installment
 from models.student import Student
 from models.course import Course
@@ -41,19 +42,40 @@ def index():
 @login_required
 def add():
     if request.method == 'POST':
+        student_id = request.form.get('student_id', type=int)
+        course_id = request.form.get('course_id', type=int)
+        class_id = request.form.get('class_id', type=int)
+        student = Student.query.filter_by(id=student_id, status='active').first() if student_id else None
+        course = Course.query.filter_by(id=course_id, is_active=True).first() if course_id else None
+        class_group = ClassGroup.query.filter_by(id=class_id, status='active').first() if class_id else None
+
+        if not student or not course:
+            flash('هنرجو یا دوره انتخاب‌شده معتبر نیست', 'danger')
+            return redirect(url_for('registration.add'))
+        if class_group and class_group.course_id != course.id:
+            flash('کلاس انتخاب‌شده متعلق به این دوره نیست', 'danger')
+            return redirect(url_for('registration.add'))
+        if class_group and class_group.is_full:
+            flash('ظرفیت کلاس انتخاب‌شده تکمیل است', 'danger')
+            return redirect(url_for('registration.add'))
+        duplicate = Registration.query.filter_by(
+            student_id=student.id, course_id=course.id, status='active'
+        ).first()
+        if duplicate:
+            flash(f'این هنرجو قبلاً ثبت‌نام فعال {duplicate.reg_code} را در این دوره دارد', 'warning')
+            return redirect(url_for('registration.view', id=duplicate.id))
+
         last = Registration.query.order_by(Registration.id.desc()).first()
         next_num = (last.id + 1) if last else 1
-        code = f'REG-1405-{next_num:05d}'
-        
-        course = Course.query.get(request.form['course_id'])
-        base_fee = safe_float(request.form.get('base_fee')) or (course.total_fee if course else 0)
+        code = f'REG-{current_jalali_year()}-{next_num:05d}'
+        base_fee = safe_float(request.form.get('base_fee')) or course.total_fee
         
         reg = Registration(
             reg_code=code,
-            student_id=request.form['student_id'],
-            course_id=request.form['course_id'],
-            class_id=request.form.get('class_id') or None,
-            teacher_id=request.form.get('teacher_id') or None,
+            student_id=student.id,
+            course_id=course.id,
+            class_id=class_group.id if class_group else None,
+            teacher_id=(class_group.teacher_id if class_group else request.form.get('teacher_id', type=int)),
             registration_date=datetime.utcnow().date(),
             start_date=get_jalali_date(request.form, 'start_date') if request.form.get('start_date') else None,
             base_fee=base_fee,
@@ -71,11 +93,21 @@ def add():
         
         # Apply discount code
         if reg.discount_code:
-            dc = DiscountCode.query.filter_by(code=reg.discount_code, is_active=True).first()
-            if dc:
+            dc = DiscountCode.query.filter_by(code=reg.discount_code.strip(), is_active=True).first()
+            today = datetime.utcnow().date()
+            discount_valid = bool(
+                dc and
+                (not dc.valid_from or dc.valid_from <= today) and
+                (not dc.valid_until or dc.valid_until >= today) and
+                (dc.max_uses is None or (dc.used_count or 0) < dc.max_uses)
+            )
+            if discount_valid:
                 reg.discount_type = dc.discount_type
                 reg.discount_value = dc.discount_value
                 dc.used_count = (dc.used_count or 0) + 1
+            else:
+                flash('کد تخفیف نامعتبر، منقضی یا به سقف استفاده رسیده است', 'danger')
+                return redirect(url_for('registration.add'))
         
         reg.calculate_fees()
         
@@ -87,35 +119,57 @@ def add():
         else:
             reg.teacher_payment_amount = reg.teacher_payment_value
         
-        # Initial payment
         initial_payment = safe_float(request.form.get('initial_payment'))
+        if initial_payment < 0 or initial_payment > reg.total_fee:
+            flash('پرداخت اولیه نمی‌تواند منفی یا بیشتر از شهریه نهایی باشد', 'danger')
+            return redirect(url_for('registration.add'))
+
+        # ابتدا ثبت‌نام flush می‌شود تا پرداخت اولیه حتماً به registration_id متصل باشد.
+        db.session.add(reg)
+        db.session.flush()
+
         if initial_payment > 0:
             reg.paid_amount = initial_payment
             reg.remaining_amount = reg.total_fee - initial_payment
             
-            # شماره رسید یکتا با timestamp
             import uuid
             receipt_num = f'PAY-{datetime.now().strftime("%Y%m%d%H%M%S")}-{uuid.uuid4().hex[:4].upper()}'
-            
+            payment_method = request.form.get('payment_method', 'cash')
             payment = Payment(
                 receipt_no=receipt_num,
                 student_id=reg.student_id,
+                registration_id=reg.id,
                 amount=initial_payment,
-                payment_method=request.form.get('payment_method', 'cash'),
+                payment_method=payment_method,
                 payment_date=datetime.utcnow().date(),
                 description=f'پرداخت اولیه ثبت‌نام {code}',
+                status='confirmed',
                 branch_id=reg.branch_id,
                 created_by=current_user.id
             )
             db.session.add(payment)
-        
-        # Update class count
-        if reg.class_id:
-            class_group = ClassGroup.query.get(reg.class_id)
-            if class_group:
-                class_group.current_count = (class_group.current_count or 0) + 1
-        
-        db.session.add(reg)
+
+            # اتصال پرداخت نقدی به صندوق نیز هم‌زمان ثبت می‌شود.
+            if payment_method == 'cash':
+                from models.finance import Cashbox, CashboxTransaction
+                cashbox = Cashbox.query.filter_by(is_active=True).first()
+                if cashbox:
+                    cashbox.balance = (cashbox.balance or 0) + initial_payment
+                    db.session.add(CashboxTransaction(
+                        cashbox_id=cashbox.id,
+                        trans_type='in',
+                        amount=initial_payment,
+                        description=f'پرداخت اولیه {code}',
+                        reference_type='registration',
+                        reference_id=reg.id,
+                        balance_after=cashbox.balance,
+                        created_by=current_user.id
+                    ))
+
+        if class_group:
+            class_group.current_count = Registration.query.filter_by(
+                class_id=class_group.id, status='active'
+            ).count()
         
         log = ActivityLog(
             user_id=current_user.id, action='create', module='registration',
@@ -163,6 +217,10 @@ def quick():
 @login_required
 def cancel(id):
     reg = Registration.query.get_or_404(id)
+    if reg.status != 'active':
+        flash('این ثبت‌نام قبلاً از حالت فعال خارج شده است', 'warning')
+        return redirect(url_for('registration.view', id=id))
+
     reg.status = 'withdrawn'
     reg.cancellation_reason = request.form.get('reason')
     reg.cancelled_by = current_user.id
@@ -172,7 +230,9 @@ def cancel(id):
     if reg.class_id:
         class_group = ClassGroup.query.get(reg.class_id)
         if class_group:
-            class_group.current_count = max(0, (class_group.current_count or 0) - 1)
+            class_group.current_count = Registration.query.filter_by(
+                class_id=class_group.id, status='active'
+            ).count()
     
     db.session.commit()
     flash('ثبت‌نام لغو شد', 'warning')
@@ -185,16 +245,31 @@ def installments(id):
     reg = Registration.query.get_or_404(id)
     
     if request.method == 'POST':
-        count = int(request.form.get('count', 3))
+        count = request.form.get('count', 3, type=int)
         first_date = get_jalali_date(request.form, 'first_date')
-        amount = reg.remaining_amount / count
-        
+        existing_count = Installment.query.filter_by(registration_id=id).count()
+
+        if not count or not (1 <= count <= 24):
+            flash('تعداد اقساط باید بین ۱ تا ۲۴ باشد', 'danger')
+            return redirect(url_for('registration.installments', id=id))
+        if not first_date:
+            flash('تاریخ اولین قسط معتبر نیست', 'danger')
+            return redirect(url_for('registration.installments', id=id))
+        if (reg.remaining_amount or 0) <= 0:
+            flash('این ثبت‌نام مانده قابل تقسیط ندارد', 'warning')
+            return redirect(url_for('registration.view', id=id))
+        if existing_count:
+            flash('برای این ثبت‌نام قبلاً برنامه اقساط ایجاد شده است', 'warning')
+            return redirect(url_for('registration.view', id=id))
+
+        amount = round(reg.remaining_amount / count)
         for i in range(count):
             due = first_date + timedelta(days=30 * i)
+            installment_amount = amount if i < count - 1 else round(reg.remaining_amount - amount * (count - 1))
             inst = Installment(
                 registration_id=id,
                 installment_number=i + 1,
-                amount=round(amount),
+                amount=installment_amount,
                 due_date=due,
                 status='pending'
             )

@@ -24,7 +24,7 @@
                         </select>
                     </div>
                     <div class="col-md-3"><label class="form-label">دوره</label>
-                        <select name="course_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                        <select name="course_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید...">
                             <option value="">انتخاب...</option>
                             {% for c in courses %}<option value="{{ c.id }}">{{ c.title }}</option>{% endfor %}
                         </select>

@@ -3,11 +3,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.jalali import current_jalali_year
 from models.classes import ClassGroup, ClassSession, Holiday
 from models.course import Course, Room
 from models.teacher import Teacher
 from models.user import ActivityLog
 from datetime import datetime, timedelta
+import json
 
 classes_bp = Blueprint('classes', __name__)
 
@@ -36,24 +38,42 @@ def add():
         last = ClassGroup.query.order_by(ClassGroup.id.desc()).first()
         next_num = (last.id + 1) if last else 1
         
-        course = Course.query.get(request.form['course_id'])
-        prefix = course.code[:2].upper() if course else 'CL'
-        code = f'{prefix}-1405-{next_num:02d}'
+        class_name = (request.form.get('name') or '').strip()
+        course_id = request.form.get('course_id', type=int)
+        course = Course.query.filter_by(id=course_id, is_active=True).first() if course_id else None
+        if not class_name or not course:
+            flash('نام کلاس یا دوره انتخاب‌شده معتبر نیست', 'danger')
+            return redirect(url_for('classes.add'))
+        max_capacity = request.form.get('max_capacity', 20, type=int)
+        if not max_capacity or max_capacity < 1:
+            flash('ظرفیت کلاس باید بیشتر از صفر باشد', 'danger')
+            return redirect(url_for('classes.add'))
+
+        prefix = course.code[:2].upper() if course.code else 'CL'
+        code = f'{prefix}-{current_jalali_year()}-{next_num:02d}'
         
-        days = request.form.getlist('days')
-        
+        days = [int(day) for day in request.form.getlist('days') if day.isdigit() and 0 <= int(day) <= 6]
+        if not days:
+            flash('حداقل یک روز برای تشکیل کلاس انتخاب کنید', 'danger')
+            return redirect(url_for('classes.add'))
+        start_date = get_jalali_date(request.form, 'start_date') if request.form.get('start_date') else None
+        end_date = get_jalali_date(request.form, 'end_date') if request.form.get('end_date') else None
+        if start_date and end_date and end_date < start_date:
+            flash('تاریخ پایان کلاس نمی‌تواند قبل از تاریخ شروع باشد', 'danger')
+            return redirect(url_for('classes.add'))
+
         class_group = ClassGroup(
             class_code=code,
-            name=request.form['name'],
-            course_id=request.form['course_id'],
+            name=class_name,
+            course_id=course.id,
             teacher_id=request.form.get('teacher_id') or None,
             room_id=request.form.get('room_id') or None,
-            max_capacity=int(request.form.get('max_capacity', 20)),
-            days_of_week=str(days),
+            max_capacity=max_capacity,
+            days_of_week=json.dumps(days),
             start_time=request.form.get('start_time'),
             end_time=request.form.get('end_time'),
-            start_date=get_jalali_date(request.form, 'start_date') if request.form.get('start_date') else None,
-            end_date=get_jalali_date(request.form, 'end_date') if request.form.get('end_date') else None,
+            start_date=start_date,
+            end_date=end_date,
             status='active',
             branch_id=request.form.get('branch_id', 1),
             notes=request.form.get('notes'),
@@ -111,9 +131,24 @@ def generate_sessions(id):
         flash('تاریخ شروع و دوره باید مشخص باشد', 'error')
         return redirect(url_for('classes.view', id=id))
     
-    total = class_group.course.total_sessions or 10
-    days = eval(class_group.days_of_week) if class_group.days_of_week else [0, 2]
-    
+    if ClassSession.query.filter_by(class_id=id).count():
+        flash('جلسات این کلاس قبلاً تولید شده‌اند', 'warning')
+        return redirect(url_for('classes.sessions', id=id))
+
+    total = max(1, min(class_group.course.total_sessions or 10, 365))
+    try:
+        try:
+            raw_days = json.loads(class_group.days_of_week or '[]')
+        except json.JSONDecodeError:
+            from ast import literal_eval
+            raw_days = literal_eval(class_group.days_of_week or '[]')
+        days = [int(day) for day in raw_days if 0 <= int(day) <= 6]
+    except (TypeError, ValueError, SyntaxError):
+        days = []
+    if not days:
+        flash('روزهای تشکیل کلاس معتبر نیست؛ ابتدا کلاس را ویرایش کنید', 'danger')
+        return redirect(url_for('classes.edit', id=id))
+
     current_date = class_group.start_date
     session_num = 1
     
@@ -141,9 +176,17 @@ def generate_sessions(id):
 @login_required
 def close(id):
     class_group = ClassGroup.query.get_or_404(id)
+    if class_group.status == 'completed':
+        flash('این کلاس قبلاً بسته شده است', 'warning')
+        return redirect(url_for('classes.view', id=id))
+
     class_group.status = 'completed'
+    completed_registrations = class_group.registrations.filter_by(status='active').all()
+    for registration in completed_registrations:
+        registration.status = 'completed'
+    class_group.current_count = 0
     db.session.commit()
-    flash('کلاس بسته شد', 'success')
+    flash(f'کلاس بسته و وضعیت {len(completed_registrations)} ثبت‌نام تکمیل شد', 'success')
     return redirect(url_for('classes.view', id=id))
 
 
@@ -153,16 +196,33 @@ def edit(id):
     class_group = ClassGroup.query.get_or_404(id)
     
     if request.method == 'POST':
-        class_group.name = request.form['name']
-        class_group.course_id = request.form['course_id']
-        class_group.teacher_id = request.form.get('teacher_id') or None
-        class_group.room_id = request.form.get('room_id') or None
-        class_group.max_capacity = int(request.form.get('max_capacity', 20))
-        class_group.days_of_week = str(request.form.getlist('days'))
+        course_id = request.form.get('course_id', type=int)
+        course = Course.query.filter_by(id=course_id, is_active=True).first() if course_id else None
+        max_capacity = request.form.get('max_capacity', 20, type=int)
+        start_date = get_jalali_date(request.form, 'start_date') if request.form.get('start_date') else None
+        end_date = get_jalali_date(request.form, 'end_date') if request.form.get('end_date') else None
+        class_name = (request.form.get('name') or '').strip()
+        if not class_name or not course or not max_capacity or max_capacity < max(1, class_group.current_count or 0):
+            flash('نام، دوره یا ظرفیت کلاس معتبر نیست؛ ظرفیت نباید کمتر از هنرجویان فعال باشد', 'danger')
+            return redirect(url_for('classes.edit', id=id))
+        if start_date and end_date and end_date < start_date:
+            flash('تاریخ پایان نمی‌تواند قبل از تاریخ شروع باشد', 'danger')
+            return redirect(url_for('classes.edit', id=id))
+
+        class_group.name = class_name
+        class_group.course_id = course.id
+        class_group.teacher_id = request.form.get('teacher_id', type=int)
+        class_group.room_id = request.form.get('room_id', type=int)
+        class_group.max_capacity = max_capacity
+        selected_days = [int(day) for day in request.form.getlist('days') if day.isdigit() and 0 <= int(day) <= 6]
+        if not selected_days:
+            flash('حداقل یک روز برای تشکیل کلاس انتخاب کنید', 'danger')
+            return redirect(url_for('classes.edit', id=id))
+        class_group.days_of_week = json.dumps(selected_days)
         class_group.start_time = request.form.get('start_time')
         class_group.end_time = request.form.get('end_time')
-        class_group.start_date = get_jalali_date(request.form, 'start_date') if request.form.get('start_date') else None
-        class_group.end_date = get_jalali_date(request.form, 'end_date') if request.form.get('end_date') else None
+        class_group.start_date = start_date
+        class_group.end_date = end_date
         class_group.notes = request.form.get('notes')
         class_group.status = request.form.get('status', class_group.status)
         
@@ -226,22 +286,48 @@ def transfer(class_id):
     
     if request.method == 'POST':
         from models.classes import ClassTransfer
+        from models.registration import Registration
+
+        student_id = request.form.get('student_id', type=int)
+        target_id = request.form.get('to_class_id', type=int)
+        registration = Registration.query.filter_by(
+            student_id=student_id, class_id=class_id, status='active'
+        ).first()
+        target = ClassGroup.query.filter_by(id=target_id, status='active').first() if target_id else None
+
+        if not registration or not target:
+            flash('هنرجو یا کلاس مقصد معتبر نیست', 'danger')
+            return redirect(url_for('classes.transfer', class_id=class_id))
+        if target.id == class_group.id or target.course_id != class_group.course_id:
+            flash('کلاس مقصد باید کلاس دیگری از همین دوره باشد', 'danger')
+            return redirect(url_for('classes.transfer', class_id=class_id))
+        if target.is_full:
+            flash('ظرفیت کلاس مقصد تکمیل است', 'danger')
+            return redirect(url_for('classes.transfer', class_id=class_id))
+
         transfer = ClassTransfer(
-            student_id=request.form['student_id'],
+            student_id=student_id,
             from_class_id=class_id,
-            to_class_id=request.form['to_class_id'],
+            to_class_id=target.id,
             reason=request.form.get('reason'),
             fee_change=safe_float(request.form.get('fee_change')),
             approved_by=current_user.id
         )
+        registration.class_id = target.id
+        registration.teacher_id = target.teacher_id
         db.session.add(transfer)
+        db.session.flush()
+
+        class_group.current_count = Registration.query.filter_by(class_id=class_id, status='active').count()
+        target.current_count = Registration.query.filter_by(class_id=target.id, status='active').count()
         db.session.commit()
-        flash('انتقال انجام شد', 'success')
-        return redirect(url_for('classes.view', id=class_id))
+        flash(f'هنرجو به کلاس «{target.name}» منتقل شد', 'success')
+        return redirect(url_for('classes.view', id=target.id))
     
     all_classes = ClassGroup.query.filter(
         ClassGroup.status == 'active',
-        ClassGroup.id != class_id
+        ClassGroup.id != class_id,
+        ClassGroup.course_id == class_group.course_id
     ).all()
     students = [r.student for r in class_group.registrations.filter_by(status='active').all()]
     

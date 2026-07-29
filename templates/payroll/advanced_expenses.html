@@ -5,7 +5,10 @@
 <div class="anim-in">
     <div class="page-head">
         <h1><i class="bi bi-wallet2"></i> مدیریت هزینه‌های پیشرفته<small>فیلتر، تحلیل و گزارش</small></h1>
-        <a href="{{ url_for('payroll.add_advanced_expense') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> هزینه جدید</a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('settings.expense_categories') }}" class="btn btn-outline-primary"><i class="bi bi-tags"></i> دسته‌بندی‌ها</a>
+            <a href="{{ url_for('payroll.add_advanced_expense') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> هزینه جدید</a>
+        </div>
     </div>
     
     <!-- فیلتر -->
@@ -13,8 +16,8 @@
         <div class="card-body-padded">
             <form method="GET" class="row g-3 align-items-end">
                 <div class="col-md-3"><label class="form-label">دسته‌بندی</label>
-                    <select name="category_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
-                        <option value="">همه</option>
+                    <select name="category_id" class="form-select searchable" data-placeholder="جستجو در دسته‌بندی‌ها...">
+                        <option value="">همه دسته‌بندی‌ها</option>
                         {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if category_id == c.id|string }}>{{ c.name }}</option>{% endfor %}
                     </select>
                 </div>

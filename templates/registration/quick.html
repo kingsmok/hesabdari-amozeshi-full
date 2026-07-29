@@ -14,16 +14,17 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label">هنرجو <span class="text-danger">*</span></label>
-                        <select name="student_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
-                            <option value="">انتخاب...</option>
+                        <select name="student_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
+                            <option value="" selected disabled>انتخاب...</option>
                             {% for s in students %}<option value="{{ s.id }}">{{ s.full_name }}</option>{% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-4"><label class="form-label">دوره <span class="text-danger">*</span></label>
-                        <select name="course_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
-                            <option value="">انتخاب...</option>
-                            {% for c in classes %}<option value="{{ c.course_id }}">{{ c.name }}</option>{% endfor %}
+                    <div class="col-md-4"><label class="form-label">کلاس و دوره <span class="text-danger">*</span></label>
+                        <select name="class_id" id="quickClass" class="form-select searchable" data-placeholder="کلاس را انتخاب کنید..." required>
+                            <option value="" selected disabled>انتخاب...</option>
+                            {% for c in classes %}<option value="{{ c.id }}" data-course="{{ c.course_id }}">{{ c.name }} — {{ c.course.title if c.course else '-' }}</option>{% endfor %}
                         </select>
+                        <input type="hidden" name="course_id" id="quickCourse">
                     </div>
                     <div class="col-md-4"><label class="form-label">پرداخت</label><input type="number" name="initial_payment" class="form-control" value="0"></div>
                 </div>
@@ -32,4 +33,18 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+(function () {
+    const classSelect = document.getElementById('quickClass');
+    const courseInput = document.getElementById('quickCourse');
+    function syncCourse() {
+        const option = classSelect.options[classSelect.selectedIndex];
+        courseInput.value = option ? (option.dataset.course || '') : '';
+    }
+    classSelect.addEventListener('change', syncCourse);
+    syncCourse();
+})();
+</script>
 {% endblock %}
