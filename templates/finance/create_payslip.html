@@ -18,7 +18,7 @@
                         <select name="person_type" class="form-select"><option value="teacher">مدرس</option><option value="employee">کارمند</option></select>
                     </div>
                     <div class="col-md-3"><label class="form-label">شخص</label>
-                        <select name="person_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                        <select name="person_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید...">
                             {% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
                         </select>
                     </div>

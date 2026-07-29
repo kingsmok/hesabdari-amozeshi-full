@@ -7,14 +7,20 @@ class JalaliPicker {
     constructor(input) {
         this.input = input;
         this.today = this._today();
+        this.isOpen = false;
+        this._reposition = () => this._position();
         
         // مقدار قبلی
         this.selY = this.today.y;
         this.selM = this.today.m;
         this.selD = this.today.d;
         
+        this.initialValueWasGregorian = false;
         if (input.value) {
-            const p = this._parse(input.value);
+            const normalizedInitial = this._asciiDigits(String(input.value)).replace(/-/g, '/');
+            const initialYear = Number(normalizedInitial.split('/')[0]);
+            this.initialValueWasGregorian = initialYear > 1700;
+            const p = this._parse(normalizedInitial);
             if (p) { this.selY = p.y; this.selM = p.m; this.selD = p.d; }
         }
         
@@ -92,29 +98,49 @@ class JalaliPicker {
     _days(y, m) {
         if (m <= 6) return 31;
         if (m <= 11) return 30;
-        // اسفند: کبیسه
-        const r = y % 33;
-        return [1, 5, 9, 13, 17, 22, 26, 30].includes(r) ? 30 : 29;
+
+        // برای اسفند، تبدیل رفت‌وبرگشت از الگوی تقریبی ۳۳ ساله مطمئن‌تر است.
+        const g = this._j2g(y, 12, 30);
+        const j = this._g2j(g.y, g.m, g.d);
+        return j.y === y && j.m === 12 && j.d === 30 ? 30 : 29;
     }
     
     // ═══ روز هفته اول ماه (0=شنبه) ═══
     _firstDay(jy, jm) {
         const g = this._j2g(jy, jm, 1);
-        const d = new Date(g.y, g.m - 1, g.day);
+        const d = new Date(g.y, g.m - 1, g.d);
         return (d.getDay() + 1) % 7;
     }
     
     // ═══ پردازش ورودی ═══
     _parse(s) {
         if (!s) return null;
-        s = s.replace(/-/g, '/');
-        const p = s.split('/');
-        if (p.length === 3) {
-            const y = parseInt(p[0]);
-            if (y > 1700) return this._g2j(y, parseInt(p[1]), parseInt(p[2]));
-            return { y: y, m: parseInt(p[1]), d: parseInt(p[2]) };
+
+        // ورودی با اعداد فارسی، عربی و انگلیسی پذیرفته می‌شود.
+        s = this._asciiDigits(String(s).trim()).replace(/-/g, '/');
+        const match = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+        if (!match) return null;
+
+        const y = Number(match[1]);
+        const m = Number(match[2]);
+        const d = Number(match[3]);
+        if (m < 1 || m > 12 || d < 1) return null;
+
+        // value قدیمی input[type=date] میلادی است؛ برای نمایش به شمسی برگردانده می‌شود.
+        if (y > 1700) {
+            const maxGregorianDay = new Date(y, m, 0).getDate();
+            if (d > maxGregorianDay) return null;
+            return this._g2j(y, m, d);
         }
-        return null;
+
+        if (y < 1200 || y > 1600 || d > this._days(y, m)) return null;
+        return { y, m, d };
+    }
+
+    _asciiDigits(value) {
+        return value
+            .replace(/[۰-۹]/g, d => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+            .replace(/[٠-٩]/g, d => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
     }
     
     // ═══ عدد فارسی ═══
@@ -132,31 +158,59 @@ class JalaliPicker {
     _build() {
         this.wrap = document.createElement('div');
         this.wrap.className = 'jalali-picker-wrapper';
+        this.wrap.setAttribute('role', 'dialog');
+        this.wrap.setAttribute('aria-label', 'تقویم شمسی');
         this.wrap.style.cssText = `
-            position:absolute;top:100%;right:0;z-index:9999;
+            position:fixed;top:0;left:0;right:auto;z-index:2147483000;
             background:#fff;border:1px solid #e0e4e8;
             border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);
             display:none;direction:rtl;width:300px;user-select:none;
             font-family:Vazirmatn,Tahoma,sans-serif;
         `;
-        
-        const par = this.input.parentElement;
-        if (par) { par.style.position = 'relative'; par.appendChild(this.wrap); }
-        
+
+        /*
+         * قرار گرفتن popup داخل والد input باعث می‌شد overflow:hidden و transform
+         * کارت‌ها آن را ببُرند یا زیر کارت بعدی نمایش دهند. Portal به body این
+         * stacking-context را کاملاً دور می‌زند.
+         */
+        document.body.appendChild(this.wrap);
+
+        // یک والد کوچک فقط دور خود input می‌سازیم تا آیکون با label جابه‌جا نشود.
+        const currentParent = this.input.parentElement;
+        if (currentParent && !currentParent.classList.contains('jalali-input-wrapper')) {
+            this.inputHost = document.createElement('div');
+            this.inputHost.className = 'jalali-input-wrapper';
+            currentParent.insertBefore(this.inputHost, this.input);
+            this.inputHost.appendChild(this.input);
+        } else {
+            this.inputHost = currentParent;
+        }
+
         // آیکون
-        const icon = document.createElement('span');
-        icon.innerHTML = '📅';
-        icon.style.cssText = 'position:absolute;left:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:16px;z-index:10;';
-        icon.onclick = () => this.toggle();
-        if (par) par.appendChild(icon);
-        
+        this.icon = document.createElement('button');
+        this.icon.type = 'button';
+        this.icon.className = 'jp-input-icon';
+        this.icon.tabIndex = -1;
+        this.icon.setAttribute('aria-label', 'باز کردن تقویم شمسی');
+        this.icon.innerHTML = '<i class="bi bi-calendar3" aria-hidden="true"></i>';
+        if (this.inputHost) this.inputHost.appendChild(this.icon);
+
         // تنظیم input
         this.input.type = 'text';
+        if (this.initialValueWasGregorian) {
+            this.input.dataset.gregorian = this._asciiDigits(this.input.value).replace(/\//g, '-');
+            this.input.value = `${this.selY}/${String(this.selM).padStart(2, '0')}/${String(this.selD).padStart(2, '0')}`;
+        }
+        this.input.classList.add('jalali-date');
+        this.input.dataset.jalaliPickerInitialized = 'true';
         this.input.placeholder = '۱۴۰۵/۰۱/۱۶';
-        this.input.style.paddingLeft = '36px';
+        this.input.style.paddingLeft = '42px';
         this.input.style.direction = 'ltr';
         this.input.style.textAlign = 'center';
-        
+        this.input.setAttribute('autocomplete', 'off');
+        this.input.setAttribute('aria-haspopup', 'dialog');
+        this.input.setAttribute('aria-expanded', 'false');
+
         this._render();
     }
     
@@ -223,6 +277,9 @@ class JalaliPicker {
         
         this.wrap.innerHTML = h;
         this._bind();
+
+        // ارتفاع ماه‌ها ممکن است فرق کند؛ بعد از هر رندر جای popup دوباره محاسبه شود.
+        if (this.isOpen) requestAnimationFrame(() => this._position());
     }
     
     // ═══ رویدادها ═══
@@ -266,22 +323,61 @@ class JalaliPicker {
             this._update(); this._render(); this.hide();
         };
         
-        $('.jp-clear').onclick = () => { this.input.value = ''; this.input.dataset.gregorian = ''; this.hide(); };
+        $('.jp-clear').onclick = () => {
+            this.input.value = '';
+            this.input.dataset.gregorian = '';
+            this.input.dispatchEvent(new Event('input', { bubbles: true }));
+            this.input.dispatchEvent(new Event('change', { bubbles: true }));
+            this.hide();
+        };
     }
     
     _events() {
-        this.input.onclick = () => this.toggle();
-        this.input.onfocus = () => this.show();
+        // focus قبل از click اجرا می‌شود؛ استفاده از show (نه toggle) جلوی بسته‌شدن فوری را می‌گیرد.
+        this.input.addEventListener('click', () => this.show());
+        this.input.addEventListener('focus', () => this.show());
+        this.input.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                this.hide();
+                this.input.blur();
+            }
+        });
+
+        if (this.icon) {
+            this.icon.addEventListener('click', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.show();
+                this.input.focus({ preventScroll: true });
+            });
+        }
+
         document.addEventListener('click', e => {
-            if (!this.wrap.contains(e.target) && e.target !== this.input)
+            if (!this.wrap.contains(e.target) && e.target !== this.input && e.target !== this.icon)
                 this.hide();
         });
-        this.input.oninput = () => {
-            let v = this.input.value.replace(/[^\d\/]/g, '');
+
+        this.input.addEventListener('input', () => {
+            let v = this._asciiDigits(this.input.value)
+                .replace(/-/g, '/')
+                .replace(/[^\d\/]/g, '')
+                .slice(0, 10);
             this.input.value = v;
             const p = this._parse(v);
-            if (p) { this.selY = p.y; this.selM = p.m; this.selD = p.d; this.viewY = p.y; this.viewM = p.m; }
-        };
+            if (p) {
+                this.selY = p.y;
+                this.selM = p.m;
+                this.selD = p.d;
+                this.viewY = p.y;
+                this.viewM = p.m;
+                if (this.isOpen) this._render();
+            }
+        });
+
+        // position:fixed باید هنگام اسکرول هر نوع container و تغییر اندازه به‌روز شود.
+        window.addEventListener('resize', this._reposition);
+        window.addEventListener('scroll', this._reposition, true);
     }
     
     _update() {
@@ -292,20 +388,69 @@ class JalaliPicker {
         
         const g = this._j2g(this.selY, this.selM, this.selD);
         this.input.dataset.gregorian = `${g.y}-${String(g.m).padStart(2, '0')}-${String(g.d).padStart(2, '0')}`;
-        this.input.dispatchEvent(new Event('change'));
+        this.input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    _position() {
+        if (!this.isOpen) return;
+
+        const rect = this.input.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+        const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+        const margin = viewportWidth <= 360 ? 4 : 8;
+        const gap = 6;
+
+        // اگر input کاملاً از viewport خارج شد popup باز باقی نماند.
+        if (rect.bottom < 0 || rect.top > viewportHeight || rect.right < 0 || rect.left > viewportWidth) {
+            this.hide();
+            return;
+        }
+
+        const width = Math.min(300, viewportWidth - (margin * 2));
+        this.wrap.style.width = `${width}px`;
+        this.wrap.style.maxHeight = `${Math.max(120, viewportHeight - (margin * 2))}px`;
+
+        const pickerHeight = this.wrap.offsetHeight;
+        const spaceBelow = viewportHeight - rect.bottom - margin;
+        const spaceAbove = rect.top - margin;
+        const openAbove = spaceBelow < pickerHeight + gap && spaceAbove > spaceBelow;
+
+        let top = openAbove ? rect.top - pickerHeight - gap : rect.bottom + gap;
+        top = Math.max(margin, Math.min(top, viewportHeight - pickerHeight - margin));
+
+        // در RTL لبه راست popup با لبه راست input هم‌راستا می‌شود.
+        let left = rect.right - width;
+        left = Math.max(margin, Math.min(left, viewportWidth - width - margin));
+
+        this.wrap.style.top = `${Math.round(top)}px`;
+        this.wrap.style.left = `${Math.round(left)}px`;
     }
     
-    show() { this.wrap.style.display = 'block'; this._render(); }
-    hide() { this.wrap.style.display = 'none'; }
-    toggle() { this.wrap.style.display === 'none' || !this.wrap.style.display ? this.show() : this.hide(); }
+    show() {
+        if (this.input.disabled || this.input.readOnly) return;
+        if (JalaliPicker.active && JalaliPicker.active !== this) JalaliPicker.active.hide();
+
+        JalaliPicker.active = this;
+        this.isOpen = true;
+        this.wrap.style.display = 'block';
+        this.input.setAttribute('aria-expanded', 'true');
+        this._render();
+        this._position();
+    }
+
+    hide() {
+        this.isOpen = false;
+        this.wrap.style.display = 'none';
+        this.input.setAttribute('aria-expanded', 'false');
+        if (JalaliPicker.active === this) JalaliPicker.active = null;
+    }
+
+    toggle() { this.isOpen ? this.hide() : this.show(); }
 }
 
 // ═══ مقداردهی خودکار ═══
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.jalali-date').forEach(i => new JalaliPicker(i));
-    document.querySelectorAll('input[type="date"]').forEach(i => {
-        i.type = 'text';
-        i.placeholder = '۱۴۰۵/۰۱/۱۶';
-        new JalaliPicker(i);
+    document.querySelectorAll('.jalali-date, input[type="date"]').forEach(input => {
+        if (input.dataset.jalaliPickerInitialized !== 'true') new JalaliPicker(input);
     });
 });

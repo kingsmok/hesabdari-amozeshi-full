@@ -20,7 +20,7 @@
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">شخص</label>
-                        <select name="person_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                        <select name="person_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
                             {% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
                         </select>
                     </div>

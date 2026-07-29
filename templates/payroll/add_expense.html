@@ -3,7 +3,16 @@
 {% block breadcrumb %}<li><a href="{{ url_for('payroll.advanced_expenses') }}">هزینه‌ها</a></li><li class="active">جدید</li>{% endblock %}
 {% block content %}
 <div class="anim-in">
-    <div class="page-head"><h1><i class="bi bi-plus-circle"></i> ثبت هزینه جدید</h1></div>
+    <div class="page-head">
+        <h1><i class="bi bi-plus-circle"></i> ثبت هزینه جدید</h1>
+        <a href="{{ url_for('settings.expense_categories') }}" class="btn btn-outline-primary"><i class="bi bi-tags"></i> مدیریت دسته‌بندی‌ها</a>
+    </div>
+    {% if not categories %}
+    <div class="alert alert-warning d-flex align-items-center justify-content-between gap-3">
+        <span><i class="bi bi-exclamation-triangle me-2"></i>برای ثبت هزینه ابتدا یک دسته‌بندی هزینه ایجاد کنید.</span>
+        <a href="{{ url_for('settings.expense_categories') }}" class="btn btn-sm btn-warning">ایجاد دسته‌بندی</a>
+    </div>
+    {% endif %}
     <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="card mb-4">
@@ -11,7 +20,8 @@
                 <div class="row g-3">
                     <div class="col-md-4">
                         <label class="form-label">دسته‌بندی <span class="text-danger">*</span></label>
-                        <select name="category_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                        <select name="category_id" class="form-select searchable" data-placeholder="دسته‌بندی را انتخاب کنید..." required>
+                            <option value="" selected disabled>انتخاب دسته‌بندی</option>
                             {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
                         </select>
                     </div>
@@ -49,7 +59,7 @@
         </div>
         <div class="d-flex justify-content-end gap-2 mb-4">
             <a href="{{ url_for('payroll.advanced_expenses') }}" class="btn btn-outline-secondary">انصراف</a>
-            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> ثبت هزینه</button>
+            <button type="submit" class="btn btn-success" {{ 'disabled' if not categories else '' }}><i class="bi bi-check-circle me-2"></i> ثبت هزینه</button>
         </div>
     </form>
 </div>

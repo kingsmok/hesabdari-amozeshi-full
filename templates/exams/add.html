@@ -15,12 +15,12 @@
                 <div class="row g-3">
                     <div class="col-md-6"><label class="form-label">عنوان آزمون <span class="text-danger">*</span></label><input type="text" name="title" class="form-control" required></div>
                     <div class="col-md-3"><label class="form-label">دوره</label>
-                        <select name="course_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                        <select name="course_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
                             {% for c in courses %}<option value="{{ c.id }}">{{ c.title }}</option>{% endfor %}
                         </select>
                     </div>
                     <div class="col-md-3"><label class="form-label">کلاس</label>
-                        <select name="class_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select">
+                        <select name="class_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید...">
                             <option value="">همه</option>
                             {% for cl in classes %}<option value="{{ cl.id }}">{{ cl.name }}</option>{% endfor %}
                         </select>

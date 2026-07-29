@@ -9,7 +9,11 @@
 <div class="animate-in">
     <div class="page-header">
         <h1><i class="bi bi-wallet2 me-2 text-danger"></i>هزینه‌های آموزشگاه</h1>
-        <a href="{{ url_for('finance.add_expense') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>هزینه جدید</a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('finance.expenses_pdf') }}" target="_blank" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i> خروجی PDF</a>
+            <a href="{{ url_for('settings.expense_categories') }}" class="btn btn-outline-primary"><i class="bi bi-tags"></i> دسته‌بندی‌ها</a>
+            <a href="{{ url_for('finance.add_expense') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>هزینه جدید</a>
+        </div>
     </div>
     <div class="card-custom">
         <div class="card-body-custom" style="padding: 0;">

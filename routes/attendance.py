@@ -60,6 +60,8 @@ def session_attendance(session_id):
         for reg in registrations:
             sid = str(reg.student_id)
             status = request.form.get(f'status_{sid}', 'absent')
+            if status not in ('present', 'absent', 'late', 'excused'):
+                status = 'absent'
             arrival = request.form.get(f'arrival_{sid}')
             departure = request.form.get(f'departure_{sid}')
             notes = request.form.get(f'notes_{sid}', '')
@@ -68,6 +70,7 @@ def session_attendance(session_id):
                 session_id=session_id, student_id=reg.student_id
             ).first()
             
+            was_absent = bool(existing and existing.status == 'absent')
             if existing:
                 existing.status = status
                 existing.arrival_time = arrival
@@ -86,10 +89,12 @@ def session_attendance(session_id):
                 )
                 db.session.add(att)
             
-            # ارسال اعلان غیبت
-            if status == 'absent':
+            # فقط هنگام تغییر تازه به «غایب» اعلان ساخته می‌شود تا ویرایش فرم اعلان تکراری نسازد.
+            if status == 'absent' and not was_absent:
+                from models.user import User
+                admin = User.query.filter_by(is_admin=True, is_active=True).first()
                 notif = Notification(
-                    user_id=1,
+                    user_id=admin.id if admin else current_user.id,
                     title=f'غیبت: {reg.student.full_name}',
                     body=f'در جلسه {session.session_number} کلاس {session.class_group.name}',
                     notif_type='attendance'
@@ -223,8 +228,14 @@ def bulk_attendance():
     from models.classes import ClassGroup
     
     if request.method == 'POST':
-        class_id = int(request.form['class_id'])
-        return redirect(url_for('attendance.session_attendance', session_id=request.form.get('session_id')))
+        from models.classes import ClassSession
+        class_id = request.form.get('class_id', type=int)
+        session_id = request.form.get('session_id', type=int)
+        session = ClassSession.query.filter_by(id=session_id, class_id=class_id).first() if class_id and session_id else None
+        if not session:
+            flash('کلاس یا جلسه انتخاب‌شده معتبر نیست', 'danger')
+            return redirect(url_for('attendance.bulk_attendance'))
+        return redirect(url_for('attendance.session_attendance', session_id=session.id))
     
     classes = ClassGroup.query.filter_by(status='active').all()
     return render_template('attendance/bulk.html', classes=classes)

@@ -177,18 +177,12 @@ def optimize_database():
         flash('فقط مدیر کل', 'error')
         return redirect(url_for('settings.general'))
     
-    from flask import current_app
-    db_path = os.path.join(current_app.root_path, '..', 'instance', 'academy.db')
-    
     try:
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        conn.execute('VACUUM')
-        conn.execute('ANALYZE')
-        conn.close()
-        flash('بهینه‌سازی دیتابیس با موفقیت انجام شد', 'success')
+        from utils.database_tools import optimize_database as run_optimization
+        _, message = run_optimization()
+        flash(f'بهینه‌سازی دیتابیس انجام شد: {message}', 'success')
     except Exception as e:
-        flash(f'خطا: {str(e)}', 'error')
+        flash(f'خطا در بهینه‌سازی: {str(e)}', 'error')
     
     return redirect(url_for('features.system_health'))
 
@@ -201,21 +195,15 @@ def repair_database():
         flash('فقط مدیر کل', 'error')
         return redirect(url_for('settings.general'))
     
-    from flask import current_app
-    db_path = os.path.join(current_app.root_path, '..', 'instance', 'academy.db')
-    
     try:
-        import sqlite3
-        conn = sqlite3.connect(db_path)
-        result = conn.execute('PRAGMA integrity_check').fetchone()
-        conn.close()
-        
-        if result[0] == 'ok':
-            flash('دیتابیس سالم است ✓', 'success')
+        from utils.database_tools import check_database_integrity
+        healthy, message = check_database_integrity()
+        if healthy:
+            flash(f'دیتابیس سالم است ✓ ({message})', 'success')
         else:
-            flash(f'مشکل دیتابیس: {result[0]}', 'warning')
+            flash(f'مشکل دیتابیس: {message}', 'warning')
     except Exception as e:
-        flash(f'خطا: {str(e)}', 'error')
+        flash(f'خطا در بررسی دیتابیس: {str(e)}', 'error')
     
     return redirect(url_for('features.system_health'))
 
@@ -223,24 +211,14 @@ def repair_database():
 @features2_bp.route('/settings/database/stats')
 @login_required
 def database_stats():
-    """آمار جداول دیتابیس"""
-    import sqlite3
-    from flask import current_app
-    
-    db_path = os.path.join(current_app.root_path, '..', 'instance', 'academy.db')
-    conn = sqlite3.connect(db_path)
-    
-    tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
-    stats = []
-    for (table,) in tables:
-        try:
-            count = conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
-            stats.append({'name': table, 'count': count})
-        except:
-            stats.append({'name': table, 'count': 0})
-    
-    conn.close()
-    return render_template('settings/database_stats.html', stats=stats)
+    """آمار جداول دیتابیس فعال، مستقل از نوع و محل دیتابیس."""
+    from utils.database_tools import collect_table_stats, database_backend
+
+    return render_template(
+        'settings/database_stats.html',
+        stats=collect_table_stats(),
+        backend=database_backend()
+    )
 
 
 # ============================================================
@@ -996,22 +974,33 @@ def custom_report():
     results = None
     
     if request.method == 'POST':
-        table = request.form.get('table')
-        columns = request.form.getlist('columns')
-        limit = int(request.form.get('limit', 50))
-        
+        table_name = request.form.get('table', '')
+        requested_columns = request.form.getlist('columns')
         try:
-            import sqlite3
-            from flask import current_app
-            db_path = os.path.join(current_app.root_path, '..', 'instance', 'academy.db')
-            conn = sqlite3.connect(db_path)
-            
-            cols = ', '.join(columns) if columns else '*'
-            query = f'SELECT {cols} FROM "{table}" LIMIT {limit}'
-            results = {'columns': columns or ['*'], 'rows': conn.execute(query).fetchall(), 'query': query}
-            conn.close()
+            limit = max(1, min(int(request.form.get('limit', 50)), 500))
+        except (TypeError, ValueError):
+            limit = 50
+
+        try:
+            table = db.metadata.tables.get(table_name)
+            if table is None:
+                raise ValueError('جدول انتخاب‌شده معتبر نیست')
+
+            allowed_columns = {column.name: column for column in table.columns}
+            selected_names = [name for name in requested_columns if name in allowed_columns]
+            if not selected_names:
+                selected_names = list(allowed_columns.keys())
+            selected_columns = [allowed_columns[name] for name in selected_names]
+
+            statement = db.select(*selected_columns).limit(limit)
+            rows = [tuple(row) for row in db.session.execute(statement).all()]
+            results = {
+                'columns': selected_names,
+                'rows': rows,
+                'query': f'{table_name} — حداکثر {limit} رکورد'
+            }
         except Exception as e:
-            flash(f'خطا: {str(e)}', 'error')
+            flash(f'خطا در گزارش‌ساز: {str(e)}', 'error')
     
     # لیست جداول
     tables = list(db.metadata.tables.keys())

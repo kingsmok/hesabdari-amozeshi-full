@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from extensions import db
 from utils.form_helpers import get_jalali_date
+from utils.jalali import current_jalali_year
 from models.student import Student, StudentDocument, WaitingList
 from models.registration import Registration
 from models.user import ActivityLog
@@ -58,7 +59,7 @@ def add():
         # Generate student code
         last = Student.query.order_by(Student.id.desc()).first()
         next_num = (last.id + 1) if last else 1
-        code = f'ST-1405-{next_num:05d}'
+        code = f'ST-{current_jalali_year()}-{next_num:05d}'
         
         student = Student(
             student_code=code,
@@ -221,7 +222,28 @@ def waiting_list():
 @login_required
 def delete(id):
     student = Student.query.get_or_404(id)
+    if student.status == 'withdrawn':
+        flash('این هنرجو قبلاً غیرفعال شده است', 'warning')
+        return redirect(url_for('students.index'))
+
     student.status = 'withdrawn'
+    affected_class_ids = set()
+    for registration in student.registrations.filter_by(status='active').all():
+        registration.status = 'withdrawn'
+        registration.cancellation_reason = 'غیرفعال شدن پرونده هنرجو'
+        registration.cancelled_by = current_user.id
+        registration.cancelled_at = datetime.utcnow()
+        if registration.class_id:
+            affected_class_ids.add(registration.class_id)
+
+    from models.classes import ClassGroup
+    db.session.flush()
+    for class_id in affected_class_ids:
+        class_group = db.session.get(ClassGroup, class_id)
+        if class_group:
+            class_group.current_count = Registration.query.filter_by(
+                class_id=class_id, status='active'
+            ).count()
     
     log = ActivityLog(
         user_id=current_user.id,

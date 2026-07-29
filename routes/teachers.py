@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.jalali import current_jalali_year
 from models.teacher import Teacher, TeacherDocument, TeacherEvaluation
 from models.user import ActivityLog
 from datetime import datetime
@@ -37,7 +38,7 @@ def add():
     if request.method == 'POST':
         last = Teacher.query.order_by(Teacher.id.desc()).first()
         next_num = (last.id + 1) if last else 1
-        code = f'TEC-1405-{next_num:03d}'
+        code = f'TEC-{current_jalali_year()}-{next_num:03d}'
         
         teacher = Teacher(
             teacher_code=code,

@@ -1,19 +1,106 @@
 {% extends "base/layout.html" %}
 {% block title %}گواهینامه‌ها{% endblock %}
 {% block breadcrumb %}
-<li><a href="{{ url_for('exams.grades') }}">مدارک</a></li>
+<li><a href="{{ url_for('certificates.index') }}">مدارک</a></li>
 <li class="active">گواهینامه‌ها</li>
 {% endblock %}
 
 {% block content %}
-<div class="animate-in">
-    <div class="page-header">
-        <h1><i class="bi bi-award me-2 text-warning"></i>گواهینامه‌ها و مدارک<small>صدور و مدیریت مدارک آموزشی</small></h1>
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-award"></i> گواهینامه‌ها و مدارک<small>صدور، اعتبارسنجی و دریافت گواهینامه فقط با فرمت PDF</small></h1>
     </div>
+
     <div class="row g-3 mb-4">
-        <div class="col-md-3"><div class="stat-card text-center"><i class="bi bi-award" style="font-size: 32px; color: #f39c12;"></i><div class="stat-value">{{ total_issued or 0 }}</div><div class="stat-label">مدارک صادر شده</div></div></div>
-        <div class="col-md-3"><div class="stat-card text-center"><i class="bi bi-check-circle" style="font-size: 32px; color: #27ae60;"></i><div class="stat-value">{{ active_certs or 0 }}</div><div class="stat-label">فعال</div></div></div>
-        <div class="col-md-3"><div class="stat-card text-center"><i class="bi bi-x-circle" style="font-size: 32px; color: #e74c3c;"></i><div class="stat-value">{{ cancelled_certs or 0 }}</div><div class="stat-label">ابطال شده</div></div></div>
+        <div class="col-md-4"><div class="stat-box text-center"><i class="bi bi-award" style="font-size:32px;color:#f39c12;"></i><div class="stat-val">{{ total_issued or 0 }}</div><div class="stat-label">مدارک صادرشده</div></div></div>
+        <div class="col-md-4"><div class="stat-box text-center"><i class="bi bi-check-circle" style="font-size:32px;color:#27ae60;"></i><div class="stat-val">{{ active_certs or 0 }}</div><div class="stat-label">معتبر</div></div></div>
+        <div class="col-md-4"><div class="stat-box text-center"><i class="bi bi-x-circle" style="font-size:32px;color:#e74c3c;"></i><div class="stat-val">{{ cancelled_certs or 0 }}</div><div class="stat-label">باطل‌شده</div></div></div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-head"><h5><i class="bi bi-file-earmark-plus text-success"></i> صدور گواهینامه جدید</h5></div>
+        <div class="card-body-padded">
+            {% if eligible_registrations %}
+            <form method="POST" action="{{ url_for('certificates.issue') }}" class="row g-3 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-lg-5">
+                    <label class="form-label">هنرجو و دوره <span class="text-danger">*</span></label>
+                    <select name="registration_id" class="form-select searchable" data-placeholder="هنرجو یا دوره را جستجو کنید..." required>
+                        <option value="" selected disabled>انتخاب ثبت‌نام</option>
+                        {% for reg in eligible_registrations %}
+                        <option value="{{ reg.id }}">{{ reg.student.full_name if reg.student else '-' }} — {{ reg.course.title if reg.course else '-' }} ({{ reg.reg_code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-3">
+                    <label class="form-label">قالب</label>
+                    <select name="template_id" class="form-select">
+                        <option value="">قالب رسمی پیش‌فرض</option>
+                        {% for template in templates %}<option value="{{ template.id }}">{{ template.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <label class="form-label">یادداشت</label>
+                    <input type="text" name="notes" class="form-control" placeholder="اختیاری">
+                </div>
+                <div class="col-lg-2">
+                    <button type="submit" class="btn btn-success w-100"><i class="bi bi-file-earmark-pdf"></i> صدور PDF</button>
+                </div>
+            </form>
+            <div class="form-text mt-2">برای جلوگیری از صدور تکراری، هر ثبت‌نام فقط یک گواهینامه معتبر می‌تواند داشته باشد.</div>
+            {% else %}
+            <div class="alert alert-info mb-0"><i class="bi bi-info-circle me-2"></i>ثبت‌نام واجد شرایط جدیدی برای صدور وجود ندارد یا برای همه آن‌ها گواهینامه صادر شده است.</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-head">
+            <h5><i class="bi bi-list-ul text-primary"></i> گواهینامه‌های صادرشده</h5>
+            <span class="badge-status badge-active">{{ certificates|length }} مورد</span>
+        </div>
+        <div class="card-body-padded" style="padding:0;">
+            {% if certificates %}
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead><tr><th>سریال</th><th>هنرجو</th><th>دوره</th><th>تاریخ صدور</th><th>وضعیت</th><th>خروجی PDF</th><th>عملیات</th></tr></thead>
+                    <tbody>
+                        {% for cert in certificates %}
+                        <tr>
+                            <td><code>{{ cert.serial_number }}</code></td>
+                            <td><strong>{{ cert.student.full_name if cert.student else '-' }}</strong></td>
+                            <td>{{ cert.course.title if cert.course else '-' }}</td>
+                            <td>{{ cert.issue_date|to_jalali }}</td>
+                            <td>
+                                {% if cert.status in ['active', 'reissued'] %}<span class="badge-status badge-active">معتبر</span>
+                                {% else %}<span class="badge-status badge-inactive">باطل‌شده</span>{% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('certificates.pdf', id=cert.id) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="نمایش PDF"><i class="bi bi-file-earmark-pdf"></i></a>
+                                    <a href="{{ url_for('certificates.pdf', id=cert.id, download=1) }}" class="btn btn-sm btn-outline-success" title="دانلود PDF"><i class="bi bi-download"></i></a>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('certificates.verify', serial=cert.serial_number) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="اعتبارسنجی"><i class="bi bi-qr-code-scan"></i></a>
+                                    {% if cert.status in ['active', 'reissued'] %}
+                                    <form method="POST" action="{{ url_for('certificates.cancel', id=cert.id) }}" onsubmit="return confirm('این گواهینامه باطل شود؟');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-sm btn-outline-danger" title="ابطال"><i class="bi bi-x-circle"></i></button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#90a4ae;"><i class="bi bi-award" style="font-size:46px;"></i><p class="mt-2">هنوز گواهینامه‌ای صادر نشده است.</p></div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

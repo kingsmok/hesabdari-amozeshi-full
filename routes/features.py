@@ -18,6 +18,17 @@ features_bp = Blueprint('features', __name__)
 # ============================================================
 #  1) پشتیبان‌گیری واقعی (Backup & Restore) — #9, #10, #271-275
 # ============================================================
+def _safe_backup_path(backup_dir, name):
+    """جلوگیری از دسترسی مسیر و پذیرش فقط فایل پشتیبان ساخته‌شده توسط برنامه."""
+    safe_name = os.path.basename(name or '')
+    if safe_name != name or not safe_name.startswith('backup_') or not safe_name.endswith(('.zip', '.zip.enc')):
+        return None
+    path = os.path.abspath(os.path.join(backup_dir, safe_name))
+    if os.path.commonpath([os.path.abspath(backup_dir), path]) != os.path.abspath(backup_dir):
+        return None
+    return path
+
+
 @features_bp.route('/settings/backup/create', methods=['POST'])
 @login_required
 def create_backup():
@@ -29,7 +40,6 @@ def create_backup():
     from flask import current_app
     import glob
     
-    db_path = os.path.join(current_app.root_path, '..', 'instance', 'academy.db')
     backup_dir = current_app.config['BACKUP_FOLDER']
     os.makedirs(backup_dir, exist_ok=True)
     
@@ -38,7 +48,8 @@ def create_backup():
     backup_path = os.path.join(backup_dir, backup_name)
     
     try:
-        shutil.copy2(db_path, backup_path)
+        from utils.database_tools import sqlite_backup
+        sqlite_backup(backup_path)
         
         # فشرده‌سازی
         import zipfile
@@ -98,35 +109,47 @@ def restore_backup(name):
     import zipfile
     
     backup_dir = current_app.config['BACKUP_FOLDER']
-    zip_path = os.path.join(backup_dir, name)
+    zip_path = _safe_backup_path(backup_dir, name)
     
-    if not os.path.exists(zip_path):
-        flash('فایل پشتیبان یافت نشد', 'error')
+    if not zip_path or not os.path.isfile(zip_path) or not zip_path.endswith('.zip'):
+        flash('فایل پشتیبان معتبر یافت نشد', 'error')
         return redirect(url_for('settings.backup'))
     
+    temp_db = os.path.join(backup_dir, f'.restore-{uuid.uuid4().hex}.db')
     try:
-        db_path = os.path.join(current_app.root_path, '..', 'instance', 'academy.db')
-        
-        # ابتدا از دیتابیس فعلی پشتیبان بگیر
+        from utils.database_tools import sqlite_backup, sqlite_database_path
+        db_path = sqlite_database_path()
+        if not db_path:
+            raise RuntimeError('بازیابی فایل در این بخش فقط برای SQLite پشتیبانی می‌شود')
+
+        with zipfile.ZipFile(zip_path, 'r') as archive:
+            db_entries = [entry for entry in archive.infolist() if not entry.is_dir() and entry.filename.endswith('.db')]
+            if len(db_entries) != 1:
+                raise ValueError('ساختار فایل پشتیبان معتبر نیست')
+            with archive.open(db_entries[0], 'r') as source, open(temp_db, 'wb') as target:
+                shutil.copyfileobj(source, target)
+
+        # سلامت فایل استخراج‌شده پیش از جایگزینی بررسی می‌شود.
+        import sqlite3
+        check = sqlite3.connect(temp_db)
+        try:
+            integrity = check.execute('PRAGMA integrity_check').fetchone()[0]
+        finally:
+            check.close()
+        if str(integrity).lower() != 'ok':
+            raise ValueError(f'فایل پشتیبان ناسالم است: {integrity}')
+
         safety_backup = db_path + '.before_restore'
-        shutil.copy2(db_path, safety_backup)
-        
-        with zipfile.ZipFile(zip_path, 'r') as zf:
-            extract_path = os.path.join(backup_dir, 'temp_restore')
-            zf.extractall(extract_path)
-            
-            extracted_db = os.path.join(extract_path, 'backup_*.db')
-            import glob
-            db_files = glob.glob(extracted_db)
-            if db_files:
-                shutil.copy2(db_files[0], db_path)
-        
-        # پاکسازی
-        shutil.rmtree(os.path.join(backup_dir, 'temp_restore'), ignore_errors=True)
-        
-        flash('بازیابی با موفقیت انجام شد. لطفاً صفحه را رفرش کنید.', 'success')
+        sqlite_backup(safety_backup)
+        db.session.remove()
+        db.engine.dispose()
+        os.replace(temp_db, db_path)
+        flash('بازیابی با موفقیت انجام شد. برای بارگذاری اتصال تازه، برنامه را یک‌بار بازنشانی کنید.', 'success')
     except Exception as e:
         flash(f'خطا در بازیابی: {str(e)}', 'error')
+    finally:
+        if os.path.exists(temp_db):
+            os.remove(temp_db)
     
     return redirect(url_for('settings.backup'))
 
@@ -137,10 +160,10 @@ def download_backup(name):
     """دانلود فایل پشتیبان"""
     from flask import current_app
     backup_dir = current_app.config['BACKUP_FOLDER']
-    path = os.path.join(backup_dir, name)
-    if os.path.exists(path):
-        return send_file(path, as_attachment=True)
-    flash('فایل یافت نشد', 'error')
+    path = _safe_backup_path(backup_dir, name)
+    if path and os.path.isfile(path):
+        return send_file(path, as_attachment=True, download_name=os.path.basename(path))
+    flash('فایل پشتیبان معتبر یافت نشد', 'error')
     return redirect(url_for('settings.backup'))
 
 
@@ -150,10 +173,12 @@ def delete_backup(name):
     """حذف فایل پشتیبان"""
     from flask import current_app
     backup_dir = current_app.config['BACKUP_FOLDER']
-    path = os.path.join(backup_dir, name)
-    if os.path.exists(path):
+    path = _safe_backup_path(backup_dir, name)
+    if path and os.path.isfile(path):
         os.remove(path)
         flash('فایل پشتیبان حذف شد', 'success')
+    else:
+        flash('فایل پشتیبان معتبر یافت نشد', 'error')
     return redirect(url_for('settings.backup'))
 
 
@@ -558,9 +583,13 @@ def system_health():
     from flask import current_app
     import os
     
-    # آمار دیتابیس
-    db_path = os.path.join(current_app.root_path, '..', 'instance', 'academy.db')
-    db_size = os.path.getsize(db_path) if os.path.exists(db_path) else 0
+    # آمار دیتابیس فعال (مسیر تنظیم‌شده یا سرور خارجی)
+    from utils.database_tools import database_size_bytes, check_database_integrity
+    db_size = database_size_bytes()
+    try:
+        db_healthy, db_message = check_database_integrity()
+    except Exception as exc:
+        db_healthy, db_message = False, str(exc)
     
     stats = {
         'db_size_mb': round(db_size / (1024 * 1024), 2),
@@ -571,6 +600,8 @@ def system_health():
         'total_registrations': Registration.query.count(),
         'total_payments': Payment.query.count(),
         'table_count': len(db.metadata.tables),
+        'db_healthy': db_healthy,
+        'db_message': db_message,
     }
     
     # بررسی پشتیبان‌گیری
@@ -698,13 +729,8 @@ def security_log():
 @features_bp.route('/classes/<int:id>/print')
 @login_required
 def print_class_list(id):
-    """چاپ لیست کلاس"""
-    from models.classes import ClassGroup
-    
-    class_group = ClassGroup.query.get_or_404(id)
-    students = [r.student for r in class_group.registrations.filter_by(status='active').all()]
-    
-    return render_template('classes/print_list.html', class_group=class_group, students=students)
+    """مسیر چاپ قدیمی؛ خروجی جدید فقط PDF است."""
+    return redirect(url_for('new_features.class_pdf', id=id))
 
 
 # ============================================================

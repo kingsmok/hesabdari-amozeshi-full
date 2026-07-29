@@ -10,6 +10,7 @@
     <div class="page-header">
         <h1><i class="bi bi-phone me-2 text-success"></i>پیامک‌ها</h1>
         <div class="d-flex gap-2">
+            <a href="{{ url_for('settings_panel.farazsms_config') }}" class="btn btn-outline-secondary"><i class="bi bi-gear"></i> اتصال پنل</a>
             <a href="{{ url_for('messaging.send_sms') }}" class="btn btn-primary-custom"><i class="bi bi-send me-1"></i> ارسال</a>
             <a href="{{ url_for('messaging.group_sms') }}" class="btn btn-outline-primary"><i class="bi bi-broadcast me-1"></i> گروهی</a>
         </div>

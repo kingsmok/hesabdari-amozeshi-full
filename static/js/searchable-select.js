@@ -1,228 +1,303 @@
 /**
- * کامپوننت انتخاب جستوپذیر — Searchable Select
- * جایگزین ساده Select2 بدون وابستگی خارجی
+ * کامپوننت انتخاب جستجوپذیر — Searchable Select
+ * جایگزین سبک Select2 بدون وابستگی خارجی
  */
 class SearchableSelect {
     constructor(select, options = {}) {
+        if (select.dataset.searchableSelectInitialized === 'true') return;
+
         this.original = select;
         this.placeholder = options.placeholder || 'جستجو کنید...';
-        this.api = options.api || null;  // URL برای جستجوی AJAX
+        this.api = options.api || null;
         this.minChars = options.minChars || 1;
-        
+        this.isOpen = false;
+        this._reposition = () => this._position();
+
         this._build();
         this._bindEvents();
     }
-    
+
     _build() {
-        // مخفی کردن select اصلی
+        this.original.dataset.searchableSelectInitialized = 'true';
         this.original.style.display = 'none';
-        
-        // ساخت container
+
+        // بخش نمایشی در جای select اصلی باقی می‌ماند.
         this.container = document.createElement('div');
         this.container.className = 'ss-container';
-        this.container.style.cssText = 'position: relative; width: 100%;';
-        
-        // input نمایشی
+
         this.display = document.createElement('div');
         this.display.className = 'ss-display';
-        this.display.style.cssText = `
-            display: flex; align-items: center; justify-content: space-between;
-            padding: 9px 14px; border: 1.5px solid #e0e4e8; border-radius: 8px;
-            background: #fff; cursor: pointer; font-size: 13px; min-height: 40px;
-            transition: all 0.2s;
-        `;
-        this.display.innerHTML = `<span class="ss-placeholder" style="color: #b0bec5;">${this.placeholder}</span><i class="bi bi-chevron-down" style="font-size: 10px; color: #b0bec5;"></i>`;
-        
-        // dropdown
+        this.display.tabIndex = 0;
+        this.display.setAttribute('role', 'combobox');
+        this.display.setAttribute('aria-haspopup', 'listbox');
+        this.display.setAttribute('aria-expanded', 'false');
+
+        // dropdown به body منتقل می‌شود تا زیر کارت بعدی نرود و توسط overflow بریده نشود.
         this.dropdown = document.createElement('div');
         this.dropdown.className = 'ss-dropdown';
-        this.dropdown.style.cssText = `
-            display: none; position: absolute; top: 100%; left: 0; right: 0;
-            background: #fff; border: 1px solid #e0e4e8; border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 1000;
-            max-height: 300px; overflow: hidden; margin-top: 4px;
-        `;
-        
-        // input جستجو
+        this.dropdown.setAttribute('role', 'listbox');
+        this.dropdown.style.display = 'none';
+
         this.searchInput = document.createElement('input');
         this.searchInput.type = 'text';
         this.searchInput.className = 'ss-search';
         this.searchInput.placeholder = this.placeholder;
-        this.searchInput.style.cssText = `
-            width: 100%; padding: 10px 14px; border: none; border-bottom: 1px solid #f0f0f0;
-            font-size: 13px; font-family: Vazirmatn, Tahoma; outline: none;
-            box-sizing: border-box;
-        `;
-        
-        // لیست گزینه‌ها
+        this.searchInput.setAttribute('aria-label', 'جستجو در گزینه‌ها');
+        this.searchInput.setAttribute('autocomplete', 'off');
+
         this.optionsList = document.createElement('div');
         this.optionsList.className = 'ss-options';
-        this.optionsList.style.cssText = 'max-height: 240px; overflow-y: auto; padding: 4px;';
-        
-        // پیام خالی
+
         this.emptyMsg = document.createElement('div');
-        this.emptyMsg.style.cssText = 'padding: 16px; text-align: center; color: #b0bec5; font-size: 12px; display: none;';
-        this.emptyMsg.textContent = 'نتیجه‌ای یافت نشد';
-        
+        this.emptyMsg.className = 'ss-empty';
+        this.emptyMsg.textContent = 'گزینه‌ای یافت نشد';
+
         this.dropdown.appendChild(this.searchInput);
         this.dropdown.appendChild(this.optionsList);
         this.dropdown.appendChild(this.emptyMsg);
-        
+
         this.container.appendChild(this.display);
-        this.container.appendChild(this.dropdown);
-        
         this.original.parentNode.insertBefore(this.container, this.original);
-        
-        // بارگذاری اولیه گزینه‌ها
+        document.body.appendChild(this.dropdown);
+
         this._loadOptions();
-        
-        // اگر مقدار قبلی دارد
-        if (this.original.value) {
-            const opt = this.original.querySelector(`option[value="${this.original.value}"]`);
-            if (opt) {
-                this.display.innerHTML = `<span>${opt.textContent}</span><i class="bi bi-chevron-down" style="font-size: 10px; color: #b0bec5;"></i>`;
-            }
+        this._syncDisplay();
+    }
+
+    _setDisplay(text, isPlaceholder = false) {
+        this.display.replaceChildren();
+
+        const label = document.createElement('span');
+        label.textContent = text;
+        if (isPlaceholder) label.className = 'ss-placeholder';
+
+        const icon = document.createElement('i');
+        icon.className = 'bi bi-chevron-down ss-chevron';
+        icon.setAttribute('aria-hidden', 'true');
+
+        this.display.appendChild(label);
+        this.display.appendChild(icon);
+    }
+
+    _syncDisplay() {
+        const selected = this.original.options[this.original.selectedIndex];
+        if (selected && (selected.value || !selected.disabled)) {
+            this._setDisplay(selected.textContent.trim());
+        } else {
+            this._setDisplay(this.placeholder, true);
         }
     }
-    
+
     _loadOptions() {
         this.allOptions = [];
-        const options = this.original.querySelectorAll('option');
-        options.forEach(opt => {
-            if (opt.value) {
+        this.original.querySelectorAll('option').forEach(option => {
+            if (option.value && !option.disabled) {
                 this.allOptions.push({
-                    value: opt.value,
-                    text: opt.textContent.trim(),
-                    selected: opt.selected
+                    value: option.value,
+                    text: option.textContent.trim()
                 });
             }
         });
         this._renderOptions(this.allOptions);
     }
-    
+
     _renderOptions(options) {
         this.optionsList.innerHTML = '';
-        
+
         if (options.length === 0) {
             this.emptyMsg.style.display = 'block';
             return;
         }
         this.emptyMsg.style.display = 'none';
-        
-        options.forEach(opt => {
+
+        options.forEach(option => {
             const item = document.createElement('div');
             item.className = 'ss-option';
-            item.style.cssText = `
-                padding: 10px 14px; cursor: pointer; border-radius: 6px;
-                font-size: 13px; transition: all 0.15s; margin: 2px 0;
-            `;
-            item.textContent = opt.text;
-            item.dataset.value = opt.value;
-            
-            if (opt.value == this.original.value) {
-                item.style.background = '#e3f2fd';
-                item.style.color = '#0d47a1';
-                item.style.fontWeight = '700';
-            }
-            
-            item.onmouseenter = () => {
-                item.style.background = '#f5f5f5';
-            };
-            item.onmouseleave = () => {
-                if (item.dataset.value != this.original.value) {
-                    item.style.background = '';
-                } else {
-                    item.style.background = '#e3f2fd';
-                }
-            };
-            item.onclick = () => {
-                this._select(opt);
-            };
-            
+            item.textContent = option.text;
+            item.dataset.value = option.value;
+            item.setAttribute('role', 'option');
+            item.setAttribute('aria-selected', option.value === this.original.value ? 'true' : 'false');
+
+            if (option.value === this.original.value) item.classList.add('selected');
+
+            item.addEventListener('click', () => this._select(option));
             this.optionsList.appendChild(item);
         });
     }
-    
-    _select(opt) {
-        this.original.value = opt.value;
-        this.display.innerHTML = `<span>${opt.text}</span><i class="bi bi-chevron-down" style="font-size: 10px; color: #b0bec5;"></i>`;
-        this.display.style.borderColor = '#0d47a1';
-        this.dropdown.style.display = 'none';
-        this.original.dispatchEvent(new Event('change'));
+
+    _select(option) {
+        this.original.value = option.value;
+        this._setDisplay(option.text);
+        this.display.classList.remove('is-invalid');
+        this.close();
+        this.original.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    
+
+    open() {
+        if (this.original.disabled) return;
+        if (SearchableSelect.active && SearchableSelect.active !== this) {
+            SearchableSelect.active.close();
+        }
+
+        SearchableSelect.active = this;
+        this.isOpen = true;
+        this.container.classList.add('open');
+        this.display.setAttribute('aria-expanded', 'true');
+        this.dropdown.style.display = 'block';
+        this.searchInput.value = '';
+        this._loadOptions();
+        this._position();
+
+        requestAnimationFrame(() => {
+            this._position();
+            this.searchInput.focus({ preventScroll: true });
+        });
+    }
+
+    close() {
+        this.isOpen = false;
+        this.container.classList.remove('open');
+        this.display.setAttribute('aria-expanded', 'false');
+        this.dropdown.style.display = 'none';
+        if (SearchableSelect.active === this) SearchableSelect.active = null;
+    }
+
+    toggle() {
+        this.isOpen ? this.close() : this.open();
+    }
+
+    _position() {
+        if (!this.isOpen) return;
+
+        const rect = this.display.getBoundingClientRect();
+        const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+        const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+
+        if (rect.bottom < 0 || rect.top > viewportHeight || rect.right < 0 || rect.left > viewportWidth) {
+            this.close();
+            return;
+        }
+
+        // در موبایل dropdown به شکل bottom-sheet نمایش داده می‌شود.
+        if (viewportWidth <= 768) {
+            this.dropdown.classList.add('ss-mobile');
+            this.dropdown.style.left = '0px';
+            this.dropdown.style.top = 'auto';
+            this.dropdown.style.bottom = '0px';
+            this.dropdown.style.width = `${viewportWidth}px`;
+            this.dropdown.style.maxHeight = `${Math.max(180, Math.round(viewportHeight * 0.55))}px`;
+            return;
+        }
+
+        this.dropdown.classList.remove('ss-mobile');
+        this.dropdown.style.bottom = 'auto';
+
+        const margin = 8;
+        const gap = 5;
+        const width = Math.max(rect.width, 220);
+        const safeWidth = Math.min(width, viewportWidth - (margin * 2));
+        this.dropdown.style.width = `${safeWidth}px`;
+        this.dropdown.style.maxHeight = `${Math.min(300, viewportHeight - (margin * 2))}px`;
+
+        const dropdownHeight = this.dropdown.offsetHeight;
+        const spaceBelow = viewportHeight - rect.bottom - margin;
+        const spaceAbove = rect.top - margin;
+        const openAbove = spaceBelow < dropdownHeight + gap && spaceAbove > spaceBelow;
+
+        let top = openAbove ? rect.top - dropdownHeight - gap : rect.bottom + gap;
+        top = Math.max(margin, Math.min(top, viewportHeight - dropdownHeight - margin));
+
+        // هم‌ترازی با لبه راست فیلد در صفحات RTL.
+        let left = rect.right - safeWidth;
+        left = Math.max(margin, Math.min(left, viewportWidth - safeWidth - margin));
+
+        this.dropdown.style.top = `${Math.round(top)}px`;
+        this.dropdown.style.left = `${Math.round(left)}px`;
+    }
+
     _bindEvents() {
-        // باز/بسته dropdown
-        this.display.onclick = () => {
-            const isOpen = this.dropdown.style.display === 'block';
-            this.dropdown.style.display = isOpen ? 'none' : 'block';
-            if (!isOpen) {
-                this.searchInput.value = '';
-                this.searchInput.focus();
-                this._renderOptions(this.allOptions);
-            }
-        };
-        
-        // جستجو
-        this.searchInput.oninput = () => {
-            const q = this.searchInput.value.trim().toLowerCase();
-            if (this.api && q.length >= this.minChars) {
-                this._searchAPI(q);
-            } else {
-                const filtered = this.allOptions.filter(o => 
-                    o.text.toLowerCase().includes(q)
-                );
-                this._renderOptions(filtered);
-            }
-        };
-        
-        // بستن با کلیک بیرون
-        document.addEventListener('click', (e) => {
-            if (!this.container.contains(e.target)) {
-                this.dropdown.style.display = 'none';
+        this.display.addEventListener('click', () => this.toggle());
+        this.display.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+                event.preventDefault();
+                this.open();
+            } else if (event.key === 'Escape') {
+                this.close();
             }
         });
-        
-        // کیبورد
-        this.searchInput.onkeydown = (e) => {
-            if (e.key === 'Escape') {
-                this.dropdown.style.display = 'none';
+
+        this.searchInput.addEventListener('input', () => {
+            const query = this.searchInput.value.trim().toLocaleLowerCase('fa');
+            if (this.api && query.length >= this.minChars) {
+                this._searchAPI(query);
+            } else {
+                const filtered = this.allOptions.filter(option =>
+                    option.text.toLocaleLowerCase('fa').includes(query)
+                );
+                this._renderOptions(filtered);
+                this._position();
             }
-        };
+        });
+
+        this.searchInput.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                this.close();
+                this.display.focus({ preventScroll: true });
+            }
+        });
+
+        document.addEventListener('click', event => {
+            if (!this.container.contains(event.target) && !this.dropdown.contains(event.target)) {
+                this.close();
+            }
+        });
+
+        // پیام اعتبارسنجی select مخفی روی کنترل قابل مشاهده نشان داده شود.
+        this.original.addEventListener('invalid', event => {
+            event.preventDefault();
+            this.display.classList.add('is-invalid');
+            this.display.focus({ preventScroll: true });
+            this.open();
+        });
+
+        this.original.addEventListener('change', () => this._syncDisplay());
+        window.addEventListener('resize', this._reposition);
+        window.addEventListener('scroll', this._reposition, true);
     }
-    
-    _searchAPI(q) {
-        // جستجوی AJAX
-        fetch(`${this.api}?q=${encodeURIComponent(q)}`)
-            .then(r => r.json())
+
+    _searchAPI(query) {
+        fetch(`${this.api}?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
             .then(data => {
                 const options = data.map(item => ({
-                    value: item.id,
+                    value: String(item.id),
                     text: item.name
                 }));
                 this._renderOptions(options);
+                this._position();
             })
             .catch(() => {
-                // fallback to local search
-                const filtered = this.allOptions.filter(o => 
-                    o.text.toLowerCase().includes(q)
+                const filtered = this.allOptions.filter(option =>
+                    option.text.toLocaleLowerCase('fa').includes(query)
                 );
                 this._renderOptions(filtered);
+                this._position();
             });
     }
 }
 
 // ═══ مقداردهی خودکار ═══
 document.addEventListener('DOMContentLoaded', () => {
-    // تمام select هایی که کلاس searchable دارن
-    document.querySelectorAll('select.searchable').forEach(sel => {
-        new SearchableSelect(sel, {
-            placeholder: sel.dataset.placeholder || 'جستجو کنید...',
-            api: sel.dataset.api || null
-        });
+    document.querySelectorAll('select.searchable').forEach(select => {
+        if (select.dataset.searchableSelectInitialized !== 'true') {
+            new SearchableSelect(select, {
+                placeholder: select.dataset.placeholder || 'جستجو کنید...',
+                api: select.dataset.api || null
+            });
+        }
     });
-    
-    // تبدیل خودکار select های مرتبط
+
     const autoSelectors = [
         'select[name="student_id"]',
         'select[name="course_id"]',
@@ -235,15 +310,15 @@ document.addEventListener('DOMContentLoaded', () => {
         'select[name="receiver_id"]',
         'select[name="person_id"]',
         'select[name="new_teacher_id"]',
-        'select[name="target_class_id"]',
+        'select[name="target_class_id"]'
     ];
-    
+
     autoSelectors.forEach(selector => {
-        document.querySelectorAll(selector).forEach(sel => {
-            if (!sel.classList.contains('searchable') && sel.options.length > 5) {
-                sel.classList.add('searchable');
-                new SearchableSelect(sel, {
-                    placeholder: 'جستجو و انتخاب کنید...'
+        document.querySelectorAll(selector).forEach(select => {
+            if (select.dataset.searchableSelectInitialized !== 'true' && select.options.length > 5) {
+                select.classList.add('searchable');
+                new SearchableSelect(select, {
+                    placeholder: select.dataset.placeholder || 'جستجو و انتخاب کنید...'
                 });
             }
         });

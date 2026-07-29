@@ -16,7 +16,7 @@
                     <div class="col-md-4"><label class="form-label">عنوان</label><input type="text" name="title" class="form-control" required></div>
                     <div class="col-md-2"><label class="form-label">کد</label><input type="text" name="code" class="form-control" required></div>
                     <div class="col-md-3"><label class="form-label">رشته</label>
-                        <select name="field_id" class="searchable" data-placeholder="جستجو و انتخاب کنید..." class="form-select" required>
+                        <select name="field_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
                             {% for f in fields %}<option value="{{ f.id }}">{{ f.name }}</option>{% endfor %}
                         </select>
                     </div>

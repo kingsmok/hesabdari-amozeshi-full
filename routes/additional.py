@@ -16,45 +16,220 @@ import uuid
 certificates_bp = Blueprint('certificates', __name__)
 
 
+def _create_certificate(registration, template_id=None, notes=None):
+    """صدور امن گواهینامه و جلوگیری از صدور تکراری برای یک ثبت‌نام."""
+    from utils.jalali import today_jalali
+
+    existing = Certificate.query.filter(
+        Certificate.registration_id == registration.id,
+        Certificate.status.in_(['active', 'reissued'])
+    ).first()
+    if existing:
+        return existing, False
+
+    year = today_jalali().split('/')[0]
+    serial = f'CERT-{year}-{uuid.uuid4().hex[:8].upper()}'
+    certificate = Certificate(
+        serial_number=serial,
+        student_id=registration.student_id,
+        registration_id=registration.id,
+        course_id=registration.course_id,
+        template_id=template_id or None,
+        issue_date=datetime.utcnow().date(),
+        status='active',
+        notes=(notes or '').strip() or None,
+        issued_by=current_user.id
+    )
+    db.session.add(certificate)
+    db.session.flush()
+    certificate.qr_code = url_for('certificates.verify', serial=serial, _external=True)
+    db.session.commit()
+    return certificate, True
+
+
 @certificates_bp.route('/')
 @login_required
 def index():
-    certs = Certificate.query.order_by(Certificate.issue_date.desc()).all()
-    return render_template('certificates/index.html', certificates=certs,
-                         total_issued=len(certs),
-                         active_certs=sum(1 for c in certs if c.status == 'active'),
-                         cancelled_certs=sum(1 for c in certs if c.status == 'cancelled'))
+    certs = Certificate.query.order_by(Certificate.issue_date.desc(), Certificate.id.desc()).all()
+    issued_registration_ids = [
+        row[0] for row in db.session.query(Certificate.registration_id).filter(
+            Certificate.registration_id.isnot(None),
+            Certificate.status.in_(['active', 'reissued'])
+        ).all()
+    ]
+
+    eligible_query = Registration.query.filter(Registration.status.in_(['active', 'completed']))
+    if issued_registration_ids:
+        eligible_query = eligible_query.filter(~Registration.id.in_(issued_registration_ids))
+    eligible_registrations = eligible_query.order_by(Registration.created_at.desc()).all()
+    templates = CertificateTemplate.query.filter_by(is_active=True).order_by(CertificateTemplate.name).all()
+
+    return render_template(
+        'certificates/index.html',
+        certificates=certs,
+        eligible_registrations=eligible_registrations,
+        templates=templates,
+        total_issued=len(certs),
+        active_certs=sum(1 for cert in certs if cert.status in ('active', 'reissued')),
+        cancelled_certs=sum(1 for cert in certs if cert.status == 'cancelled')
+    )
+
+
+@certificates_bp.route('/issue', methods=['POST'])
+@login_required
+def issue():
+    registration_id = request.form.get('registration_id', type=int)
+    registration = Registration.query.get_or_404(registration_id) if registration_id else None
+    if not registration or registration.status not in ('active', 'completed'):
+        flash('ثبت‌نام انتخاب‌شده برای صدور گواهینامه معتبر نیست', 'danger')
+        return redirect(url_for('certificates.index'))
+
+    template_id = request.form.get('template_id', type=int)
+    if template_id and not CertificateTemplate.query.filter_by(id=template_id, is_active=True).first():
+        flash('قالب گواهینامه انتخاب‌شده معتبر نیست', 'danger')
+        return redirect(url_for('certificates.index'))
+
+    certificate, created = _create_certificate(
+        registration,
+        template_id=template_id,
+        notes=request.form.get('notes')
+    )
+    if created:
+        flash(f'گواهینامه {certificate.serial_number} با موفقیت صادر شد', 'success')
+    else:
+        flash('برای این ثبت‌نام قبلاً گواهینامه فعال صادر شده است', 'warning')
+    return redirect(url_for('certificates.pdf', id=certificate.id))
 
 
 @certificates_bp.route('/issue/<int:student_id>/<int:registration_id>', methods=['POST'])
 @login_required
-def issue(student_id, student):
-    student = Student.query.get_or_404(student_id)
-    reg = Registration.query.get_or_404(registration_id)
-    
-    serial = f'CERT-1405-{uuid.uuid4().hex[:6].upper()}'
-    cert = Certificate(
-        serial_number=serial,
-        student_id=student_id,
-        registration_id=registration_id,
-        course_id=reg.course_id,
-        issue_date=datetime.utcnow().date(),
-        status='active',
-        issued_by=current_user.id
+def issue_legacy(student_id, registration_id):
+    """سازگاری با لینک‌های نسخه قبلی که به علت امضای اشتباه تابع کار نمی‌کردند."""
+    registration = Registration.query.get_or_404(registration_id)
+    if registration.student_id != student_id:
+        flash('ثبت‌نام با هنرجوی انتخاب‌شده مطابقت ندارد', 'danger')
+        return redirect(url_for('certificates.index'))
+    certificate, _ = _create_certificate(registration)
+    return redirect(url_for('certificates.pdf', id=certificate.id))
+
+
+@certificates_bp.route('/<int:id>/pdf')
+@login_required
+def pdf(id):
+    """خروجی رسمی گواهینامه؛ پاسخ همیشه PDF است و تصویر جداگانه تولید نمی‌شود."""
+    import io
+    import qrcode
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+    from models.system import SystemSettings
+    from utils.jalali import gregorian_to_jalali
+    from utils.pdf_helpers import fa_text, pdf_response, register_pdf_fonts
+
+    certificate = Certificate.query.get_or_404(id)
+    settings = SystemSettings.query.first()
+    regular_font, bold_font = register_pdf_fonts()
+
+    buffer = io.BytesIO()
+    page_width, page_height = landscape(A4)
+    document = canvas.Canvas(buffer, pagesize=(page_width, page_height))
+    document.setTitle(certificate.serial_number)
+    document.setAuthor((settings.academy_name if settings else '') or 'Academy Manager Pro')
+
+    # زمینه و قاب رسمی
+    document.setFillColor(colors.HexColor('#fbfaf5'))
+    document.rect(0, 0, page_width, page_height, stroke=0, fill=1)
+    document.setStrokeColor(colors.HexColor('#0d47a1'))
+    document.setLineWidth(3)
+    document.rect(11 * mm, 11 * mm, page_width - 22 * mm, page_height - 22 * mm, stroke=1, fill=0)
+    document.setStrokeColor(colors.HexColor('#c9a227'))
+    document.setLineWidth(1)
+    document.rect(15 * mm, 15 * mm, page_width - 30 * mm, page_height - 30 * mm, stroke=1, fill=0)
+
+    academy_name = (settings.academy_name if settings else None) or 'آموزشگاه'
+    manager_name = (settings.manager_name if settings else None) or 'مدیریت آموزشگاه'
+    student_name = certificate.student.full_name if certificate.student else '-'
+    course_title = certificate.course.title if certificate.course else '-'
+    duration = certificate.course.duration_hours if certificate.course else 0
+    issue_date = gregorian_to_jalali(certificate.issue_date)
+
+    document.setFillColor(colors.HexColor('#0d47a1'))
+    document.setFont(bold_font, 19)
+    document.drawCentredString(page_width / 2, page_height - 32 * mm, fa_text(academy_name))
+    document.setFillColor(colors.HexColor('#b18b12'))
+    document.setFont(bold_font, 26)
+    document.drawCentredString(page_width / 2, page_height - 53 * mm, fa_text('گواهینامه پایان دوره'))
+
+    document.setFillColor(colors.HexColor('#37474f'))
+    document.setFont(regular_font, 13)
+    document.drawCentredString(page_width / 2, page_height - 76 * mm, fa_text('بدین‌وسیله گواهی می‌شود'))
+    document.setFillColor(colors.HexColor('#0d47a1'))
+    document.setFont(bold_font, 22)
+    document.drawCentredString(page_width / 2, page_height - 94 * mm, fa_text(student_name))
+    document.setFillColor(colors.HexColor('#37474f'))
+    document.setFont(regular_font, 13)
+    description = f'دوره «{course_title}» را به مدت {duration or 0} ساعت با موفقیت گذرانده است.'
+    document.drawCentredString(page_width / 2, page_height - 114 * mm, fa_text(description))
+
+    # مشخصات و امضا
+    document.setFont(regular_font, 9.5)
+    document.drawRightString(page_width - 27 * mm, 36 * mm, fa_text(f'شماره سریال: {certificate.serial_number}'))
+    document.drawRightString(page_width - 27 * mm, 28 * mm, fa_text(f'تاریخ صدور: {issue_date}'))
+    document.setFont(bold_font, 10.5)
+    document.drawCentredString(page_width / 2, 36 * mm, fa_text(manager_name))
+    document.setFont(regular_font, 8.5)
+    document.drawCentredString(page_width / 2, 28 * mm, fa_text('مهر و امضا'))
+
+    # QR فقط داخل فایل PDF قرار می‌گیرد و endpoint تصویری ندارد.
+    verify_url = certificate.qr_code or url_for('certificates.verify', serial=certificate.serial_number, _external=True)
+    qr = qrcode.QRCode(version=2, box_size=5, border=1)
+    qr.add_data(verify_url)
+    qr.make(fit=True)
+    qr_image = qr.make_image(fill_color='#0d47a1', back_color='white')
+    qr_buffer = io.BytesIO()
+    qr_image.save(qr_buffer, format='PNG')
+    qr_buffer.seek(0)
+    document.drawImage(ImageReader(qr_buffer), 24 * mm, 24 * mm, 28 * mm, 28 * mm, preserveAspectRatio=True, mask='auto')
+    document.setFont(regular_font, 6.5)
+    document.setFillColor(colors.HexColor('#607d8b'))
+    document.drawString(24 * mm, 20 * mm, 'QR Verification')
+
+    if certificate.status == 'cancelled':
+        document.saveState()
+        document.setFillColor(colors.Color(0.8, 0.05, 0.05, alpha=0.18))
+        document.translate(page_width / 2, page_height / 2)
+        document.rotate(25)
+        document.setFont(bold_font, 48)
+        document.drawCentredString(0, 0, fa_text('باطل شده'))
+        document.restoreState()
+
+    document.showPage()
+    document.save()
+    return pdf_response(
+        buffer,
+        f'certificate-{certificate.serial_number}.pdf',
+        download=request.args.get('download') == '1'
     )
-    db.session.add(cert)
+
+
+@certificates_bp.route('/<int:id>/cancel', methods=['POST'])
+@login_required
+def cancel(id):
+    certificate = Certificate.query.get_or_404(id)
+    certificate.status = 'cancelled'
+    certificate.notes = (request.form.get('reason') or certificate.notes or '').strip() or None
     db.session.commit()
-    
-    flash(f'گواهینامه {serial} صادر شد', 'success')
+    flash(f'گواهینامه {certificate.serial_number} باطل شد', 'success')
     return redirect(url_for('certificates.index'))
 
 
 @certificates_bp.route('/verify/<serial>')
 def verify(serial):
     cert = Certificate.query.filter_by(serial_number=serial).first()
-    if cert:
-        return render_template('certificates/verify.html', cert=cert, verified=True)
-    return render_template('certificates/verify.html', cert=None, verified=False)
+    verified = bool(cert and cert.status in ('active', 'reissued'))
+    return render_template('certificates/verify.html', cert=cert, verified=verified)
 
 
 # ===== Complaints =====
@@ -192,6 +367,9 @@ def add():
 @login_required
 def view(id):
     ticket = Ticket.query.get_or_404(id)
+    if not current_user.is_admin and current_user.id not in (ticket.user_id, ticket.assigned_to):
+        flash('اجازه مشاهده این تیکت را ندارید', 'danger')
+        return redirect(url_for('tickets.index'))
     responses = TicketResponse.query.filter_by(ticket_id=id).order_by(TicketResponse.created_at).all()
     return render_template('management/view_ticket.html', ticket=ticket, responses=responses)
 
@@ -200,10 +378,17 @@ def view(id):
 @login_required
 def respond(id):
     ticket = Ticket.query.get_or_404(id)
+    if not current_user.is_admin and current_user.id not in (ticket.user_id, ticket.assigned_to):
+        flash('اجازه پاسخ به این تیکت را ندارید', 'danger')
+        return redirect(url_for('tickets.index'))
+    response_text = (request.form.get('response_text') or '').strip()
+    if not response_text:
+        flash('متن پاسخ نمی‌تواند خالی باشد', 'danger')
+        return redirect(url_for('tickets.view', id=id))
     response = TicketResponse(
         ticket_id=id,
         user_id=current_user.id,
-        response_text=request.form['response_text']
+        response_text=response_text
     )
     db.session.add(response)
     
@@ -219,6 +404,9 @@ def respond(id):
 @login_required
 def close(id):
     ticket = Ticket.query.get_or_404(id)
+    if not current_user.is_admin and current_user.id not in (ticket.user_id, ticket.assigned_to):
+        flash('اجازه بستن این تیکت را ندارید', 'danger')
+        return redirect(url_for('tickets.index'))
     ticket.status = 'resolved'
     ticket.resolved_at = datetime.utcnow()
     db.session.commit()
