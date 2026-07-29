@@ -1,0 +1,120 @@
+{% extends "base/layout.html" %}
+{% block title %}سامانه مودیان{% endblock %}
+{% block breadcrumb %}<li class="active">سامانه مودیان</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-receipt-cutoff"></i> سامانه مودیان<small>صورتحساب الکترونیکی و شماره منحصر به فرد مالیاتی</small></h1>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('moadian.new_invoice') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> صورتحساب جدید</a>
+            <a href="{{ url_for('moadian.invoices') }}" class="btn btn-outline-primary"><i class="bi bi-list-ul me-1"></i> صورتحساب‌ها</a>
+            <a href="{{ url_for('moadian.settings_page') }}" class="btn btn-outline-secondary"><i class="bi bi-gear me-1"></i> تنظیمات</a>
+        </div>
+    </div>
+
+    {% if problems %}
+    <div class="alert alert-warning">
+        <strong><i class="bi bi-exclamation-triangle me-1"></i> پیکربندی ناقص است:</strong>
+        <ul class="mb-2 mt-2">{% for problem in problems %}<li>{{ problem }}</li>{% endfor %}</ul>
+        <a href="{{ url_for('moadian.settings_page') }}" class="btn btn-sm btn-warning">تکمیل تنظیمات</a>
+    </div>
+    {% elif settings.sandbox_mode %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>حالت آزمایشی فعال است.</strong> صورتحساب‌ها شماره مالیاتی واقعی می‌گیرند ولی به سرور سازمان ارسال نمی‌شوند.
+        پس از دریافت گواهی امضا، در تنظیمات این گزینه را خاموش کنید.
+    </div>
+    {% else %}
+    <div class="alert alert-success"><i class="bi bi-check-circle me-1"></i> پیکربندی کامل است — ارسال واقعی به سامانه مودیان فعال می‌باشد.</div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">کل صورتحساب‌ها</div><div class="stat-val">{{ stats.total }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">ارسال شده / تایید شده</div><div class="stat-val" style="color:#2e7d32;">{{ stats.sent }} / {{ stats.confirmed }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">فروش امسال</div><div class="stat-val" style="font-size:18px;">{{ stats.sales_amount|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">ارزش افزوده فروش</div><div class="stat-val" style="font-size:18px; color:#e65100;">{{ stats.sales_vat|currency }}</div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-lightning"></i> دسترسی سریع</h5></div>
+                <div class="card-body-padded">
+                    <div class="row g-2">
+                        <div class="col-6"><a href="{{ url_for('moadian.parties') }}" class="btn btn-outline-primary w-100 mb-2"><i class="bi bi-people"></i><br>طرف‌حساب‌ها</a></div>
+                        <div class="col-6"><a href="{{ url_for('moadian.service_items') }}" class="btn btn-outline-success w-100 mb-2"><i class="bi bi-box-seam"></i><br>کالا و خدمات</a></div>
+                        <div class="col-6"><a href="{{ url_for('moadian.tax_number_tool') }}" class="btn btn-outline-warning w-100 mb-2"><i class="bi bi-upc-scan"></i><br>شماره مالیاتی</a></div>
+                        <div class="col-6"><a href="{{ url_for('compliance.vat_report') }}" class="btn btn-outline-info w-100 mb-2"><i class="bi bi-percent"></i><br>ارزش افزوده</a></div>
+                        <div class="col-6"><a href="{{ url_for('compliance.seasonal_report') }}" class="btn btn-outline-danger w-100"><i class="bi bi-calendar3"></i><br>معاملات فصلی</a></div>
+                        <div class="col-6"><a href="{{ url_for('moadian.logs') }}" class="btn btn-outline-secondary w-100"><i class="bi bi-journal-text"></i><br>لاگ ارسال</a></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-head"><h5><i class="bi bi-diagram-3"></i> الگوهای پشتیبانی‌شده</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <tbody>
+                        {% for code, pattern in patterns.items() %}
+                        <tr><td style="width:60px;"><code>{{ code }}</code></td><td>{{ pattern.name }}</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-receipt"></i> آخرین صورتحساب‌ها</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    {% if invoices %}
+                    <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th>شماره</th><th>تاریخ</th><th>طرف حساب</th><th>مبلغ کل</th><th>شماره مالیاتی</th><th>وضعیت</th><th></th></tr></thead>
+                        <tbody>
+                        {% for invoice in invoices %}
+                        <tr>
+                            <td><code>{{ invoice.invoice_number }}</code></td>
+                            <td>{{ invoice.invoice_date|to_jalali }}</td>
+                            <td>{{ invoice.party_name_snapshot or '-' }}</td>
+                            <td style="font-weight:700;">{{ invoice.total_amount|currency }}</td>
+                            <td><small style="font-family:monospace;">{{ invoice.tax_number or '—' }}</small></td>
+                            <td><span class="badge-status badge-{{ 'active' if invoice.status in ['sent','confirmed'] else ('pending' if invoice.status in ['draft','issued'] else 'inactive') }}">{{ invoice.status_label }}</span></td>
+                            <td><a href="{{ url_for('moadian.view_invoice', invoice_id=invoice.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5" style="color:#aaa;">هنوز صورتحسابی ثبت نشده است</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if logs %}
+            <div class="card mt-3">
+                <div class="card-head"><h5><i class="bi bi-activity"></i> آخرین رویدادهای ارتباط با سامانه</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>زمان</th><th>عملیات</th><th>نتیجه</th><th>پیام</th></tr></thead>
+                        <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td><small>{{ log.created_at|to_jalali }}</small></td>
+                            <td>{{ log.action }}</td>
+                            <td>{% if log.success %}<span class="badge-status badge-active">موفق</span>{% else %}<span class="badge-status badge-inactive">ناموفق</span>{% endif %}</td>
+                            <td><small>{{ (log.message or '')[:90] }}</small></td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base/layout.html" %}
+{% block title %}صورتحساب {{ invoice.invoice_number }}{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('moadian.invoices') }}">صورتحساب‌ها</a></li>
+<li class="active">{{ invoice.invoice_number }}</li>
+{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-receipt"></i> صورتحساب {{ invoice.invoice_number }}
+            <small>{{ patterns.get(invoice.pattern, {}).get('name', '') }} — {{ invoice.status_label }}</small></h1>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('moadian.print_invoice', invoice_id=invoice.id) }}" target="_blank" class="btn btn-outline-secondary"><i class="bi bi-printer me-1"></i> چاپ</a>
+            <a href="{{ url_for('moadian.invoice_payload', invoice_id=invoice.id) }}" target="_blank" class="btn btn-outline-info"><i class="bi bi-code-slash me-1"></i> JSON ارسالی</a>
+
+            {% if not invoice.tax_number %}
+            <form method="POST" action="{{ url_for('moadian.issue_invoice', invoice_id=invoice.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-warning"><i class="bi bi-upc-scan me-1"></i> صدور و تخصیص شماره مالیاتی</button>
+            </form>
+            {% elif invoice.direction == 'sale' and invoice.status in ['issued', 'rejected'] %}
+            <form method="POST" action="{{ url_for('moadian.send_invoice', invoice_id=invoice.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary"><i class="bi bi-cloud-upload me-1"></i> ارسال به سامانه مودیان</button>
+            </form>
+            {% endif %}
+
+            {% if invoice.moadian_reference %}
+            <form method="POST" action="{{ url_for('moadian.inquiry_invoice', invoice_id=invoice.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-success"><i class="bi bi-search me-1"></i> استعلام وضعیت</button>
+            </form>
+            {% endif %}
+
+            {% if invoice.status != 'cancelled' %}
+            <form method="POST" action="{{ url_for('moadian.cancel_invoice', invoice_id=invoice.id) }}" onsubmit="return confirm('صورتحساب ابطال شود؟')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-danger"><i class="bi bi-x-circle me-1"></i> ابطال</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if invoice.tax_number %}
+    <div class="alert alert-success">
+        <div class="d-flex justify-content-between flex-wrap gap-2">
+            <div>
+                <strong>شماره منحصر به فرد مالیاتی:</strong>
+                <span style="font-family:monospace; font-size:18px; letter-spacing:1.5px; direction:ltr;">{{ invoice.tax_number }}</span>
+            </div>
+            {% if parsed %}
+            <small class="text-muted">حافظه: <code>{{ parsed.memory_id }}</code> | تاریخ: <code>{{ parsed.date_hex }}</code>
+                | سریال: <code>{{ parsed.serial_hex }}</code> ({{ parsed.serial }}) | کنترلی: <code>{{ parsed.check_digit }}</code></small>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i>
+        این صورتحساب هنوز شماره مالیاتی ندارد. برای ارسال به سامانه، ابتدا آن را صادر کنید.</div>
+    {% endif %}
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-head"><h5><i class="bi bi-info-circle"></i> مشخصات</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <tbody>
+                            <tr><td>تاریخ</td><td>{{ invoice.invoice_date|to_jalali }}</td></tr>
+                            <tr><td>نوع</td><td>{{ 'فروش' if invoice.direction == 'sale' else 'خرید' }}</td></tr>
+                            <tr><td>الگو</td><td>{{ patterns.get(invoice.pattern, {}).get('name', '-') }}</td></tr>
+                            <tr><td>نوع صورتحساب</td><td>{{ types.get(invoice.invoice_type, '-') }}</td></tr>
+                            <tr><td>موضوع</td><td>{{ subjects.get(invoice.subject, '-') }}</td></tr>
+                            <tr><td>طرف حساب</td><td>{{ invoice.party_name_snapshot or '—' }}
+                                {% if invoice.party %}<br><small class="text-muted">{{ invoice.party.type_label }} — {{ invoice.party.national_id or 'بدون شناسه' }}</small>{% endif %}</td></tr>
+                            <tr><td>شرح</td><td>{{ invoice.description or '—' }}</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-head"><h5><i class="bi bi-cloud"></i> وضعیت سامانه مودیان</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <tbody>
+                            <tr><td>وضعیت</td><td><span class="badge-status badge-{{ 'active' if invoice.status in ['sent','confirmed'] else ('pending' if invoice.status in ['draft','issued'] else 'inactive') }}">{{ invoice.status_label }}</span></td></tr>
+                            <tr><td>UID</td><td><small style="font-family:monospace;">{{ invoice.moadian_uid or '—' }}</small></td></tr>
+                            <tr><td>شماره مرجع</td><td><small style="font-family:monospace;">{{ invoice.moadian_reference or '—' }}</small></td></tr>
+                            <tr><td>وضعیت سازمان</td><td>{{ invoice.moadian_status or '—' }}</td></tr>
+                            <tr><td>زمان ارسال</td><td>{{ invoice.sent_at|to_jalali if invoice.sent_at else '—' }}</td></tr>
+                            <tr><td>پیام</td><td><small>{{ (invoice.moadian_message or '—')[:400] }}</small></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-head"><h5><i class="bi bi-list-ol"></i> ردیف‌ها</h5></div>
+        <div class="card-body-padded" style="padding:0;">
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>#</th><th>شرح</th><th>شناسه کالا</th><th>واحد</th><th>تعداد</th>
+                    <th>قیمت واحد</th><th>تخفیف</th><th>مبلغ</th><th>نرخ ٪</th><th>ارزش افزوده</th><th>جمع</th></tr></thead>
+                <tbody>
+                {% for item in invoice.items.order_by('row_number') %}
+                <tr>
+                    <td>{{ item.row_number }}</td>
+                    <td>{{ item.title }}</td>
+                    <td><code>{{ item.stuff_id or '—' }}</code></td>
+                    <td>{{ item.unit }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.unit_price|currency }}</td>
+                    <td>{{ item.discount|currency }}</td>
+                    <td>{{ item.net_amount|currency }}</td>
+                    <td>{% if item.vat_exempt %}<span class="badge-status badge-pending">معاف</span>{% else %}{{ item.vat_rate }}{% endif %}</td>
+                    <td>{{ item.vat_amount|currency }}</td>
+                    <td style="font-weight:700;">{{ item.total_amount|currency }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+                <tfoot style="background:#f7f9fc; font-weight:700;">
+                    <tr><td colspan="7" class="text-start">جمع مشمول</td><td colspan="4">{{ invoice.total_taxable|currency }}</td></tr>
+                    <tr><td colspan="7" class="text-start">جمع معاف</td><td colspan="4">{{ invoice.total_exempt|currency }}</td></tr>
+                    <tr><td colspan="7" class="text-start">ارزش افزوده</td><td colspan="4" style="color:#e65100;">{{ invoice.total_vat|currency }}</td></tr>
+                    <tr><td colspan="7" class="text-start">جمع کل قابل پرداخت</td><td colspan="4" style="color:#0d47a1; font-size:16px;">{{ invoice.total_amount|currency }}</td></tr>
+                </tfoot>
+            </table>
+            </div>
+        </div>
+    </div>
+
+    {% if logs %}
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-journal-text"></i> تاریخچه ارسال</h5></div>
+        <div class="card-body-padded" style="padding:0;">
+            <table class="table mb-0">
+                <thead><tr><th>زمان</th><th>عملیات</th><th>کد HTTP</th><th>نتیجه</th><th>پیام</th></tr></thead>
+                <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td><small>{{ log.created_at|to_jalali }}</small></td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.http_status or '—' }}</td>
+                    <td>{% if log.success %}<span class="badge-status badge-active">موفق</span>{% else %}<span class="badge-status badge-inactive">ناموفق</span>{% endif %}</td>
+                    <td><small style="word-break:break-all;">{{ (log.message or '')[:250] }}</small></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,137 @@
+{% extends "base/layout.html" %}
+{% block title %}سند مالیات تکلیفی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('compliance.withholding_list') }}">مالیات تکلیفی</a></li>
+<li class="active">{{ 'ویرایش' if item else 'سند جدید' }}</li>
+{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-receipt-cutoff"></i> {{ 'ویرایش' if item else 'ثبت' }} سند مالیات تکلیفی</h1>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-3">
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">نوع مالیات</label>
+                        {% set ttype = item.tax_type if item else 'rent' %}
+                        <select name="tax_type" id="tax_type" class="form-select" onchange="applyRate()">
+                            <option value="rent" {{ 'selected' if ttype == 'rent' }}>مالیات اجاره</option>
+                            <option value="fee_86" {{ 'selected' if ttype == 'fee_86' }}>حق‌الزحمه (ماده ۸۶)</option>
+                            <option value="contract" {{ 'selected' if ttype == 'contract' }}>قرارداد پیمانکاری</option>
+                            <option value="other" {{ 'selected' if ttype == 'other' }}>سایر</option>
+                        </select></div>
+                    <div class="col-md-3"><label class="form-label">دوره</label>
+                        <input type="text" name="period" class="form-control" value="{{ item.period if item else '' }}" placeholder="1405/05"></div>
+                    <div class="col-md-3"><label class="form-label">تاریخ سند</label>
+                        <input type="text" name="doc_date" class="form-control jalali-date"
+                               value="{{ item.doc_date|to_jalali if item and item.doc_date else '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">مدرس مرتبط (اختیاری)</label>
+                        <select name="teacher_id" class="form-select searchable" data-placeholder="انتخاب مدرس..." onchange="fillTeacher(this)">
+                            <option value="">—</option>
+                            {% for teacher in teachers %}
+                            <option value="{{ teacher.id }}" data-name="{{ teacher.full_name }}" data-code="{{ teacher.national_code or '' }}"
+                                {{ 'selected' if item and item.teacher_id == teacher.id }}>{{ teacher.full_name }}</option>
+                            {% endfor %}
+                        </select></div>
+
+                    <div class="col-md-4"><label class="form-label">نام دریافت‌کننده <span class="text-danger">*</span></label>
+                        <input type="text" name="payee_name" id="payee_name" class="form-control" required value="{{ item.payee_name if item else '' }}"></div>
+                    <div class="col-md-4"><label class="form-label">کد ملی / شناسه ملی</label>
+                        <input type="text" name="payee_national_id" id="payee_id" class="form-control" dir="ltr"
+                               value="{{ item.payee_national_id if item else '' }}">
+                        <small id="id_feedback" class="text-muted"></small></div>
+                    <div class="col-md-4"><label class="form-label">نوع شخص</label>
+                        {% set ptype = item.payee_type if item else 'real' %}
+                        <select name="payee_type" id="payee_type" class="form-select">
+                            <option value="real" {{ 'selected' if ptype == 'real' }}>حقیقی</option>
+                            <option value="legal" {{ 'selected' if ptype == 'legal' }}>حقوقی</option>
+                            <option value="foreigner" {{ 'selected' if ptype == 'foreigner' }}>اتباع خارجی</option>
+                        </select></div>
+
+                    <div class="col-md-4"><label class="form-label">مبلغ ناخالص (ریال) <span class="text-danger">*</span></label>
+                        <input type="number" name="gross_amount" id="gross_amount" class="form-control" required
+                               value="{{ item.gross_amount|int if item else 0 }}" oninput="preview()"></div>
+                    <div class="col-md-4"><label class="form-label">نرخ کسر (٪)</label>
+                        <input type="number" step="0.01" name="rate" id="rate" class="form-control"
+                               value="{{ item.rate if item else settings.rent_withholding_rate }}" oninput="preview()"></div>
+                    <div class="col-md-4"><label class="form-label">پیش‌نمایش</label>
+                        <div class="form-control" style="background:#f7f9fc;" id="preview_box">—</div></div>
+
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_paid" id="is_paid" {{ 'checked' if item and item.is_paid }}>
+                            <label class="form-check-label" for="is_paid">مالیات به سازمان واریز شده است</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">تاریخ واریز</label>
+                        <input type="text" name="paid_date" class="form-control jalali-date"
+                               value="{{ item.paid_date|to_jalali if item and item.paid_date else '' }}"></div>
+                    <div class="col-md-4"><label class="form-label">شماره رهگیری واریز</label>
+                        <input type="text" name="payment_reference" class="form-control" value="{{ item.payment_reference if item else '' }}"></div>
+
+                    <div class="col-12"><label class="form-label">توضیحات</label>
+                        <textarea name="description" class="form-control" rows="2">{{ item.description if item else '' }}</textarea></div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="force_save" id="force_save">
+                            <label class="form-check-label" for="force_save">ذخیره اجباری با شناسه نامعتبر</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('compliance.withholding_list') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+        </div>
+    </form>
+</div>
+
+<script>
+const RENT_RATE = {{ settings.rent_withholding_rate or 10 }};
+const FEE_RATE = {{ settings.fee_withholding_rate or 10 }};
+
+function applyRate() {
+    const type = document.getElementById('tax_type').value;
+    if (type === 'rent') document.getElementById('rate').value = RENT_RATE;
+    if (type === 'fee_86') document.getElementById('rate').value = FEE_RATE;
+    preview();
+}
+
+function preview() {
+    const gross = parseFloat(document.getElementById('gross_amount').value) || 0;
+    const rate = parseFloat(document.getElementById('rate').value) || 0;
+    const tax = Math.round(gross * rate / 100);
+    document.getElementById('preview_box').textContent =
+        `مالیات: ${tax.toLocaleString('en-US')} | خالص: ${(gross - tax).toLocaleString('en-US')}`;
+}
+
+function fillTeacher(select) {
+    const option = select.options[select.selectedIndex];
+    if (!option.value) return;
+    document.getElementById('payee_name').value = option.dataset.name || '';
+    document.getElementById('payee_id').value = option.dataset.code || '';
+    document.getElementById('tax_type').value = 'fee_86';
+    applyRate();
+    checkId();
+}
+
+function checkId() {
+    const code = document.getElementById('payee_id').value.trim();
+    const feedback = document.getElementById('id_feedback');
+    if (!code) { feedback.textContent = ''; return; }
+    fetch(`{{ url_for('moadian.validate_id_api') }}?code=${encodeURIComponent(code)}&type=${document.getElementById('payee_type').value}`)
+        .then(response => response.json())
+        .then(data => { feedback.className = data.valid ? 'text-success' : 'text-danger'; feedback.textContent = data.message; })
+        .catch(() => {});
+}
+
+document.getElementById('payee_id').addEventListener('blur', checkId);
+document.getElementById('payee_type').addEventListener('change', checkId);
+preview();
+</script>
+{% endblock %}

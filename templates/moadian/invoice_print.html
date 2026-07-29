@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>صورتحساب الکترونیکی {{ invoice.invoice_number }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='fonts/Vazirmatn-font-face.css') }}">
+    <style>
+        * { font-family: Vazirmatn, Tahoma, sans-serif; box-sizing: border-box; }
+        body { margin: 0; padding: 18px; background: #fff; color: #111; font-size: 12px; }
+        .sheet { max-width: 780px; margin: 0 auto; border: 2px solid #0d47a1; padding: 14px; }
+        .title { text-align: center; font-size: 17px; font-weight: 700; color: #0d47a1; margin-bottom: 4px; }
+        .subtitle { text-align: center; font-size: 12px; color: #555; margin-bottom: 12px; }
+        .taxid { text-align: center; font-family: monospace; font-size: 15px; letter-spacing: 2px;
+                 direction: ltr; background: #f0f4fa; padding: 6px; border-radius: 6px; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        th, td { border: 1px solid #999; padding: 5px 6px; text-align: center; }
+        th { background: #eef2f8; font-weight: 700; }
+        .info td { text-align: right; }
+        .totals td { font-weight: 700; }
+        .foot { display: flex; justify-content: space-between; margin-top: 26px; font-size: 11px; }
+        @media print { body { padding: 0; } .noprint { display: none; } }
+    </style>
+</head>
+<body onload="window.print()">
+<div class="sheet">
+    <div class="title">صورتحساب الکترونیکی — {{ patterns.get(invoice.pattern, {}).get('name', '') }}</div>
+    <div class="subtitle">
+        {{ settings.seller_name or app_name }} |
+        شناسه ملی: {{ settings.seller_tin or '—' }} |
+        کد اقتصادی: {{ settings.economic_code or '—' }}
+    </div>
+
+    {% if invoice.tax_number %}
+    <div class="taxid">{{ invoice.tax_number }}</div>
+    {% endif %}
+
+    <table class="info">
+        <tr>
+            <td style="width:22%"><b>شماره صورتحساب</b></td><td>{{ invoice.invoice_number }}</td>
+            <td style="width:18%"><b>تاریخ</b></td><td>{{ invoice.invoice_date|to_jalali }}</td>
+        </tr>
+        <tr>
+            <td><b>خریدار</b></td><td>{{ invoice.party_name_snapshot or 'مصرف‌کننده نهایی' }}</td>
+            <td><b>شناسه خریدار</b></td><td>{{ invoice.party.national_id if invoice.party else '—' }}</td>
+        </tr>
+        <tr>
+            <td><b>نشانی فروشنده</b></td><td colspan="3">{{ settings.address or '—' }}</td>
+        </tr>
+    </table>
+
+    <table>
+        <thead><tr>
+            <th>#</th><th>شرح کالا / خدمت</th><th>شناسه کالا</th><th>واحد</th><th>تعداد</th>
+            <th>مبلغ واحد</th><th>تخفیف</th><th>مبلغ کل</th><th>ارزش افزوده</th><th>جمع</th>
+        </tr></thead>
+        <tbody>
+        {% for item in invoice.items.order_by('row_number') %}
+        <tr>
+            <td>{{ item.row_number }}</td>
+            <td style="text-align:right;">{{ item.title }}</td>
+            <td>{{ item.stuff_id or '—' }}</td>
+            <td>{{ item.unit }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.unit_price|currency }}</td>
+            <td>{{ item.discount|currency }}</td>
+            <td>{{ item.net_amount|currency }}</td>
+            <td>{{ 'معاف' if item.vat_exempt else item.vat_amount|currency }}</td>
+            <td>{{ item.total_amount|currency }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        <tfoot class="totals">
+            <tr><td colspan="7">جمع مشمول</td><td colspan="3">{{ invoice.total_taxable|currency }}</td></tr>
+            <tr><td colspan="7">جمع معاف</td><td colspan="3">{{ invoice.total_exempt|currency }}</td></tr>
+            <tr><td colspan="7">مالیات بر ارزش افزوده</td><td colspan="3">{{ invoice.total_vat|currency }}</td></tr>
+            <tr><td colspan="7">مبلغ قابل پرداخت</td><td colspan="3">{{ invoice.total_amount|currency }}</td></tr>
+        </tfoot>
+    </table>
+
+    <div class="foot">
+        <div>مهر و امضای فروشنده</div>
+        <div>مهر و امضای خریدار</div>
+    </div>
+</div>
+</body>
+</html>

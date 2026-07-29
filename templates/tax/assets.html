@@ -1,0 +1,83 @@
+{% extends "base/layout.html" %}
+{% block title %}دارایی‌های ثابت{% endblock %}
+{% block breadcrumb %}<li class="active">دارایی و استهلاک</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-buildings"></i> دارایی‌های ثابت و استهلاک<small>جدول ماده ۱۴۹ قانون مالیات‌های مستقیم</small></h1>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('compliance.assets_export') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i> خروجی اکسل</a>
+            <a href="{{ url_for('compliance.asset_form') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> دارایی جدید</a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">بهای تمام شده</div><div class="stat-val" style="font-size:18px;">{{ totals.cost|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">استهلاک انباشته</div><div class="stat-val" style="font-size:18px; color:#c62828;">{{ totals.accumulated|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">ارزش دفتری</div><div class="stat-val" style="font-size:18px; color:#2e7d32;">{{ totals.book|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">استهلاک دوره بعد</div><div class="stat-val" style="font-size:18px; color:#e65100;">{{ totals.annual|currency }}</div></div></div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body-padded">
+            <form method="POST" action="{{ url_for('compliance.depreciate_all') }}" class="row g-2 align-items-end"
+                  onsubmit="return confirm('استهلاک سالانه برای همه دارایی‌ها ثبت شود؟')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="col-md-3"><label class="form-label">سال مالی</label>
+                    <input type="text" name="year" class="form-control" placeholder="1405"></div>
+                <div class="col-md-4"><button class="btn btn-warning w-100"><i class="bi bi-calculator me-1"></i> ثبت گروهی استهلاک سالانه</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body-padded" style="padding:0;">
+            {% if assets %}
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>کد</th><th>نام</th><th>گروه</th><th>تاریخ تحصیل</th><th>بهای تمام شده</th>
+                    <th>روش</th><th>عمر/نرخ</th><th>انباشته</th><th>ارزش دفتری</th><th></th></tr></thead>
+                <tbody>
+                {% for asset in assets %}
+                <tr>
+                    <td><code>{{ asset.asset_code }}</code></td>
+                    <td><strong>{{ asset.name }}</strong></td>
+                    <td><small>{{ asset.category or '—' }}</small></td>
+                    <td>{{ asset.acquisition_date|to_jalali }}</td>
+                    <td>{{ asset.cost|currency }}</td>
+                    <td>{{ asset.method_label }}</td>
+                    <td>{{ asset.useful_life_years }} سال{% if asset.method == 'declining' %} / {{ asset.declining_rate }}٪{% endif %}</td>
+                    <td style="color:#c62828;">{{ asset.accumulated_depreciation|currency }}</td>
+                    <td style="font-weight:700; color:#2e7d32;">{{ asset.book_value|currency }}</td>
+                    <td><a href="{{ url_for('compliance.asset_detail', asset_id=asset.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">دارایی‌ای ثبت نشده است</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-head"><h5><i class="bi bi-table"></i> گروه‌های پیش‌فرض ماده ۱۴۹</h5></div>
+        <div class="card-body-padded" style="padding:0;">
+            <table class="table mb-0">
+                <thead><tr><th>گروه دارایی</th><th>روش پیشنهادی</th><th>عمر مفید (سال)</th><th>نرخ (٪)</th></tr></thead>
+                <tbody>
+                {% for category in categories %}
+                <tr>
+                    <td>{{ category.name }}</td>
+                    <td>{{ 'خط مستقیم' if category.method == 'straight' else 'نزولی' }}</td>
+                    <td>{{ category.life }}</td>
+                    <td>{{ category.rate }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ 'ویرایش' if asset else 'ثبت' }} دارایی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('compliance.assets') }}">دارایی‌ها</a></li>
+<li class="active">{{ 'ویرایش' if asset else 'ثبت جدید' }}</li>
+{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-box"></i> {{ 'ویرایش' if asset else 'ثبت' }} دارایی ثابت</h1></div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-3">
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-5"><label class="form-label">نام دارایی <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required value="{{ asset.name if asset else '' }}"></div>
+                    <div class="col-md-4"><label class="form-label">گروه (ماده ۱۴۹)</label>
+                        <select name="category" id="category" class="form-select" onchange="applyCategory()">
+                            <option value="">—</option>
+                            {% for name in category_names %}
+                            <option value="{{ name }}" {{ 'selected' if asset and asset.category == name }}>{{ name }}</option>
+                            {% endfor %}
+                        </select></div>
+                    <div class="col-md-3"><label class="form-label">تاریخ تحصیل</label>
+                        <input type="text" name="acquisition_date" class="form-control jalali-date"
+                               value="{{ asset.acquisition_date|to_jalali if asset and asset.acquisition_date else '' }}"></div>
+
+                    <div class="col-md-3"><label class="form-label">بهای تمام شده (ریال) <span class="text-danger">*</span></label>
+                        <input type="number" name="cost" class="form-control" required value="{{ asset.cost|int if asset else 0 }}"></div>
+                    <div class="col-md-3"><label class="form-label">ارزش اسقاط</label>
+                        <input type="number" name="salvage_value" class="form-control" value="{{ asset.salvage_value|int if asset else 0 }}"></div>
+                    <div class="col-md-2"><label class="form-label">روش استهلاک</label>
+                        <select name="method" id="method" class="form-select">
+                            <option value="straight" {{ 'selected' if not asset or asset.method == 'straight' }}>خط مستقیم</option>
+                            <option value="declining" {{ 'selected' if asset and asset.method == 'declining' }}>نزولی</option>
+                        </select></div>
+                    <div class="col-md-2"><label class="form-label">عمر مفید (سال)</label>
+                        <input type="number" step="0.5" name="useful_life_years" id="life" class="form-control"
+                               value="{{ asset.useful_life_years if asset else 5 }}"></div>
+                    <div class="col-md-2"><label class="form-label">نرخ نزولی (٪)</label>
+                        <input type="number" step="0.01" name="declining_rate" id="rate" class="form-control"
+                               value="{{ asset.declining_rate if asset else 25 }}"></div>
+
+                    <div class="col-md-4"><label class="form-label">محل استقرار</label>
+                        <input type="text" name="location" class="form-control" value="{{ asset.location if asset else '' }}"></div>
+                    <div class="col-md-8"><label class="form-label">توضیحات</label>
+                        <input type="text" name="notes" class="form-control" value="{{ asset.notes if asset else '' }}"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('compliance.assets') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+        </div>
+    </form>
+</div>
+
+<script>
+const CATEGORY_DEFAULTS = {
+    {% for category in categories %}
+    {{ category.name|tojson }}: {method: {{ category.method|tojson }}, life: {{ category.life }}, rate: {{ category.rate }}},
+    {% endfor %}
+};
+function applyCategory() {
+    const value = document.getElementById('category').value;
+    const defaults = CATEGORY_DEFAULTS[value];
+    if (!defaults) return;
+    document.getElementById('method').value = defaults.method;
+    document.getElementById('life').value = defaults.life;
+    document.getElementById('rate').value = defaults.rate;
+}
+</script>
+{% endblock %}

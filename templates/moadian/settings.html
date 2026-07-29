@@ -1,0 +1,140 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات مالیاتی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('moadian.dashboard') }}">سامانه مودیان</a></li>
+<li class="active">تنظیمات</li>
+{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-gear"></i> تنظیمات مالیاتی<small>هویت مودی، اتصال به سامانه مودیان و نرخ‌ها</small></h1>
+        <form method="POST" action="{{ url_for('moadian.test_connection') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-info"><i class="bi bi-plug me-1"></i> تست اتصال</button>
+        </form>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="card mb-3">
+            <div class="card-head"><h5><i class="bi bi-building"></i> هویت مودی (فروشنده)</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-5"><label class="form-label">نام مودی / آموزشگاه</label>
+                        <input type="text" name="seller_name" class="form-control" value="{{ settings.seller_name or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">نوع شخص</label>
+                        <select name="seller_type" class="form-select">
+                            <option value="legal" {{ 'selected' if settings.seller_type == 'legal' }}>حقوقی</option>
+                            <option value="real" {{ 'selected' if settings.seller_type == 'real' }}>حقیقی</option>
+                        </select></div>
+                    <div class="col-md-4"><label class="form-label">شناسه ملی / کد ملی <span class="text-danger">*</span></label>
+                        <input type="text" name="seller_tin" class="form-control" value="{{ settings.seller_tin or '' }}" placeholder="مثال: 10380284790"></div>
+                    <div class="col-md-3"><label class="form-label">کد اقتصادی</label>
+                        <input type="text" name="economic_code" class="form-control" value="{{ settings.economic_code or '' }}" placeholder="۱۲ یا ۱۴ رقم"></div>
+                    <div class="col-md-3"><label class="form-label">شماره ثبت</label>
+                        <input type="text" name="registration_number" class="form-control" value="{{ settings.registration_number or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">کد پستی</label>
+                        <input type="text" name="postal_code" class="form-control" value="{{ settings.postal_code or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">کد شعبه (sbc)</label>
+                        <input type="text" name="branch_code" class="form-control" value="{{ settings.branch_code or '' }}"></div>
+                    <div class="col-12"><label class="form-label">نشانی</label>
+                        <textarea name="address" class="form-control" rows="2">{{ settings.address or '' }}</textarea></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-head"><h5><i class="bi bi-cloud-upload"></i> اتصال به سامانه مودیان</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="form-check form-switch mt-4">
+                            <input class="form-check-input" type="checkbox" name="moadian_enabled" id="moadian_enabled" {{ 'checked' if settings.moadian_enabled }}>
+                            <label class="form-check-label" for="moadian_enabled">فعال‌سازی سامانه مودیان</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch mt-4">
+                            <input class="form-check-input" type="checkbox" name="sandbox_mode" id="sandbox_mode" {{ 'checked' if settings.sandbox_mode }}>
+                            <label class="form-check-label" for="sandbox_mode">حالت آزمایشی (بدون ارسال واقعی)</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch mt-4">
+                            <input class="form-check-input" type="checkbox" name="auto_send" id="auto_send" {{ 'checked' if settings.auto_send }}>
+                            <label class="form-check-label" for="auto_send">ارسال خودکار پس از صدور</label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3"><label class="form-label">شناسه یکتای حافظه مالیاتی <span class="text-danger">*</span></label>
+                        <input type="text" name="memory_id" class="form-control" maxlength="6" style="font-family:monospace; text-transform:uppercase;"
+                               value="{{ settings.memory_id or '' }}" placeholder="مثال: A1B2C3">
+                        <small class="text-muted">۶ کاراکتر — حروف I J L Q V مجاز نیستند</small></div>
+                    <div class="col-md-4"><label class="form-label">Client ID (شناسه مودی)</label>
+                        <input type="text" name="client_id" class="form-control" value="{{ settings.client_id or '' }}">
+                        <small class="text-muted">در صورت خالی بودن، همان شناسه حافظه استفاده می‌شود</small></div>
+                    <div class="col-md-5"><label class="form-label">آدرس API</label>
+                        <input type="text" name="api_base_url" class="form-control" dir="ltr" value="{{ settings.api_base_url or '' }}"></div>
+
+                    <div class="col-md-6"><label class="form-label">مسیر کلید خصوصی (PEM)</label>
+                        <input type="text" name="private_key_path" class="form-control" dir="ltr" value="{{ settings.private_key_path or '' }}" placeholder="C:\\keys\\private_key.pem"></div>
+                    <div class="col-md-6"><label class="form-label">مسیر گواهی امضا (CER/PEM)</label>
+                        <input type="text" name="certificate_path" class="form-control" dir="ltr" value="{{ settings.certificate_path or '' }}" placeholder="C:\\keys\\certificate.crt"></div>
+
+                    <div class="col-12">
+                        <div class="alert alert-secondary mb-0">
+                            <small>
+                                آخرین سریال داخلی صادرشده: <strong>{{ settings.last_serial or 0 }}</strong> —
+                                شماره منحصر به فرد مالیاتی از ترکیب «شناسه حافظه (۶) + تاریخ Hex (۵) + سریال Hex (۱۰) + رقم کنترلی Verhoeff (۱)» ساخته می‌شود.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-head"><h5><i class="bi bi-percent"></i> ارزش افزوده</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">نرخ ارزش افزوده (٪)</label>
+                        <input type="number" step="0.01" name="vat_rate" class="form-control" value="{{ settings.vat_rate or 10 }}"></div>
+                    <div class="col-md-4"><label class="form-label">شناسه عمومی کالا/خدمت</label>
+                        <input type="text" name="default_stuff_id" class="form-control" maxlength="13" value="{{ settings.default_stuff_id or '' }}" placeholder="۱۳ رقم از stuffid.tax.gov.ir"></div>
+                    <div class="col-md-5">
+                        <div class="form-check form-switch mt-4">
+                            <input class="form-check-input" type="checkbox" name="education_exempt" id="education_exempt" {{ 'checked' if settings.education_exempt }}>
+                            <label class="form-check-label" for="education_exempt">خدمات آموزشی به‌صورت پیش‌فرض معاف از ارزش افزوده</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-head"><h5><i class="bi bi-cash-coin"></i> مالیات حقوق و تکلیفی</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">سال مالیاتی حقوق</label>
+                        <input type="text" name="salary_year" class="form-control" value="{{ settings.salary_year or '' }}" placeholder="1405"></div>
+                    <div class="col-md-3"><label class="form-label">معافیت ماهانه حقوق (ریال)</label>
+                        <input type="number" name="salary_monthly_exemption" class="form-control" value="{{ settings.salary_monthly_exemption or 0 }}"></div>
+                    <div class="col-md-3"><label class="form-label">کد کارگاه / پرونده مالیاتی</label>
+                        <input type="text" name="employer_tax_file_code" class="form-control" value="{{ settings.employer_tax_file_code or '' }}"></div>
+                    <div class="col-md-3"></div>
+                    <div class="col-md-3"><label class="form-label">نرخ مالیات اجاره (٪)</label>
+                        <input type="number" step="0.01" name="rent_withholding_rate" class="form-control" value="{{ settings.rent_withholding_rate or 10 }}"></div>
+                    <div class="col-md-3"><label class="form-label">نرخ حق‌الزحمه ماده ۸۶ (٪)</label>
+                        <input type="number" step="0.01" name="fee_withholding_rate" class="form-control" value="{{ settings.fee_withholding_rate or 10 }}"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('moadian.dashboard') }}" class="btn btn-outline-secondary">بازگشت</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> ذخیره تنظیمات</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

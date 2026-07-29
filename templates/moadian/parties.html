@@ -1,0 +1,75 @@
+{% extends "base/layout.html" %}
+{% block title %}طرف‌حساب‌های مالیاتی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('moadian.dashboard') }}">سامانه مودیان</a></li>
+<li class="active">طرف‌حساب‌ها</li>
+{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-people"></i> طرف‌حساب‌های مالیاتی<small>مشتریان و تامین‌کنندگان با کنترل کد ملی / شناسه ملی</small></h1>
+        <div class="d-flex gap-2 flex-wrap">
+            <form method="POST" action="{{ url_for('moadian.import_students_as_parties') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i> افزودن از هنرجویان</button>
+            </form>
+            <form method="POST" action="{{ url_for('moadian.revalidate_parties') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-warning"><i class="bi bi-shield-check me-1"></i> اعتبارسنجی مجدد همه</button>
+            </form>
+            <a href="{{ url_for('moadian.party_form') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> طرف حساب جدید</a>
+        </div>
+    </div>
+
+    {% if invalid_count %}
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i>
+        {{ invalid_count }} طرف حساب شناسه نامعتبر دارد؛ گزارش معاملات فصلی با این رکوردها در TTMS رد می‌شود.</div>
+    {% endif %}
+
+    <div class="card mb-3">
+        <div class="card-body-padded">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-4"><label class="form-label">جستجو</label>
+                    <input type="text" name="q" class="form-control" value="{{ q }}" placeholder="نام یا شناسه"></div>
+                <div class="col-md-3"><label class="form-label">نقش</label>
+                    <select name="role" class="form-select">
+                        <option value="">همه</option>
+                        <option value="customer" {{ 'selected' if role == 'customer' }}>مشتری</option>
+                        <option value="supplier" {{ 'selected' if role == 'supplier' }}>تامین‌کننده</option>
+                    </select></div>
+                <div class="col-md-2"><button class="btn btn-outline-primary w-100">فیلتر</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body-padded" style="padding:0;">
+            {% if parties %}
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>نام</th><th>نوع</th><th>نقش</th><th>شناسه</th><th>کد اقتصادی</th><th>اعتبار</th><th></th></tr></thead>
+                <tbody>
+                {% for party in parties %}
+                <tr>
+                    <td><strong>{{ party.name }}</strong></td>
+                    <td>{{ party.type_label }}</td>
+                    <td>{{ {'customer':'مشتری','supplier':'تامین‌کننده','both':'هردو'}.get(party.party_role, party.party_role) }}</td>
+                    <td><code>{{ party.national_id or '—' }}</code></td>
+                    <td>{{ party.economic_code or '—' }}</td>
+                    <td>
+                        {% if party.is_verified %}<span class="badge-status badge-active">معتبر</span>
+                        {% else %}<span class="badge-status badge-inactive" title="{{ party.verify_message }}">نامعتبر</span>{% endif %}
+                    </td>
+                    <td><a href="{{ url_for('moadian.party_form', party_id=party.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">طرف حسابی ثبت نشده است</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
