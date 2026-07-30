@@ -1,0 +1,90 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش ارزش افزوده{% endblock %}
+{% block breadcrumb %}<li class="active">ارزش افزوده</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-percent"></i> گزارش دوره‌ای ارزش افزوده<small>مابه‌التفاوت خرید و فروش برای اظهارنامه فصلی</small></h1>
+        <a href="{{ url_for('compliance.vat_export', year=year, quarter=quarter) }}" class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel me-1"></i> خروجی اکسل</a>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body-padded">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-3"><label class="form-label">سال شمسی</label>
+                    <input type="number" name="year" class="form-control" value="{{ year }}"></div>
+                <div class="col-md-3"><label class="form-label">فصل</label>
+                    <select name="quarter" class="form-select">
+                        <option value="1" {{ 'selected' if quarter == 1 }}>بهار</option>
+                        <option value="2" {{ 'selected' if quarter == 2 }}>تابستان</option>
+                        <option value="3" {{ 'selected' if quarter == 3 }}>پاییز</option>
+                        <option value="4" {{ 'selected' if quarter == 4 }}>زمستان</option>
+                    </select></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100">نمایش</button></div>
+                <div class="col-md-4 text-muted"><small>بازه: {{ start|to_jalali }} تا {{ end|to_jalali }}</small></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">ارزش افزوده فروش</div>
+            <div class="stat-val" style="font-size:18px; color:#2e7d32;">{{ sale_totals.vat|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">ارزش افزوده خرید (اعتبار)</div>
+            <div class="stat-val" style="font-size:18px; color:#1565c0;">{{ purchase_totals.vat|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">مابه‌التفاوت</div>
+            <div class="stat-val" style="font-size:18px; color:{{ '#c62828' if payable > 0 else '#2e7d32' }};">{{ payable|currency }}</div>
+            <small class="text-muted">{{ 'قابل پرداخت به سازمان' if payable > 0 else 'اعتبار قابل انتقال' }}</small></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">فروش معاف {{ quarter_name }}</div>
+            <div class="stat-val" style="font-size:18px; color:#78909c;">{{ sale_totals.exempt|currency }}</div></div></div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-head"><h5><i class="bi bi-clipboard-data"></i> خلاصه اظهارنامه {{ quarter_name }} {{ year }}</h5></div>
+        <div class="card-body-padded" style="padding:0;">
+            <table class="table mb-0">
+                <thead><tr><th>شرح</th><th>تعداد</th><th>مبلغ مشمول</th><th>مبلغ معاف</th><th>ارزش افزوده</th><th>جمع کل</th></tr></thead>
+                <tbody>
+                    <tr><td><strong>فروش</strong></td><td>{{ sale_totals.count }}</td><td>{{ sale_totals.taxable|currency }}</td>
+                        <td>{{ sale_totals.exempt|currency }}</td><td style="color:#2e7d32;">{{ sale_totals.vat|currency }}</td><td>{{ sale_totals.total|currency }}</td></tr>
+                    <tr><td><strong>خرید</strong></td><td>{{ purchase_totals.count }}</td><td>{{ purchase_totals.taxable|currency }}</td>
+                        <td>{{ purchase_totals.exempt|currency }}</td><td style="color:#1565c0;">{{ purchase_totals.vat|currency }}</td><td>{{ purchase_totals.total|currency }}</td></tr>
+                    <tr style="font-weight:700; background:#f7f9fc;"><td colspan="4">مابه‌التفاوت ارزش افزوده</td>
+                        <td colspan="2" style="color:{{ '#c62828' if payable > 0 else '#2e7d32' }};">{{ payable|currency }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        {% for title, rows, color in [('صورتحساب‌های فروش', sales, '#2e7d32'), ('صورتحساب‌های خرید', purchases, '#1565c0')] %}
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-head"><h5 style="color:{{ color }};"><i class="bi bi-list-ul"></i> {{ title }}</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    {% if rows %}
+                    <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th>شماره</th><th>تاریخ</th><th>طرف حساب</th><th>مشمول</th><th>معاف</th><th>ا.افزوده</th></tr></thead>
+                        <tbody>
+                        {% for invoice in rows %}
+                        <tr>
+                            <td><a href="{{ url_for('moadian.view_invoice', invoice_id=invoice.id) }}"><code>{{ invoice.invoice_number }}</code></a></td>
+                            <td>{{ invoice.invoice_date|to_jalali }}</td>
+                            <td><small>{{ invoice.party_name_snapshot or '—' }}</small></td>
+                            <td>{{ invoice.total_taxable|currency }}</td>
+                            <td>{{ invoice.total_exempt|currency }}</td>
+                            <td>{{ invoice.total_vat|currency }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                    </div>
+                    {% else %}<div class="text-center py-4" style="color:#aaa;">رکوردی در این دوره نیست</div>{% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

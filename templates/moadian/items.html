@@ -1,0 +1,129 @@
+{% extends "base/layout.html" %}
+{% block title %}کالا و خدمات مالیاتی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('moadian.dashboard') }}">سامانه مودیان</a></li>
+<li class="active">کالا و خدمات</li>
+{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-box-seam"></i> کالا و خدمات<small>شناسه ۱۳ رقمی و وضعیت معافیت ارزش افزوده</small></h1>
+        <form method="POST" action="{{ url_for('moadian.seed_items_from_courses') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline-secondary"><i class="bi bi-magic me-1"></i> ساخت خودکار از دوره‌ها</button>
+        </form>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-head"><h5><i class="bi bi-plus-circle"></i> افزودن / ویرایش</h5></div>
+        <div class="card-body-padded">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="item_id" id="item_id" value="">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">عنوان <span class="text-danger">*</span></label>
+                        <input type="text" name="title" id="f_title" class="form-control" required></div>
+                    <div class="col-md-2"><label class="form-label">شناسه کالا/خدمت</label>
+                        <input type="text" name="stuff_id" id="f_stuff" class="form-control" dir="ltr" maxlength="13"
+                               value="{{ settings.default_stuff_id or '' }}"></div>
+                    <div class="col-md-2"><label class="form-label">واحد</label>
+                        <input type="text" name="unit" id="f_unit" class="form-control" value="دوره"></div>
+                    <div class="col-md-2"><label class="form-label">قیمت واحد</label>
+                        <input type="number" name="unit_price" id="f_price" class="form-control" value="0"></div>
+                    <div class="col-md-2"><label class="form-label">نرخ ارزش افزوده (٪)</label>
+                        <input type="number" step="0.01" name="vat_rate" id="f_rate" class="form-control" placeholder="پیش‌فرض {{ settings.vat_rate }}"></div>
+
+                    <div class="col-md-4"><label class="form-label">دوره مرتبط</label>
+                        <select name="course_id" id="f_course" class="form-select">
+                            <option value="">—</option>
+                            {% for course in courses %}<option value="{{ course.id }}">{{ course.title }}</option>{% endfor %}
+                        </select></div>
+                    <div class="col-md-4"><label class="form-label">دلیل معافیت</label>
+                        <input type="text" name="exempt_reason" id="f_reason" class="form-control" placeholder="مثال: معافیت خدمات آموزشی"></div>
+                    <div class="col-md-4 d-flex align-items-end gap-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="vat_exempt" id="f_exempt" {{ 'checked' if settings.education_exempt }}>
+                            <label class="form-check-label" for="f_exempt">معاف از ارزش افزوده</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_service" id="f_service" checked>
+                            <label class="form-check-label" for="f_service">خدمت</label>
+                        </div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="f_active" checked>
+                            <label class="form-check-label" for="f_active">فعال</label>
+                        </div>
+                    </div>
+                    <div class="col-12 d-flex justify-content-end gap-2">
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetItemForm()">فرم جدید</button>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body-padded" style="padding:0;">
+            {% if items %}
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>عنوان</th><th>شناسه کالا</th><th>واحد</th><th>قیمت</th><th>ارزش افزوده</th><th>وضعیت</th><th></th></tr></thead>
+                <tbody>
+                {% for item in items %}
+                <tr>
+                    <td><strong>{{ item.title }}</strong>{% if item.course %}<br><small class="text-muted">{{ item.course.title }}</small>{% endif %}</td>
+                    <td><code>{{ item.stuff_id or '—' }}</code></td>
+                    <td>{{ item.unit }}</td>
+                    <td>{{ item.unit_price|currency }}</td>
+                    <td>
+                        {% if item.vat_exempt %}<span class="badge-status badge-pending" title="{{ item.exempt_reason or '' }}">معاف</span>
+                        {% else %}{{ item.vat_rate if item.vat_rate is not none else settings.vat_rate }}٪{% endif %}
+                    </td>
+                    <td>{% if item.is_active %}<span class="badge-status badge-active">فعال</span>{% else %}<span class="badge-status badge-inactive">غیرفعال</span>{% endif %}</td>
+                    <td class="d-flex gap-1">
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick='editItem({{ {"id": item.id, "title": item.title, "stuff_id": item.stuff_id or "", "unit": item.unit or "", "unit_price": item.unit_price or 0, "vat_rate": item.vat_rate, "vat_exempt": item.vat_exempt, "is_service": item.is_service, "is_active": item.is_active, "exempt_reason": item.exempt_reason or "", "course_id": item.course_id or ""}|tojson }})'>
+                            <i class="bi bi-pencil"></i></button>
+                        <form method="POST" action="{{ url_for('moadian.delete_service_item', item_id=item.id) }}" onsubmit="return confirm('غیرفعال شود؟')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">کالا/خدمتی ثبت نشده است</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function editItem(item) {
+    document.getElementById('item_id').value = item.id;
+    document.getElementById('f_title').value = item.title;
+    document.getElementById('f_stuff').value = item.stuff_id;
+    document.getElementById('f_unit').value = item.unit;
+    document.getElementById('f_price').value = item.unit_price;
+    document.getElementById('f_rate').value = item.vat_rate === null ? '' : item.vat_rate;
+    document.getElementById('f_reason').value = item.exempt_reason;
+    document.getElementById('f_course').value = item.course_id;
+    document.getElementById('f_exempt').checked = item.vat_exempt;
+    document.getElementById('f_service').checked = item.is_service;
+    document.getElementById('f_active').checked = item.is_active;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function resetItemForm() {
+    document.getElementById('item_id').value = '';
+    document.getElementById('f_title').value = '';
+    document.getElementById('f_price').value = 0;
+    document.getElementById('f_rate').value = '';
+    document.getElementById('f_reason').value = '';
+    document.getElementById('f_course').value = '';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base/layout.html" %}
+{% block title %}مالیات‌های تکلیفی{% endblock %}
+{% block breadcrumb %}<li class="active">مالیات تکلیفی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-cash-stack"></i> مالیات‌های تکلیفی<small>اجاره و حق‌الزحمه ماده ۸۶</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('compliance.withholding_export') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i> خروجی اکسل</a>
+            <a href="{{ url_for('compliance.withholding_form') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> سند جدید</a>
+        </div>
+    </div>
+
+    <div class="alert alert-secondary">
+        <small><i class="bi bi-info-circle me-1"></i>
+            نرخ‌های پیش‌فرض تنظیمات: مالیات اجاره <strong>{{ settings.rent_withholding_rate }}٪</strong> —
+            حق‌الزحمه ماده ۸۶ <strong>{{ settings.fee_withholding_rate }}٪</strong>.
+            مالیات کسرشده باید حداکثر تا پایان ماه بعد به حساب سازمان واریز شود.</small>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع ناخالص</div><div class="stat-val" style="font-size:18px;">{{ totals.gross|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">مالیات کسر شده</div><div class="stat-val" style="font-size:18px; color:#c62828;">{{ totals.tax|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">خالص پرداختی</div><div class="stat-val" style="font-size:18px; color:#2e7d32;">{{ totals.net|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">واریز نشده به سازمان</div><div class="stat-val" style="font-size:18px; color:#e65100;">{{ totals.unpaid|currency }}</div></div></div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body-padded">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-3"><label class="form-label">نوع</label>
+                    <select name="type" class="form-select">
+                        <option value="">همه</option>
+                        {% for key, label in type_labels.items() %}
+                        <option value="{{ key }}" {{ 'selected' if tax_type == key }}>{{ label }}</option>
+                        {% endfor %}
+                    </select></div>
+                <div class="col-md-3"><label class="form-label">دوره</label>
+                    <input type="text" name="period" class="form-control" value="{{ period }}" placeholder="1405/05"></div>
+                <div class="col-md-2"><button class="btn btn-outline-primary w-100">فیلتر</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body-padded" style="padding:0;">
+            {% if items %}
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>شماره سند</th><th>نوع</th><th>دوره</th><th>تاریخ</th><th>دریافت‌کننده</th>
+                    <th>شناسه</th><th>ناخالص</th><th>نرخ</th><th>مالیات</th><th>خالص</th><th>واریز</th><th></th></tr></thead>
+                <tbody>
+                {% for item in items %}
+                <tr>
+                    <td><code>{{ item.doc_number }}</code></td>
+                    <td>{{ item.type_label }}</td>
+                    <td>{{ item.period or '—' }}</td>
+                    <td>{{ item.doc_date|to_jalali }}</td>
+                    <td>{{ item.payee_name }}</td>
+                    <td><code>{{ item.payee_national_id or '—' }}</code></td>
+                    <td>{{ item.gross_amount|currency }}</td>
+                    <td>{{ item.rate }}٪</td>
+                    <td style="color:#c62828; font-weight:700;">{{ item.tax_amount|currency }}</td>
+                    <td style="color:#2e7d32;">{{ item.net_amount|currency }}</td>
+                    <td>{% if item.is_paid %}<span class="badge-status badge-active">واریز شده</span>
+                        {% else %}<span class="badge-status badge-pending">در انتظار</span>{% endif %}</td>
+                    <td class="d-flex gap-1">
+                        <a href="{{ url_for('compliance.withholding_form', item_id=item.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                        <form method="POST" action="{{ url_for('compliance.withholding_delete', item_id=item.id) }}" onsubmit="return confirm('حذف شود؟')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">سندی ثبت نشده است</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

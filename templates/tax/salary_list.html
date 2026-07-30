@@ -1,0 +1,92 @@
+{% extends "base/layout.html" %}
+{% block title %}لیست مالیات حقوق{% endblock %}
+{% block breadcrumb %}<li class="active">لیست مالیات حقوق</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-file-earmark-spreadsheet"></i> لیست مالیات حقوق<small>خروجی برای سامانه salary.tax.gov.ir</small></h1>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{{ url_for('compliance.salary_brackets') }}" class="btn btn-outline-secondary"><i class="bi bi-bar-chart-steps me-1"></i> پله‌های مالیاتی</a>
+            {% if period %}
+            <a href="{{ url_for('compliance.salary_tax_export', period=period, format='excel') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i> اکسل</a>
+            <a href="{{ url_for('compliance.salary_tax_export', period=period, format='txt') }}" class="btn btn-outline-primary"><i class="bi bi-filetype-txt me-1"></i> فایل متنی</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body-padded">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <form method="GET" class="d-flex gap-2 align-items-end">
+                        <div class="flex-grow-1">
+                            <label class="form-label">دوره</label>
+                            <select name="period" class="form-select" onchange="this.form.submit()">
+                                <option value="">— انتخاب دوره —</option>
+                                {% for item in periods %}<option value="{{ item }}" {{ 'selected' if item == period }}>{{ item }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-4">
+                    <form method="POST" action="{{ url_for('compliance.salary_recalculate') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="period" value="{{ period }}">
+                        <button class="btn btn-warning w-100" {{ 'disabled' if not period }}>
+                            <i class="bi bi-arrow-repeat me-1"></i> بازمحاسبه مالیات دوره بر اساس پله‌ها</button>
+                    </form>
+                </div>
+                <div class="col-md-4 text-muted">
+                    <small>معافیت ماهانه تنظیم‌شده: <strong>{{ settings.salary_monthly_exemption|currency }}</strong> ریال
+                        | کد کارگاه: {{ settings.employer_tax_file_code or '—' }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if missing_codes %}
+    <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-1"></i>
+        {{ missing_codes|length }} نفر کد ملی ثبت‌شده ندارند؛ سامانه مالیات حقوق ردیف بدون کد ملی را رد می‌کند.</div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع ناخالص</div><div class="stat-val" style="font-size:18px;">{{ totals.gross|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">درآمد مشمول</div><div class="stat-val" style="font-size:18px;">{{ totals.taxable|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">مالیات ثبت‌شده</div><div class="stat-val" style="font-size:18px; color:#c62828;">{{ totals.tax|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">مالیات طبق پله‌ها</div><div class="stat-val" style="font-size:18px; color:#e65100;">{{ totals.computed_tax|currency }}</div></div></div>
+    </div>
+
+    <div class="card">
+        <div class="card-body-padded" style="padding:0;">
+            {% if rows %}
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>#</th><th>نام</th><th>نام خانوادگی</th><th>کد ملی</th><th>شغل</th>
+                    <th>ناخالص</th><th>بیمه</th><th>معافیت</th><th>مشمول</th><th>مالیات ثبت‌شده</th><th>مالیات محاسبه‌شده</th><th>خالص</th></tr></thead>
+                <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ row.first_name }}</td>
+                    <td>{{ row.last_name }}</td>
+                    <td>{% if row.national_code %}<code>{{ row.national_code }}</code>{% else %}<span class="text-danger">ندارد</span>{% endif %}</td>
+                    <td>{{ row.job_title }}</td>
+                    <td>{{ row.gross|currency }}</td>
+                    <td>{{ row.insurance|currency }}</td>
+                    <td>{{ row.exemption|currency }}</td>
+                    <td>{{ row.taxable|currency }}</td>
+                    <td style="color:#c62828;">{{ row.tax|currency }}</td>
+                    <td style="color:#e65100;">{{ row.computed_tax|currency }}</td>
+                    <td style="font-weight:700; color:#2e7d32;">{{ row.net|currency }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">برای این دوره فیش حقوقی ثبت نشده است</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

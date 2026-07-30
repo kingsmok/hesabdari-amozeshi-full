@@ -138,6 +138,37 @@
         </div>
         {% endif %}
 
+        {% if 'tax' in user_menu or 'moadian' in user_menu %}
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-receipt-cutoff"></i> مالیات و مودیان
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('moadian.dashboard') }}" class="nav-link-item"><i class="bi bi-speedometer2"></i> داشبورد مودیان</a>
+            <a href="{{ url_for('moadian.invoices') }}" class="nav-link-item"><i class="bi bi-receipt"></i> صورتحساب الکترونیکی</a>
+            <a href="{{ url_for('moadian.parties') }}" class="nav-link-item"><i class="bi bi-people"></i> طرف‌حساب‌ها</a>
+            <a href="{{ url_for('moadian.service_items') }}" class="nav-link-item"><i class="bi bi-box-seam"></i> کالا و خدمات</a>
+            <a href="{{ url_for('moadian.tax_number_tool') }}" class="nav-link-item"><i class="bi bi-upc-scan"></i> شماره مالیاتی</a>
+            <a href="{{ url_for('compliance.vat_report') }}" class="nav-link-item"><i class="bi bi-percent"></i> ارزش افزوده</a>
+            <a href="{{ url_for('compliance.seasonal_report') }}" class="nav-link-item"><i class="bi bi-calendar3"></i> معاملات فصلی (۱۶۹)</a>
+            <a href="{{ url_for('compliance.salary_tax_list') }}" class="nav-link-item"><i class="bi bi-file-earmark-spreadsheet"></i> لیست مالیات حقوق</a>
+            <a href="{{ url_for('compliance.salary_brackets') }}" class="nav-link-item"><i class="bi bi-bar-chart-steps"></i> پله‌های مالیاتی</a>
+            <a href="{{ url_for('compliance.withholding_list') }}" class="nav-link-item"><i class="bi bi-cash-stack"></i> مالیات تکلیفی</a>
+            <a href="{{ url_for('moadian.settings_page') }}" class="nav-link-item"><i class="bi bi-gear"></i> تنظیمات مالیاتی</a>
+        </div>
+
+        <div class="nav-link-item" onclick="toggleNav(this)">
+            <i class="bi bi-journal-bookmark"></i> گزارش‌های قانونی
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('compliance.balance_sheet') }}" class="nav-link-item"><i class="bi bi-clipboard-data"></i> ترازنامه</a>
+            <a href="{{ url_for('compliance.income_statement') }}" class="nav-link-item"><i class="bi bi-graph-up"></i> سود و زیان</a>
+            <a href="{{ url_for('compliance.legal_books') }}" class="nav-link-item"><i class="bi bi-book"></i> دفاتر روزنامه و کل</a>
+            <a href="{{ url_for('compliance.assets') }}" class="nav-link-item"><i class="bi bi-buildings"></i> دارایی و استهلاک</a>
+        </div>
+        {% endif %}
+
         {# ═══ ابزارها ═══ #}
         <div class="nav-section-title">ابزارها</div>
 

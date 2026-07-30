@@ -1,0 +1,92 @@
+{% extends "base/layout.html" %}
+{% block title %}دفاتر قانونی{% endblock %}
+{% block breadcrumb %}<li class="active">دفاتر قانونی</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-journal-bookmark"></i> دفاتر قانونی<small>دفتر روزنامه و کل برای تحریر دفاتر پلمپ</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('compliance.legal_books_export', year=year) }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i> خروجی اکسل</a>
+            <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer me-1"></i> چاپ</button>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body-padded">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-3"><label class="form-label">سال مالی (شمسی)</label>
+                    <input type="number" name="year" class="form-control" value="{{ year }}"></div>
+                <div class="col-md-3"><label class="form-label">دفتر</label>
+                    <select name="book" class="form-select">
+                        <option value="journal" {{ 'selected' if book == 'journal' }}>دفتر روزنامه</option>
+                        <option value="ledger" {{ 'selected' if book == 'ledger' }}>دفتر کل</option>
+                    </select></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100">نمایش</button></div>
+            </form>
+        </div>
+    </div>
+
+    {% if unbalanced %}
+    <div class="alert alert-danger"><i class="bi bi-exclamation-octagon me-1"></i>
+        {{ unbalanced|length }} سند نامتوازن است و مانع تحریر صحیح دفاتر می‌شود:
+        {% for entry in unbalanced[:8] %}<code>{{ entry.entry_number }}</code>{% if not loop.last %}، {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if book == 'journal' %}
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-journal-text"></i> دفتر روزنامه {{ year }}</h5></div>
+        <div class="card-body-padded" style="padding:0;">
+            {% if entries %}
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>ردیف</th><th>شماره سند</th><th>تاریخ</th><th>شرح</th><th>بدهکار</th><th>بستانکار</th><th>وضعیت</th></tr></thead>
+                <tbody>
+                {% for entry in entries %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td><a href="{{ url_for('accounting.view_entry', id=entry.id) }}"><code>{{ entry.entry_number }}</code></a></td>
+                    <td>{{ entry.entry_date|to_jalali }}</td>
+                    <td>{{ entry.description or '—' }}</td>
+                    <td>{{ entry.total_debit|currency }}</td>
+                    <td>{{ entry.total_credit|currency }}</td>
+                    <td><span class="badge-status badge-{{ 'active' if entry.status == 'approved' else 'pending' }}">{{ entry.status }}</span></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+                <tfoot style="background:#f7f9fc; font-weight:700;">
+                    <tr><td colspan="4">جمع کل</td><td>{{ totals.debit|currency }}</td><td>{{ totals.credit|currency }}</td><td></td></tr>
+                </tfoot>
+            </table>
+            </div>
+            {% else %}<div class="text-center py-5" style="color:#aaa;">سند تایید‌شده‌ای در این سال نیست</div>{% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="card">
+        <div class="card-head"><h5><i class="bi bi-book"></i> دفتر کل {{ year }}</h5></div>
+        <div class="card-body-padded" style="padding:0;">
+            {% if ledger %}
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>کد حساب</th><th>نام حساب</th><th>نوع</th><th>جمع بدهکار</th><th>جمع بستانکار</th><th>مانده</th></tr></thead>
+                <tbody>
+                {% for row in ledger %}
+                <tr>
+                    <td><code>{{ row.code }}</code></td>
+                    <td>{{ row.name }}</td>
+                    <td><small>{{ row.type or '—' }}</small></td>
+                    <td>{{ row.debit|currency }}</td>
+                    <td>{{ row.credit|currency }}</td>
+                    <td style="font-weight:700;">{{ row.balance|currency }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}<div class="text-center py-5" style="color:#aaa;">حسابی یافت نشد</div>{% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

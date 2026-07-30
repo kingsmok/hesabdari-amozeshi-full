@@ -67,6 +67,8 @@ def create_app():
     from routes.setup import setup_bp
     from routes.payroll import payroll_bp
     from routes.tax import tax_bp
+    from routes.moadian import moadian_bp
+    from routes.tax_compliance import compliance_bp
     from routes.permissions import perms_bp
     from routes.teacher_portal import teacher_bp
     
@@ -99,6 +101,8 @@ def create_app():
     app.register_blueprint(setup_bp)
     app.register_blueprint(payroll_bp)
     app.register_blueprint(tax_bp)
+    app.register_blueprint(moadian_bp)
+    app.register_blueprint(compliance_bp)
     app.register_blueprint(perms_bp, url_prefix='/perms')
     app.register_blueprint(teacher_bp)
     
@@ -237,6 +241,7 @@ def create_app():
             'accounting': 'accounting',
             'payroll': 'payroll',
             'tax': 'tax',
+            'moadian': 'tax',
             'reports': 'reports',
             'messaging': 'messaging',
             'settings': 'settings',
@@ -271,6 +276,7 @@ def create_app():
             import models.attendance
             import models.exam
             import models.system
+            import models.tax
             
             db.create_all()
             create_default_data()
@@ -303,6 +309,7 @@ def create_default_data():
     import models.attendance
     import models.exam
     import models.system
+    import models.tax
     
     from models.user import User, Role, Permission, RolePermission
     from models.system import SystemSettings, Branch

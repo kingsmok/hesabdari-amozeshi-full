@@ -1,0 +1,82 @@
+{% extends "base/layout.html" %}
+{% block title %}صورت سود و زیان{% endblock %}
+{% block breadcrumb %}<li class="active">سود و زیان</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-graph-up"></i> صورت سود و زیان<small>سال مالی {{ year }}</small></h1>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('compliance.balance_sheet', year=year) }}" class="btn btn-outline-primary"><i class="bi bi-clipboard-data me-1"></i> ترازنامه</a>
+            <button onclick="window.print()" class="btn btn-outline-secondary"><i class="bi bi-printer me-1"></i> چاپ</button>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-body-padded">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-3"><label class="form-label">سال مالی (شمسی)</label>
+                    <input type="number" name="year" class="form-control" value="{{ year }}"></div>
+                <div class="col-md-2"><button class="btn btn-primary w-100">نمایش</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع درآمدها</div><div class="stat-val" style="font-size:18px; color:#2e7d32;">{{ total_revenue|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع هزینه‌ها</div><div class="stat-val" style="font-size:18px; color:#c62828;">{{ total_expense|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">هزینه استهلاک</div><div class="stat-val" style="font-size:18px; color:#e65100;">{{ depreciation|currency }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">سود (زیان) خالص</div>
+            <div class="stat-val" style="font-size:18px; color:{{ '#2e7d32' if net_income >= 0 else '#c62828' }};">{{ net_income|currency }}</div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-head"><h5 style="color:#2e7d32;"><i class="bi bi-arrow-down-circle"></i> درآمدها</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>کد</th><th>حساب</th><th>مبلغ</th></tr></thead>
+                        <tbody>
+                        {% for account in revenues %}
+                        <tr><td><code>{{ account.code }}</code></td><td>{{ account.name }}</td><td>{{ account.balance|currency }}</td></tr>
+                        {% else %}<tr><td colspan="3" class="text-center text-muted py-3">حساب درآمدی ثبت نشده</td></tr>{% endfor %}
+                        </tbody>
+                        <tfoot style="background:#f7f9fc; font-weight:700;">
+                            <tr><td colspan="2">جمع درآمد</td><td>{{ total_revenue|currency }}</td></tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-head"><h5 style="color:#c62828;"><i class="bi bi-arrow-up-circle"></i> هزینه‌ها</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <thead><tr><th>کد</th><th>حساب</th><th>مبلغ</th></tr></thead>
+                        <tbody>
+                        {% for account in expenses %}
+                        <tr><td><code>{{ account.code }}</code></td><td>{{ account.name }}</td><td>{{ account.balance|currency }}</td></tr>
+                        {% else %}<tr><td colspan="3" class="text-center text-muted py-3">حساب هزینه‌ای ثبت نشده</td></tr>{% endfor %}
+                        <tr><td>—</td><td>هزینه استهلاک دارایی‌ها (ماده ۱۴۹)</td><td>{{ depreciation|currency }}</td></tr>
+                        </tbody>
+                        <tfoot style="background:#f7f9fc; font-weight:700;">
+                            <tr><td colspan="2">جمع هزینه</td><td>{{ (total_expense + depreciation)|currency }}</td></tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body-padded text-center" style="font-size:18px; font-weight:700;
+                     color:{{ '#2e7d32' if net_income >= 0 else '#c62828' }};">
+                    {{ 'سود خالص' if net_income >= 0 else 'زیان خالص' }} سال {{ year }}: {{ net_income|currency }} ریال
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

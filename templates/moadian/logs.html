@@ -1,0 +1,49 @@
+{% extends "base/layout.html" %}
+{% block title %}لاگ سامانه مودیان{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('moadian.dashboard') }}">سامانه مودیان</a></li>
+<li class="active">لاگ ارسال</li>
+{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-journal-text"></i> لاگ ارتباط با سامانه مودیان</h1></div>
+
+    <div class="card">
+        <div class="card-body-padded" style="padding:0;">
+            {% if pagination.items %}
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>زمان</th><th>صورتحساب</th><th>عملیات</th><th>HTTP</th><th>نتیجه</th><th>Trace ID</th><th>پیام</th></tr></thead>
+                <tbody>
+                {% for log in pagination.items %}
+                <tr>
+                    <td><small>{{ log.created_at|to_jalali }}</small></td>
+                    <td>{% if log.invoice_id %}<a href="{{ url_for('moadian.view_invoice', invoice_id=log.invoice_id) }}">#{{ log.invoice_id }}</a>{% else %}—{% endif %}</td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.http_status or '—' }}</td>
+                    <td>{% if log.success %}<span class="badge-status badge-active">موفق</span>{% else %}<span class="badge-status badge-inactive">ناموفق</span>{% endif %}</td>
+                    <td><small style="font-family:monospace;">{{ (log.request_trace_id or '—')[:16] }}</small></td>
+                    <td><small style="word-break:break-all;">{{ (log.message or '')[:200] }}</small></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">لاگی ثبت نشده است</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if pagination.pages > 1 %}
+    <nav class="mt-3"><ul class="pagination justify-content-center">
+        {% for page_num in pagination.iter_pages() %}
+            {% if page_num %}
+            <li class="page-item {{ 'active' if page_num == pagination.page }}">
+                <a class="page-link" href="{{ url_for('moadian.logs', page=page_num) }}">{{ page_num }}</a></li>
+            {% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+        {% endfor %}
+    </ul></nav>
+    {% endif %}
+</div>
+{% endblock %}

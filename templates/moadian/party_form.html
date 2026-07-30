@@ -1,0 +1,114 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ 'ویرایش' if party else 'ثبت' }} طرف حساب{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('moadian.parties') }}">طرف‌حساب‌ها</a></li>
+<li class="active">{{ 'ویرایش' if party else 'ثبت جدید' }}</li>
+{% endblock %}
+{% block content %}
+{% set data = form or party %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-person-vcard"></i> {{ 'ویرایش' if party else 'ثبت' }} طرف حساب مالیاتی</h1>
+    </div>
+
+    {% if error %}<div class="alert alert-danger"><i class="bi bi-x-circle me-1"></i> {{ error }}</div>{% endif %}
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-3">
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-5"><label class="form-label">نام / عنوان <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" required
+                               value="{{ (data.name if data else '') or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">نوع شخص</label>
+                        <select name="party_type" id="party_type" class="form-select">
+                            {% set ptype = (data.party_type if data else 'real') or 'real' %}
+                            <option value="real" {{ 'selected' if ptype == 'real' }}>حقیقی (کد ملی ۱۰ رقمی)</option>
+                            <option value="legal" {{ 'selected' if ptype == 'legal' }}>حقوقی (شناسه ملی ۱۱ رقمی)</option>
+                            <option value="foreigner" {{ 'selected' if ptype == 'foreigner' }}>اتباع خارجی (۱۲ رقم)</option>
+                            <option value="consumer" {{ 'selected' if ptype == 'consumer' }}>مصرف‌کننده نهایی</option>
+                        </select></div>
+                    <div class="col-md-4"><label class="form-label">نقش</label>
+                        {% set prole = (data.party_role if data else 'customer') or 'customer' %}
+                        <select name="party_role" class="form-select">
+                            <option value="customer" {{ 'selected' if prole == 'customer' }}>مشتری (فروش)</option>
+                            <option value="supplier" {{ 'selected' if prole == 'supplier' }}>تامین‌کننده (خرید)</option>
+                            <option value="both" {{ 'selected' if prole == 'both' }}>هر دو</option>
+                        </select></div>
+
+                    <div class="col-md-4"><label class="form-label">کد ملی / شناسه ملی</label>
+                        <input type="text" name="national_id" id="national_id" class="form-control" dir="ltr"
+                               value="{{ (data.national_id if data else '') or '' }}">
+                        <small id="id_feedback" class="text-muted">پس از تایپ، اعتبار الگوریتمی بررسی می‌شود</small></div>
+                    <div class="col-md-4"><label class="form-label">کد اقتصادی</label>
+                        <input type="text" name="economic_code" class="form-control" dir="ltr"
+                               value="{{ (data.economic_code if data else '') or '' }}"></div>
+                    <div class="col-md-4"><label class="form-label">شماره ثبت</label>
+                        <input type="text" name="registration_number" class="form-control"
+                               value="{{ (data.registration_number if data else '') or '' }}"></div>
+
+                    <div class="col-md-3"><label class="form-label">کد پستی</label>
+                        <input type="text" name="postal_code" class="form-control" dir="ltr"
+                               value="{{ (data.postal_code if data else '') or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">تلفن</label>
+                        <input type="text" name="phone" class="form-control" dir="ltr"
+                               value="{{ (data.phone if data else '') or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">استان</label>
+                        <input type="text" name="province" class="form-control" value="{{ (data.province if data else '') or '' }}"></div>
+                    <div class="col-md-3"><label class="form-label">شهر</label>
+                        <input type="text" name="city" class="form-control" value="{{ (data.city if data else '') or '' }}"></div>
+
+                    <div class="col-12"><label class="form-label">نشانی</label>
+                        <textarea name="address" class="form-control" rows="2">{{ (data.address if data else '') or '' }}</textarea></div>
+                    <div class="col-12"><label class="form-label">یادداشت</label>
+                        <input type="text" name="notes" class="form-control" value="{{ (data.notes if data else '') or '' }}"></div>
+
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {{ 'checked' if (not party) or party.is_active }}>
+                            <label class="form-check-label" for="is_active">فعال</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="force_save" id="force_save">
+                            <label class="form-check-label" for="force_save">ذخیره اجباری با شناسه نامعتبر</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('moadian.parties') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> ذخیره</button>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    const input = document.getElementById('national_id');
+    const typeSelect = document.getElementById('party_type');
+    const feedback = document.getElementById('id_feedback');
+    if (!input) return;
+
+    let timer = null;
+    function check() {
+        const code = input.value.trim();
+        if (!code) { feedback.className = 'text-muted'; feedback.textContent = 'پس از تایپ، اعتبار الگوریتمی بررسی می‌شود'; return; }
+        fetch(`{{ url_for('moadian.validate_id_api') }}?code=${encodeURIComponent(code)}&type=${typeSelect.value}`)
+            .then(response => response.json())
+            .then(data => {
+                feedback.className = data.valid ? 'text-success' : 'text-danger';
+                feedback.textContent = data.message;
+            })
+            .catch(() => { feedback.className = 'text-muted'; feedback.textContent = 'بررسی ناموفق بود'; });
+    }
+    input.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(check, 400); });
+    typeSelect.addEventListener('change', check);
+    if (input.value.trim()) check();
+})();
+</script>
+{% endblock %}

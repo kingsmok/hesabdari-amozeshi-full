@@ -25,7 +25,13 @@
                         <td>{{ p.payment_method }}</td>
                         <td>{{ p.payment_date|to_jalali }}</td>
                         <td><span class="badge-status badge-{{ 'active' if p.status == 'confirmed' else 'pending' }}">{{ p.status }}</span></td>
-                        <td><a href="{{ url_for('finance.view_payment', id=p.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                        <td class="d-flex gap-1">
+                            <a href="{{ url_for('finance.view_payment', id=p.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a>
+                            <form method="POST" action="{{ url_for('moadian.invoice_from_payment', payment_id=p.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm-custom btn-outline-success" title="صدور صورتحساب الکترونیکی"><i class="bi bi-receipt-cutoff"></i></button>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -1,0 +1,94 @@
+{% extends "base/layout.html" %}
+{% block title %}شماره منحصر به فرد مالیاتی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('moadian.dashboard') }}">سامانه مودیان</a></li>
+<li class="active">شماره مالیاتی</li>
+{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-upc-scan"></i> شماره منحصر به فرد مالیاتی<small>تولید و اعتبارسنجی شناسه ۲۲ کاراکتری</small></h1>
+    </div>
+
+    <div class="alert alert-secondary">
+        <strong>ساختار:</strong>
+        <code>[شناسه حافظه ۶]</code> + <code>[تاریخ Hex ۵]</code> + <code>[سریال Hex ۱۰]</code> + <code>[رقم کنترلی Verhoeff ۱]</code>
+        &nbsp;|&nbsp; نمونه سند سازمان: <code style="font-family:monospace;">DEF5GH0481F000000000C2</code>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-magic"></i> تولید شماره</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="generate">
+                        <div class="row g-3">
+                            <div class="col-md-6"><label class="form-label">شناسه یکتای حافظه</label>
+                                <input type="text" name="memory_id" class="form-control" maxlength="6" style="font-family:monospace; text-transform:uppercase;"
+                                       value="{{ settings.memory_id or '' }}" required></div>
+                            <div class="col-md-6"><label class="form-label">سریال داخلی</label>
+                                <input type="number" name="serial" class="form-control" value="{{ (settings.last_serial or 0) + 1 }}" min="0" required></div>
+                            <div class="col-md-6"><label class="form-label">تاریخ صدور</label>
+                                <input type="text" name="issue_date" class="form-control jalali-date" placeholder="1405/05/07"></div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-gear me-1"></i> تولید</button>
+                            </div>
+                        </div>
+                    </form>
+
+                    {% if generated %}
+                    <div class="alert alert-success mt-3 mb-0">
+                        <div class="mb-1">شماره مالیاتی تولیدشده:</div>
+                        <div style="font-family:monospace; font-size:20px; letter-spacing:2px; direction:ltr;">{{ generated }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-shield-check"></i> اعتبارسنجی شماره</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="validate">
+                        <label class="form-label">شماره مالیاتی ۲۲ کاراکتری</label>
+                        <div class="input-group">
+                            <input type="text" name="tax_number" class="form-control" dir="ltr" maxlength="22"
+                                   style="font-family:monospace;" value="{{ check.value if check else '' }}" required>
+                            <button type="submit" class="btn btn-outline-primary">بررسی</button>
+                        </div>
+                    </form>
+
+                    {% if check %}
+                    <div class="alert {{ 'alert-success' if check.ok else 'alert-danger' }} mt-3 mb-0">
+                        <i class="bi bi-{{ 'check-circle' if check.ok else 'x-circle' }} me-1"></i> {{ check.message }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if parsed %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-diagram-2"></i> تجزیه مولفه‌ها</h5></div>
+                <div class="card-body-padded" style="padding:0;">
+                    <table class="table mb-0">
+                        <tbody>
+                            <tr><td style="width:35%;">شناسه یکتای حافظه مالیاتی</td><td><code>{{ parsed.memory_id }}</code></td></tr>
+                            <tr><td>تاریخ ثبت (Hex / شمسی)</td><td><code>{{ parsed.date_hex }}</code> — {{ parsed.date|to_jalali }}</td></tr>
+                            <tr><td>سریال داخلی (Hex / ده‌دهی)</td><td><code>{{ parsed.serial_hex }}</code> — {{ parsed.serial }}</td></tr>
+                            <tr><td>رقم کنترلی Verhoeff</td><td><code>{{ parsed.check_digit }}</code></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
