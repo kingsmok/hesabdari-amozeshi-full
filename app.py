@@ -69,6 +69,7 @@ def create_app():
     from routes.tax import tax_bp
     from routes.permissions import perms_bp
     from routes.teacher_portal import teacher_bp
+    from routes.bot_panel import bot_panel_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -101,6 +102,7 @@ def create_app():
     app.register_blueprint(tax_bp)
     app.register_blueprint(perms_bp, url_prefix='/perms')
     app.register_blueprint(teacher_bp)
+    app.register_blueprint(bot_panel_bp)
     
     # فقط خود endpoint تلگرام از CSRF معاف است؛ فرم‌های مالی و مدیریتی
     # داخل new_features باید همچنان محافظت شوند.
@@ -122,6 +124,15 @@ def create_app():
         }
     
     # Jinja2 filters
+    @app.template_filter('from_json')
+    def from_json_filter(value):
+        """تبدیل JSON رشته به شی پایتون"""
+        import json
+        try:
+            return json.loads(value) if value else []
+        except (json.JSONDecodeError, TypeError):
+            return []
+
     @app.template_filter('to_jalali')
     def to_jalali_filter(date):
         """تبدیل تاریخ میلادی به شمسی — فرمت: 1405/01/16"""
@@ -271,6 +282,7 @@ def create_app():
             import models.attendance
             import models.exam
             import models.system
+            import models.bot
             
             db.create_all()
             create_default_data()

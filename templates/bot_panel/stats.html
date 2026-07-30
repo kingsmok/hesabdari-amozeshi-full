@@ -1,0 +1,198 @@
+{% extends "base/layout.html" %}
+{% block title %}آمار و گزارش{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>
+<li class="active">آمار و گزارش</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1>
+            <i class="bi bi-graph-up-arrow" style="color: #06b6d4;"></i>
+            آمار و گزارش
+            <small>آمار کاربران و پیام‌های ربات</small>
+        </h1>
+    </div>
+
+    <!-- آمار کلی -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-stat-card" style="--stat-color: #3b82f6;">
+                <div class="glass-stat-icon">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div class="glass-stat-info">
+                    <span class="glass-stat-number">{{ total_stats.total_users }}</span>
+                    <span class="glass-stat-text">کل کاربران</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-stat-card" style="--stat-color: #10b981;">
+                <div class="glass-stat-icon">
+                    <i class="bi bi-patch-check-fill"></i>
+                </div>
+                <div class="glass-stat-info">
+                    <span class="glass-stat-number">{{ total_stats.verified_users }}</span>
+                    <span class="glass-stat-text">تأیید شده</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-stat-card" style="--stat-color: #8b5cf6;">
+                <div class="glass-stat-icon">
+                    <i class="bi bi-chat-dots-fill"></i>
+                </div>
+                <div class="glass-stat-info">
+                    <span class="glass-stat-number">{{ total_stats.total_messages }}</span>
+                    <span class="glass-stat-text">کل پیام‌ها</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-stat-card" style="--stat-color: #f59e0b;">
+                <div class="glass-stat-icon">
+                    <i class="bi bi-send-fill"></i>
+                </div>
+                <div class="glass-stat-info">
+                    <span class="glass-stat-number">{{ total_stats.total_messages_sent }}</span>
+                    <span class="glass-stat-text">پیام ارسالی گروهی</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نمودارها -->
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-person-plus"></i>
+                    <span>کاربران جدید (۷ روز اخیر)</span>
+                </div>
+                <div class="glass-panel-body">
+                    <canvas id="usersChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-chat-text"></i>
+                    <span>پیام‌ها (۷ روز اخیر)</span>
+                </div>
+                <div class="glass-panel-body">
+                    <canvas id="messagesChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-stat-card {
+        background: rgba(255,255,255,.65);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,.3);
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,.08);
+        transition: all 0.3s;
+        border-top: 3px solid var(--stat-color);
+    }
+    .glass-stat-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.12); }
+    .glass-stat-icon {
+        width: 50px; height: 50px; border-radius: 14px;
+        background: linear-gradient(135deg, var(--stat-color), color-mix(in srgb, var(--stat-color), #000 20%));
+        display: flex; align-items: center; justify-content: center;
+        font-size: 22px; color: white; flex-shrink: 0;
+    }
+    .glass-stat-number { display: block; font-size: 24px; font-weight: 800; color: #1a1a2e; }
+    .glass-stat-text { display: block; font-size: 11px; color: #6b7280; }
+
+    .glass-panel {
+        background: rgba(255,255,255,.65);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,.3);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0,0,0,.08);
+    }
+    .glass-panel-head { padding: 16px 20px; font-weight: 700; font-size: 14px; color: #1a1a2e; background: rgba(255,255,255,.5); border-bottom: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 8px; }
+    .glass-panel-body { padding: 20px; }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Users chart data
+    const usersLabels = [];
+    const usersValues = [];
+    {% for d in daily_users %}
+    usersLabels.push("{{ d[0] }}");
+    usersValues.push({{ d[1] }});
+    {% endfor %}
+
+    new Chart(document.getElementById('usersChart'), {
+        type: 'bar',
+        data: {
+            labels: usersLabels.length ? usersLabels : ['بدون داده'],
+            datasets: [{
+                label: 'کاربران جدید',
+                data: usersValues.length ? usersValues : [0],
+                backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                borderColor: '#3b82f6',
+                borderWidth: 2,
+                borderRadius: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // Messages chart data
+    const messagesLabels = [];
+    const messagesValues = [];
+    {% for d in daily_messages %}
+    messagesLabels.push("{{ d[0] }}");
+    messagesValues.push({{ d[1] }});
+    {% endfor %}
+
+    new Chart(document.getElementById('messagesChart'), {
+        type: 'line',
+        data: {
+            labels: messagesLabels.length ? messagesLabels : ['بدون داده'],
+            datasets: [{
+                label: 'تعداد پیام',
+                data: messagesValues.length ? messagesValues : [0],
+                borderColor: '#8b5cf6',
+                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+                pointBackgroundColor: '#8b5cf6',
+                pointRadius: 5,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

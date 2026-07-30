@@ -1,0 +1,161 @@
+{% extends "base/layout.html" %}
+{% block title %}تنظیمات ربات{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>
+<li class="active">تنظیمات</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1>
+            <i class="bi bi-gear-fill" style="color: #8b5cf6;"></i>
+            تنظیمات ربات
+            <small>پیکربندی پیام‌ها، توکن‌ها و رفتار ربات</small>
+        </h1>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="row g-3">
+            <!-- پیام خوش‌آمدگویی -->
+            <div class="col-lg-6">
+                <div class="glass-panel">
+                    <div class="glass-panel-head">
+                        <i class="bi bi-chat-heart"></i>
+                        <span>پیام خوش‌آمدگویی</span>
+                    </div>
+                    <div class="glass-panel-body">
+                        <div class="mb-3">
+                            <label class="glass-label">متن پیام /start</label>
+                            <textarea name="welcome_message" class="glass-input" rows="8"
+                                      placeholder="پیامی که هنگام /start یا دکمه بازگشت نمایش داده می‌شود">{{ settings.welcome_message or '' }}</textarea>
+                            <div class="glass-help">
+                                اگر خالی باشد، پیام پیش‌فرض نمایش داده می‌شود.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تنظیمات امنیتی -->
+            <div class="col-lg-6">
+                <div class="glass-panel">
+                    <div class="glass-panel-head">
+                        <i class="bi bi-shield-lock"></i>
+                        <span>سیستم تأیید شماره تلفن</span>
+                    </div>
+                    <div class="glass-panel-body">
+                        <div class="glass-info-box">
+                            <i class="bi bi-info-circle-fill"></i>
+                            <div>
+                                <strong>نحوه کار ثبت شماره:</strong>
+                                <ul style="margin: 8px 0 0; padding-right: 16px; font-size: 12px; line-height: 2.2;">
+                                    <li>کاربر دکمه «📱 ارسال شماره موبایل» را می‌زند</li>
+                                    <li>دکمه «📲 اشتراک‌گذاری شماره» ظاهر می‌شود</li>
+                                    <li>✅ اگر شماره قبلاً توسط کاربر دیگری ثبت شده باشد → <strong style="color:#dc2626;">رد می‌شود</strong></li>
+                                    <li>✅ در غیر این صورت → شماره به حساب کاربر متصل می‌شود</li>
+                                    <li>✅ اگر شماره با هنرجوی موجود تطابق داشته باشد → خودکار متصل می‌شود</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div class="glass-info-box" style="margin-top: 12px; background: rgba(16,185,129,.06); border-color: rgba(16,185,129,.15);">
+                            <i class="bi bi-patch-check-fill" style="color: #10b981;"></i>
+                            <div>
+                                <strong style="color: #059669;">جلوگیری از سوءاستفاده:</strong>
+                                <p style="font-size: 11px; margin: 4px 0 0; color: #374151;">
+                                    به دلیل استفاده از Contact API تلگرام/بله، فقط شماره تلفن واقعی
+                                    اکانت کاربر ارسال می‌شود. امکان ارسال شماره فرد دیگر وجود ندارد.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- توکن‌ها -->
+            <div class="col-lg-6">
+                <div class="glass-panel">
+                    <div class="glass-panel-head">
+                        <i class="bi bi-chat-dots-fill" style="color: #0081ff;"></i>
+                        <span>توکن ربات بله</span>
+                    </div>
+                    <div class="glass-panel-body">
+                        <div class="mb-3">
+                            <label class="glass-label">وضعیت فعلی</label>
+                            {% if settings.bale_bot_token %}
+                            <span class="glass-badge glass-badge-green">فعال</span>
+                            {% else %}
+                            <span class="glass-badge glass-badge-gray">تنظیم نشده</span>
+                            {% endif %}
+                        </div>
+                        <a href="{{ url_for('settings_panel.bale_config') }}" class="glass-btn glass-btn-blue" style="width:100%; flex-direction:row; gap:8px;">
+                            <i class="bi bi-gear"></i>
+                            <span>مدیریت تنظیمات بله</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="glass-panel">
+                    <div class="glass-panel-head">
+                        <i class="bi bi-telegram" style="color: #0088cc;"></i>
+                        <span>توکن ربات تلگرام</span>
+                    </div>
+                    <div class="glass-panel-body">
+                        <div class="mb-3">
+                            <label class="glass-label">وضعیت فعلی</label>
+                            {% if settings.telegram_bot_token %}
+                            <span class="glass-badge glass-badge-green">فعال</span>
+                            {% else %}
+                            <span class="glass-badge glass-badge-gray">تنظیم نشده</span>
+                            {% endif %}
+                        </div>
+                        <a href="{{ url_for('settings_panel.telegram_config') }}" class="glass-btn glass-btn-purple" style="width:100%; flex-direction:row; gap:8px;">
+                            <i class="bi bi-gear"></i>
+                            <span>مدیریت تنظیمات تلگرام</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- دکمه ذخیره -->
+            <div class="col-12">
+                <button type="submit" class="glass-btn glass-btn-purple" style="width: 100%; padding: 14px;">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span style="font-size: 14px;">ذخیره تنظیمات</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<style>
+    .glass-panel { background: rgba(255,255,255,.65); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.3); border-radius: 20px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.08); }
+    .glass-panel-head { padding: 16px 20px; font-weight: 700; font-size: 14px; color: #1a1a2e; background: rgba(255,255,255,.5); border-bottom: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 8px; }
+    .glass-panel-body { padding: 20px; }
+    .glass-label { display: block; font-size: 12px; font-weight: 600; color: #4b5563; margin-bottom: 6px; }
+    .glass-input { width: 100%; padding: 10px 14px; border: 1px solid rgba(0,0,0,.1); border-radius: 10px; background: rgba(255,255,255,.8); font-size: 13px; font-family: Vazirmatn,Tahoma,sans-serif; color: #1a1a2e; }
+    .glass-input:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139,92,246,.15); background: white; }
+    textarea.glass-input { resize: vertical; min-height: 100px; line-height: 1.8; }
+    .glass-help { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+
+    .glass-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; border-radius: 14px; text-decoration: none; font-size: 13px; font-weight: 600; color: white; border: 1px solid rgba(255,255,255,.2); cursor: pointer; transition: all 0.3s; font-family: Vazirmatn,Tahoma,sans-serif; }
+    .glass-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.15); color: white; }
+    .glass-btn-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .glass-btn-purple { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+
+    .glass-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .glass-badge-green { background: rgba(16,185,129,.12); color: #059669; }
+    .glass-badge-gray { background: rgba(107,114,128,.12); color: #6b7280; }
+
+    .glass-info-box {
+        display: flex; gap: 12px; padding: 14px; border-radius: 12px;
+        background: rgba(59,130,246,.06); border: 1px solid rgba(59,130,246,.1);
+        font-size: 12px; color: #374151;
+    }
+    .glass-info-box i { font-size: 20px; color: #3b82f6; flex-shrink: 0; margin-top: 2px; }
+</style>
+{% endblock %}
