@@ -134,26 +134,63 @@ function initSidebar() {
     // ذخیره وضعیت سایدبار
     const sidebar = document.getElementById('sidebar');
     if (sidebar) {
-        const savedState = localStorage.getItem('sidebar_collapsed');
-        if (savedState === 'true') {
-            sidebar.style.width = '0';
-            document.getElementById('mainWrap').style.marginRight = '0';
+        const isMobile = window.innerWidth <= 992;
+        if (!isMobile) {
+            const savedState = localStorage.getItem('sidebar_collapsed');
+            if (savedState === 'true') {
+                sidebar.style.width = '0';
+                document.getElementById('mainWrap').style.marginRight = '0';
+            } else {
+                sidebar.style.width = 'var(--sidebar-w)';
+                document.getElementById('mainWrap').style.marginRight = 'var(--sidebar-w)';
+            }
+        } else {
+            // روی موبایل فقط حالت باز/بسته با کلاس open کنترل می‌شود
+            sidebar.classList.remove('open');
+            sidebar.style.width = 'var(--sidebar-w)';
         }
     }
+    // بستن سایدبار با کلیک روی اورلی
+    window.addEventListener('resize', function() {
+        if (window.innerWidth > 992) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            if (overlay) overlay.classList.remove('visible');
+            document.body.style.overflow = '';
+            if (sidebar) sidebar.classList.remove('open');
+        }
+    });
 }
 
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     const mainWrap = document.getElementById('mainWrap');
-    
-    if (sidebar.style.width === '0px') {
-        sidebar.style.width = 'var(--sidebar-w)';
-        mainWrap.style.marginRight = 'var(--sidebar-w)';
-        localStorage.setItem('sidebar_collapsed', 'false');
+    const overlay = document.getElementById('mobileOverlay');
+    const isMobile = window.innerWidth <= 992;
+
+    if (isMobile) {
+        const isOpen = sidebar.classList.contains('open');
+        if (isOpen) {
+            sidebar.classList.remove('open');
+            if (overlay) overlay.classList.remove('visible');
+            document.body.style.overflow = '';
+        } else {
+            sidebar.classList.add('open');
+            if (overlay) overlay.classList.add('visible');
+            document.body.style.overflow = 'hidden';
+        }
     } else {
-        sidebar.style.width = '0';
-        mainWrap.style.marginRight = '0';
-        localStorage.setItem('sidebar_collapsed', 'true');
+        const collapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+        const currentlyCollapsed = sidebar.style.width === '0px' || sidebar.style.width === '0';
+        if (collapsed || currentlyCollapsed) {
+            sidebar.style.width = 'var(--sidebar-w)';
+            mainWrap.style.marginRight = 'var(--sidebar-w)';
+            localStorage.setItem('sidebar_collapsed', 'false');
+        } else {
+            sidebar.style.width = '0';
+            mainWrap.style.marginRight = '0';
+            localStorage.setItem('sidebar_collapsed', 'true');
+        }
     }
 }
 
