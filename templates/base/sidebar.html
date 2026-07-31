@@ -2,12 +2,13 @@
 {% set user_menu = get_user_menu_items() %}
 
 <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header">
+    <div class="sidebar-header" style="position:relative;">
         <div class="sidebar-logo"><i class="bi bi-mortarboard-fill"></i></div>
         <div class="sidebar-brand">
             {{ app_name }}
             <small>{{ current_user.role.name if current_user.role else 'کاربر' }}</small>
         </div>
+        <button onclick="toggleSidebar()" aria-label="بستن منو" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#cfd8dc; font-size:22px; cursor:pointer; display:none; z-index:10;" class="btn-mobile-close"><i class="bi bi-x-lg"></i></button>
     </div>
 
     <nav class="sidebar-nav">
@@ -202,6 +203,6 @@
     </nav>
 
     <div class="sidebar-footer">
-        <small><i class="bi bi-heart-fill" style="color: #e91e63; font-size: 9px;"></i> نسخه ۱.۰</small>
+        <small><i class="bi bi-heart-fill" style="color: #e91e63; font-size: 9px;"></i> طراحی شده آموزشگاه رهسا</small>
     </div>
 </aside>
