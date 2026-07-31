@@ -8,7 +8,7 @@ echo ============================================
 echo.
 echo   URL:  http://localhost:5000
 echo   User: admin
-echo   Pass: admin123
+echo   Pass: **رمز حذف شده برای امنیت**
 echo.
 echo ============================================
 echo.

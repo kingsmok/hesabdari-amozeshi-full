@@ -97,7 +97,7 @@ else:
 
 print(f"  آدرس محلی: http://localhost:{PORT}")
 print(f"  آدرس شبکه: http://{get_local_ip()}:{PORT}")
-print(f"  نام کاربری: admin / admin123")
+print(f"  نام کاربری: admin / **رمز حذف شده برای امنیت**")
 print("=" * 60)
 
 server_ready = threading.Event()

@@ -174,7 +174,7 @@ def main():
     print('  DONE!')
     print('  Run: python app.py')
     print('  URL: http://localhost:5000')
-    print('  User: admin / admin123')
+    print('  User: admin / **رمز حذف شده برای امنیت**')
     print('=' * 55)
     print()
 

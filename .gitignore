@@ -1,0 +1,35 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.env
+.venv
+venv/
+env/
+
+# SQLite / local DB
+instance/*.db
+*.sqlite
+*.sqlite3
+
+# Build / installer artifacts
+*.spec
+build_installer.bat
+installer/
+*.iss
+build/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
