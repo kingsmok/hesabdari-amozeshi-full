@@ -1,0 +1,271 @@
+{% extends "base/layout.html" %}
+{% block title %}جزئیات کاربر ربات{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>
+<li><a href="{{ url_for('bot_panel.users') }}">کاربران</a></li>
+<li class="active">{{ bot_user.full_name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1>
+            <i class="bi bi-person-circle" style="color: #8b5cf6;"></i>
+            {{ bot_user.full_name }}
+            <small>جزئیات کاربر ربات</small>
+        </h1>
+    </div>
+
+    <div class="row g-3">
+        <!-- اطلاعات کاربر -->
+        <div class="col-lg-5">
+            <div class="glass-panel mb-4">
+                <div class="glass-panel-head">
+                    <i class="bi bi-person-badge"></i>
+                    <span>اطلاعات حساب</span>
+                </div>
+                <div class="glass-panel-body">
+                    <!-- آواتار شیشه‌ای -->
+                    <div class="glass-avatar-section">
+                        <div class="glass-avatar">
+                            {{ bot_user.full_name[0] if bot_user.full_name else '?' }}
+                        </div>
+                        <div class="glass-avatar-info">
+                            <h5>{{ bot_user.full_name }}</h5>
+                            {% if bot_user.username %}
+                            <span style="color: #9ca3af;">@{{ bot_user.username }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="glass-info-grid">
+                        <div class="glass-info-row">
+                            <span class="glass-info-label">Chat ID</span>
+                            <span class="glass-info-value"><code>{{ bot_user.chat_id }}</code></span>
+                        </div>
+                        <div class="glass-info-row">
+                            <span class="glass-info-label">شماره تلفن</span>
+                            <span class="glass-info-value">
+                                {% if bot_user.phone %}
+                                <span class="glass-badge glass-badge-green">{{ bot_user.phone }}</span>
+                                {% else %}
+                                <span class="glass-badge glass-badge-gray">ثبت نشده</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="glass-info-row">
+                            <span class="glass-info-label">پلتفرم</span>
+                            <span class="glass-info-value">
+                                <span class="glass-badge {{ 'glass-badge-blue' if bot_user.provider == 'bale' else 'glass-badge-purple' }}">
+                                    {{ 'بله' if bot_user.provider == 'bale' else 'تلگرام' }}
+                                </span>
+                            </span>
+                        </div>
+                        <div class="glass-info-row">
+                            <span class="glass-info-label">وضعیت</span>
+                            <span class="glass-info-value">
+                                {% if bot_user.is_blocked %}
+                                <span class="glass-badge glass-badge-red">بلاک شده</span>
+                                {% elif bot_user.is_verified %}
+                                <span class="glass-badge glass-badge-green">تأیید شده</span>
+                                {% else %}
+                                <span class="glass-badge glass-badge-yellow">در انتظار</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="glass-info-row">
+                            <span class="glass-info-label">تاریخ عضویت</span>
+                            <span class="glass-info-value">{{ bot_user.joined_at.strftime('%Y/%m/%d %H:%M') if bot_user.joined_at else '-' }}</span>
+                        </div>
+                        {% if bot_user.last_activity %}
+                        <div class="glass-info-row">
+                            <span class="glass-info-label">آخرین فعالیت</span>
+                            <span class="glass-info-value">{{ bot_user.last_activity.strftime('%Y/%m/%d %H:%M') }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- اقدامات -->
+                    <div class="glass-actions-row">
+                        <form method="POST" action="{{ url_for('bot_panel.toggle_block', id=bot_user.id) }}" style="display:inline;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="glass-action-btn-lg {{ 'glass-action-green' if bot_user.is_blocked else 'glass-action-red' }}">
+                                <i class="bi {{ 'bi-unlock' if bot_user.is_blocked else 'bi-lock' }}"></i>
+                                <span>{{ 'رفع بلاک' if bot_user.is_blocked else 'بلاک' }}</span>
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ url_for('bot_panel.delete_user', id=bot_user.id) }}" style="display:inline;"
+                              onsubmit="return confirm('آیا از حذف این کاربر مطمئن هستید؟')">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="glass-action-btn-lg glass-action-red">
+                                <i class="bi bi-trash"></i>
+                                <span>حذف</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- اتصال به هنرجو -->
+            {% if student %}
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-mortarboard"></i>
+                    <span>هنرجوی متصل</span>
+                </div>
+                <div class="glass-panel-body">
+                    <div class="glass-info-grid">
+                        <div class="glass-info-row">
+                            <span class="glass-info-label">نام</span>
+                            <span class="glass-info-value">{{ student.full_name }}</span>
+                        </div>
+                        <div class="glass-info-row">
+                            <span class="glass-info-label">کد هنرجو</span>
+                            <span class="glass-info-value">{{ student.student_code }}</span>
+                        </div>
+                        <div class="glass-info-row">
+                            <span class="glass-info-label">موبایل</span>
+                            <span class="glass-info-value">{{ student.mobile }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-link-45deg"></i>
+                    <span>اتصال به هنرجو</span>
+                </div>
+                <div class="glass-panel-body">
+                    <form method="POST" action="{{ url_for('bot_panel.link_student', id=bot_user.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="glass-label">شناسه هنرجو (ID)</label>
+                            <input type="number" name="student_id" class="glass-input" placeholder="شناسه هنرجو">
+                        </div>
+                        <button type="submit" class="glass-btn glass-btn-blue" style="width:100%">
+                            <i class="bi bi-link"></i>
+                            <span>اتصال</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- تاریخچه پیام‌ها -->
+        <div class="col-lg-7">
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-chat-square-text"></i>
+                    <span>تاریخچه پیام‌ها</span>
+                </div>
+                <div class="glass-panel-body" style="max-height: 600px; overflow-y: auto;">
+                    {% if messages %}
+                    <div class="glass-chat-list">
+                        {% for msg in messages %}
+                        <div class="glass-chat-bubble {{ 'glass-chat-in' if msg.direction == 'incoming' else 'glass-chat-out' }}">
+                            <div class="glass-chat-time">
+                                {{ msg.sent_at.strftime('%H:%M') if msg.sent_at else '' }}
+                            </div>
+                            <div class="glass-chat-text">
+                                {{ msg.text if msg.text else '(بدون متن)' }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="glass-empty-state">
+                        <i class="bi bi-chat-dots" style="font-size: 48px; opacity: 0.3;"></i>
+                        <p>پیامی ثبت نشده</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-panel {
+        background: rgba(255,255,255,.65);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,.3);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0,0,0,.08);
+    }
+    .glass-panel-head { padding: 16px 20px; font-weight: 700; font-size: 14px; color: #1a1a2e; background: rgba(255,255,255,.5); border-bottom: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 8px; }
+    .glass-panel-body { padding: 20px; }
+    .glass-label { display: block; font-size: 12px; font-weight: 600; color: #4b5563; margin-bottom: 6px; }
+    .glass-input { width: 100%; padding: 10px 14px; border: 1px solid rgba(0,0,0,.1); border-radius: 10px; background: rgba(255,255,255,.8); font-size: 13px; font-family: Vazirmatn,Tahoma,sans-serif; color: #1a1a2e; }
+    .glass-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+
+    .glass-avatar-section { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+    .glass-avatar {
+        width: 64px; height: 64px; border-radius: 16px;
+        background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 28px; font-weight: 800; color: white;
+    }
+    .glass-avatar-info h5 { margin: 0; font-size: 16px; color: #1a1a2e; }
+
+    .glass-info-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .glass-info-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,.04); }
+    .glass-info-label { font-size: 12px; color: #6b7280; font-weight: 500; }
+    .glass-info-value { font-size: 13px; font-weight: 600; color: #1a1a2e; }
+
+    .glass-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .glass-badge-green { background: rgba(16,185,129,.12); color: #059669; }
+    .glass-badge-blue { background: rgba(59,130,246,.12); color: #1d4ed8; }
+    .glass-badge-purple { background: rgba(139,92,246,.12); color: #6d28d9; }
+    .glass-badge-red { background: rgba(239,68,68,.12); color: #dc2626; }
+    .glass-badge-yellow { background: rgba(245,158,11,.12); color: #d97706; }
+    .glass-badge-gray { background: rgba(107,114,128,.12); color: #6b7280; }
+
+    .glass-actions-row { display: flex; gap: 10px; }
+    .glass-action-btn-lg {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 8px 16px; border-radius: 10px; border: none;
+        font-size: 12px; font-weight: 600; color: white; cursor: pointer;
+        transition: all 0.2s; font-family: Vazirmatn, Tahoma, sans-serif;
+    }
+    .glass-action-btn-lg:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+    .glass-action-green { background: linear-gradient(135deg, #10b981, #059669); }
+    .glass-action-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+    .glass-btn {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+        padding: 10px 14px; border-radius: 12px; text-decoration: none;
+        font-size: 12px; font-weight: 600; color: white; border: 1px solid rgba(255,255,255,.2);
+        cursor: pointer; transition: all 0.3s; font-family: Vazirmatn, Tahoma, sans-serif;
+    }
+    .glass-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.15); color: white; }
+    .glass-btn-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+
+    /* Chat bubbles */
+    .glass-chat-list { display: flex; flex-direction: column; gap: 12px; }
+    .glass-chat-bubble {
+        max-width: 85%; padding: 10px 14px; border-radius: 14px;
+        font-size: 12px; line-height: 1.7;
+    }
+    .glass-chat-in {
+        align-self: flex-start;
+        background: rgba(59,130,246,.08);
+        border: 1px solid rgba(59,130,246,.12);
+        border-bottom-right-radius: 4px;
+    }
+    .glass-chat-out {
+        align-self: flex-end;
+        background: rgba(16,185,129,.08);
+        border: 1px solid rgba(16,185,129,.12);
+        border-bottom-left-radius: 4px;
+    }
+    .glass-chat-time { font-size: 10px; color: #9ca3af; margin-bottom: 4px; }
+    .glass-chat-text { color: #374151; }
+
+    .glass-empty-state { text-align: center; padding: 40px 20px; color: #9ca3af; }
+    .glass-empty-state p { margin-top: 12px; font-size: 13px; }
+</style>
+{% endblock %}

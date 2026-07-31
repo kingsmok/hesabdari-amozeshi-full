@@ -1,0 +1,166 @@
+{% extends "base/layout.html" %}
+{% block title %}ویرایش کیبورد{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>
+<li><a href="{{ url_for('bot_panel.keyboards') }}">کیبوردها</a></li>
+<li class="active">ویرایش: {{ kb.name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1>
+            <i class="bi bi-pencil-fill" style="color: #3b82f6;"></i>
+            ویرایش: {{ kb.name }}
+        </h1>
+    </div>
+
+    <div class="glass-panel">
+        <div class="glass-panel-body">
+            <form method="POST" id="keyboardForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="buttons_data" id="buttons_data" value="">
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="glass-label">نام کیبورد</label>
+                        <input type="text" name="name" class="glass-input" value="{{ kb.name }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="glass-label">نوع</label>
+                        <select name="keyboard_type" class="glass-input">
+                            <option value="reply" {{ 'selected' if kb.keyboard_type == 'reply' }}>Reply</option>
+                            <option value="inline" {{ 'selected' if kb.keyboard_type == 'inline' }}>Inline</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="glass-label">پلتفرم</label>
+                        <select name="provider" class="glass-input">
+                            <option value="both" {{ 'selected' if kb.provider == 'both' }}>هر دو</option>
+                            <option value="bale" {{ 'selected' if kb.provider == 'bale' }}>بله</option>
+                            <option value="telegram" {{ 'selected' if kb.provider == 'telegram' }}>تلگرام</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="glass-label">توضیحات</label>
+                        <input type="text" name="description" class="glass-input" value="{{ kb.description or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <div class="glass-toggle-row" style="margin-top: 24px;">
+                            <label class="glass-label" style="margin:0;">فعال</label>
+                            <label class="glass-toggle">
+                                <input type="checkbox" name="is_active" {{ 'checked' if kb.is_active }}>
+                                <span class="glass-toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label class="glass-label" style="margin: 0;">ردیف‌های دکمه</label>
+                        <button type="button" class="glass-btn glass-btn-blue" onclick="addRow()"
+                                style="flex-direction:row; gap:6px; padding: 8px 16px; font-size: 12px;">
+                            <i class="bi bi-plus-lg"></i>
+                            <span>افزودن ردیف</span>
+                        </button>
+                    </div>
+                    <div id="rowsContainer" class="glass-rows-container"></div>
+                </div>
+
+                <button type="submit" class="glass-btn glass-btn-green" style="width: 100%; margin-top: 20px; padding: 14px;">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span style="font-size: 14px;">بروزرسانی</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-panel { background: rgba(255,255,255,.65); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.3); border-radius: 20px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.08); }
+    .glass-panel-body { padding: 20px; }
+    .glass-label { display: block; font-size: 12px; font-weight: 600; color: #4b5563; margin-bottom: 6px; }
+    .glass-input { width: 100%; padding: 10px 14px; border: 1px solid rgba(0,0,0,.1); border-radius: 10px; background: rgba(255,255,255,.8); font-size: 13px; font-family: Vazirmatn,Tahoma,sans-serif; color: #1a1a2e; }
+    .glass-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); }
+    .glass-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 10px 14px; border-radius: 12px; text-decoration: none; font-size: 12px; font-weight: 600; color: white; border: 1px solid rgba(255,255,255,.2); cursor: pointer; transition: all 0.3s; font-family: Vazirmatn,Tahoma,sans-serif; }
+    .glass-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.15); color: white; }
+    .glass-btn-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .glass-btn-green { background: linear-gradient(135deg, #10b981, #059669); }
+    .glass-rows-container { display: flex; flex-direction: column; gap: 10px; }
+    .glass-row-item { padding: 12px; border-radius: 12px; background: rgba(255,255,255,.4); border: 1px solid rgba(0,0,0,.06); }
+    .glass-row-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .glass-row-label { font-size: 11px; font-weight: 700; color: #6b7280; }
+    .glass-row-actions { display: flex; gap: 6px; }
+    .glass-row-btn { width: 26px; height: 26px; border-radius: 6px; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; color: white; transition: all 0.2s; }
+    .glass-row-btn:hover { transform: scale(1.1); }
+    .glass-row-btn-add { background: linear-gradient(135deg, #10b981, #059669); }
+    .glass-row-btn-del { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .glass-btn-input { flex: 1; padding: 8px 12px; border: 1px solid rgba(0,0,0,.08); border-radius: 8px; background: rgba(255,255,255,.9); font-size: 12px; font-family: Vazirmatn,Tahoma,sans-serif; color: #1a1a2e; }
+    .glass-btn-input:focus { outline: none; border-color: #3b82f6; }
+    .glass-buttons-row { display: flex; gap: 8px; margin-bottom: 6px; }
+    .glass-toggle-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .glass-toggle { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; }
+    .glass-toggle input { opacity: 0; width: 0; height: 0; }
+    .glass-toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #d1d5db; border-radius: 26px; transition: .3s; }
+    .glass-toggle-slider:before { content: ""; position: absolute; height: 20px; width: 20px; right: 3px; bottom: 3px; background: white; border-radius: 50%; transition: .3s; }
+    .glass-toggle input:checked + .glass-toggle-slider { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+    .glass-toggle input:checked + .glass-toggle-slider:before { transform: translateX(-22px); }
+</style>
+
+<script>
+const existingButtons = {{ buttons|tojson }};
+let rowCount = 0;
+
+function addRow(buttonsData) {
+    rowCount++;
+    const container = document.getElementById('rowsContainer');
+    const row = document.createElement('div');
+    row.className = 'glass-row-item';
+    row.id = `row-${rowCount}`;
+    row.innerHTML = `
+        <div class="glass-row-header">
+            <span class="glass-row-label">ردیف ${rowCount}</span>
+            <div class="glass-row-actions">
+                <button type="button" class="glass-row-btn glass-row-btn-add" onclick="addButton(${rowCount})" title="افزودن دکمه"><i class="bi bi-plus"></i></button>
+                <button type="button" class="glass-row-btn glass-row-btn-del" onclick="document.getElementById('row-${rowCount}').remove()" title="حذف"><i class="bi bi-trash"></i></button>
+            </div>
+        </div>
+        <div class="glass-buttons-container" id="buttons-${rowCount}"></div>
+    `;
+    container.appendChild(row);
+    if (buttonsData && buttonsData.length) {
+        buttonsData.forEach(b => addButton(rowCount, b.text || ''));
+    } else {
+        addButton(rowCount);
+    }
+}
+
+function addButton(rowId, value) {
+    const container = document.getElementById(`buttons-${rowId}`);
+    const btn = document.createElement('div');
+    btn.className = 'glass-buttons-row';
+    btn.innerHTML = `
+        <input type="text" class="glass-btn-input" placeholder="متن دکمه" value="${value || ''}">
+        <button type="button" class="glass-row-btn glass-row-btn-del" onclick="this.parentElement.remove()" title="حذف"><i class="bi bi-x"></i></button>
+    `;
+    container.appendChild(btn);
+}
+
+document.getElementById('keyboardForm').addEventListener('submit', function(e) {
+    const rows = [];
+    document.querySelectorAll('.glass-row-item').forEach(row => {
+        const buttons = [];
+        row.querySelectorAll('.glass-btn-input').forEach(input => {
+            if (input.value.trim()) buttons.push({text: input.value.trim()});
+        });
+        if (buttons.length) rows.push(buttons);
+    });
+    document.getElementById('buttons_data').value = JSON.stringify(rows);
+});
+
+// Load existing data
+existingButtons.forEach(row => addRow(row));
+if (!existingButtons.length) addRow();
+</script>
+{% endblock %}

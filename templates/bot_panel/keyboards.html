@@ -1,0 +1,217 @@
+{% extends "base/layout.html" %}
+{% block title %}کیبوردهای ربات{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>
+<li class="active">کیبوردها</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1>
+            <i class="bi bi-grid-3x3-gap-fill" style="color: #f59e0b;"></i>
+            کیبوردهای ربات
+            <small>مدیریت دکمه‌های شیشه‌ای Reply و Inline</small>
+        </h1>
+        <a href="{{ url_for('bot_panel.keyboard_add') }}" class="glass-btn glass-btn-green" style="display:inline-flex; flex-direction:row; gap:8px; padding: 8px 20px;">
+            <i class="bi bi-plus-lg"></i>
+            <span>کیبورد جدید</span>
+        </a>
+    </div>
+
+    <!-- پیش‌نمایش کیبورد پیش‌فرض -->
+    <div class="glass-panel mb-4">
+        <div class="glass-panel-head">
+            <i class="bi bi-phone"></i>
+            <span>پیش‌نمایش کیبورد اصلی ربات</span>
+        </div>
+        <div class="glass-panel-body">
+            <div class="glass-phone-preview">
+                <div class="glass-phone-screen">
+                    <div class="glass-phone-header">ربات آموزشگاه</div>
+                    <div class="glass-phone-chat">
+                        <div class="glass-phone-msg">🎓 به ربات آموزشگاه خوش آمدید!</div>
+                    </div>
+                    <div class="glass-phone-keyboard">
+                        <div class="glass-kb-row">
+                            <button class="glass-kb-btn glass-kb-full">📱 ارسال شماره موبایل</button>
+                        </div>
+                        <div class="glass-kb-row">
+                            <button class="glass-kb-btn">📚 کلاس‌های من</button>
+                            <button class="glass-kb-btn">💰 مانده شهریه</button>
+                        </div>
+                        <div class="glass-kb-row">
+                            <button class="glass-kb-btn">📅 برنامه هفتگی</button>
+                            <button class="glass-kb-btn">📝 آزمون‌ها</button>
+                        </div>
+                        <div class="glass-kb-row">
+                            <button class="glass-kb-btn">⚙️ تنظیمات</button>
+                            <button class="glass-kb-btn">📞 پشتیبانی</button>
+                        </div>
+                        <div class="glass-kb-row">
+                            <button class="glass-kb-btn">🔍 جستجوی دوره</button>
+                            <button class="glass-kb-btn">📊 کارنامه</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- لیست کیبوردها -->
+    <div class="glass-panel">
+        <div class="glass-panel-head">
+            <i class="bi bi-list-ul"></i>
+            <span>کیبوردهای سفارشی ({{ keyboards|length }})</span>
+        </div>
+        <div class="glass-panel-body" style="padding: 0;">
+            {% if keyboards %}
+            <div class="glass-table-wrapper">
+                <table class="glass-table">
+                    <thead>
+                        <tr>
+                            <th>نام</th>
+                            <th>نوع</th>
+                            <th>پلتفرم</th>
+                            <th>تعداد دکمه‌ها</th>
+                            <th>وضعیت</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for kb in keyboards %}
+                        <tr>
+                            <td><strong>{{ kb.name }}</strong><br><small style="color:#9ca3af;">{{ kb.description or '' }}</small></td>
+                            <td>
+                                <span class="glass-badge {{ 'glass-badge-blue' if kb.keyboard_type == 'reply' else 'glass-badge-purple' }}">
+                                    {{ 'Reply' if kb.keyboard_type == 'reply' else 'Inline' }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="glass-badge glass-badge-cyan">
+                                    {{ 'هر دو' if kb.provider == 'both' else ('بله' if kb.provider == 'bale' else 'تلگرام') }}
+                                </span>
+                            </td>
+                            <td>{{ (kb.buttons|from_json|length) if kb.buttons else 0 }}</td>
+                            <td>
+                                {% if kb.is_active %}
+                                <span class="glass-badge glass-badge-green">فعال</span>
+                                {% else %}
+                                <span class="glass-badge glass-badge-gray">غیرفعال</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('bot_panel.keyboard_edit', id=kb.id) }}" class="glass-action-btn glass-action-blue" title="ویرایش">
+                                    <i class="bi bi-pencil"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('bot_panel.keyboard_delete', id=kb.id) }}" style="display:inline;"
+                                      onsubmit="return confirm('حذف این کیبورد؟')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="glass-action-btn glass-action-red" title="حذف" style="border:none;">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="glass-empty-state" style="padding: 40px;">
+                <i class="bi bi-grid-3x3-gap" style="font-size: 48px; opacity: 0.3;"></i>
+                <p>هنوز کیبورد سفارشی ایجاد نشده</p>
+                <p style="font-size: 11px;">کیبورد پیش‌فرض ربات به‌صورت خودکار فعال است.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-panel {
+        background: rgba(255,255,255,.65);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,.3);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0,0,0,.08);
+    }
+    .glass-panel-head { padding: 16px 20px; font-weight: 700; font-size: 14px; color: #1a1a2e; background: rgba(255,255,255,.5); border-bottom: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+    .glass-panel-body { padding: 20px; }
+
+    .glass-btn {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+        padding: 10px 14px; border-radius: 12px; text-decoration: none;
+        font-size: 12px; font-weight: 600; color: white; border: 1px solid rgba(255,255,255,.2);
+        cursor: pointer; transition: all 0.3s; font-family: Vazirmatn,Tahoma,sans-serif;
+    }
+    .glass-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.15); color: white; }
+    .glass-btn-green { background: linear-gradient(135deg, #10b981, #059669); }
+
+    /* Phone preview */
+    .glass-phone-preview { display: flex; justify-content: center; }
+    .glass-phone-screen {
+        width: 280px; border-radius: 24px; overflow: hidden;
+        background: #1a1a2e; border: 3px solid #374151;
+        box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+    .glass-phone-header {
+        padding: 12px 16px; background: linear-gradient(135deg, #1e3a5f, #0d2137);
+        color: white; font-size: 14px; font-weight: 700;
+    }
+    .glass-phone-chat {
+        padding: 16px; min-height: 80px;
+        background: linear-gradient(180deg, #0f172a, #1e293b);
+    }
+    .glass-phone-msg {
+        background: rgba(255,255,255,.1); padding: 8px 12px;
+        border-radius: 12px; font-size: 11px; color: #e2e8f0;
+        max-width: 80%;
+    }
+    .glass-phone-keyboard {
+        padding: 8px;
+        background: linear-gradient(180deg, #1e293b, #334155);
+        border-top: 1px solid rgba(255,255,255,.08);
+    }
+    .glass-kb-row { display: flex; gap: 4px; margin-bottom: 4px; }
+    .glass-kb-btn {
+        flex: 1; padding: 8px 6px; border: none; border-radius: 8px;
+        background: rgba(255,255,255,.08);
+        backdrop-filter: blur(10px);
+        color: #e2e8f0; font-size: 10px; font-weight: 500;
+        cursor: pointer; transition: all 0.2s;
+        border: 1px solid rgba(255,255,255,.06);
+        font-family: Vazirmatn, Tahoma, sans-serif;
+    }
+    .glass-kb-btn:hover { background: rgba(255,255,255,.15); }
+    .glass-kb-full { flex: 1 1 100%; }
+
+    /* Table */
+    .glass-table-wrapper { overflow-x: auto; }
+    .glass-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .glass-table th { padding: 12px 14px; text-align: right; font-weight: 700; color: #4b5563; background: rgba(0,0,0,.02); border-bottom: 2px solid rgba(0,0,0,.06); white-space: nowrap; }
+    .glass-table td { padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,.04); color: #374151; }
+    .glass-table tbody tr:hover { background: rgba(245,158,11,.03); }
+
+    .glass-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .glass-badge-green { background: rgba(16,185,129,.12); color: #059669; }
+    .glass-badge-blue { background: rgba(59,130,246,.12); color: #1d4ed8; }
+    .glass-badge-purple { background: rgba(139,92,246,.12); color: #6d28d9; }
+    .glass-badge-cyan { background: rgba(6,182,212,.12); color: #0891b2; }
+    .glass-badge-gray { background: rgba(107,114,128,.12); color: #6b7280; }
+
+    .glass-action-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 28px; height: 28px; border-radius: 8px; color: white;
+        text-decoration: none; font-size: 13px; transition: all 0.2s;
+    }
+    .glass-action-btn:hover { transform: scale(1.1); }
+    .glass-action-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .glass-action-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+    .glass-empty-state { text-align: center; padding: 40px 20px; color: #9ca3af; }
+    .glass-empty-state p { margin-top: 12px; font-size: 13px; }
+</style>
+{% endblock %}
