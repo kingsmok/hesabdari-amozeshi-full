@@ -49,8 +49,13 @@ class BotMessage(db.Model):
     is_group_message = db.Column(db.Boolean, default=False)
     sent_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    user = db.relationship('BotUser', backref='messages', lazy='dynamic',
-                           foreign_keys=[chat_id], primaryjoin="BotMessage.chat_id == BotUser.chat_id")
+    user = db.relationship(
+        'BotUser',
+        backref=db.backref('messages', lazy='dynamic'),
+        foreign_keys=[chat_id],
+        primaryjoin="BotMessage.chat_id == BotUser.chat_id",
+        viewonly=True,
+    )
 
 
 class BotKeyboard(db.Model):
