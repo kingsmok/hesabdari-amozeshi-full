@@ -173,7 +173,7 @@ def main():
     print('=' * 55)
     print('  DONE!')
     print('  Run: python app.py')
-    print('  URL: http://localhost:5000')
+    print('  URL: http://localhost:5000  (برای شبکه از آدرس IP سیستم استفاده کنید)')
     print('  User: admin / **رمز حذف شده برای امنیت**')
     print('=' * 55)
     print()

@@ -48,6 +48,23 @@ def perform_backup():
         zf.write(backup_path, backup_name)
     os.remove(backup_path)
     
+    # ══ رمزگذاری اگر فعال باشد ══
+    try:
+        from flask import current_app
+        from models.system import SystemSettings
+        s = SystemSettings.query.first()
+        if s and s.backup_encrypt and s.backup_key:
+            import subprocess, shlex
+            enc_path = zip_path + '.enc'
+            pwd = s.backup_key or 'default123'
+            subprocess.run([
+                'openssl', 'enc', '-aes-256-cbc', '-pbkdf2', '-salt',
+                '-in', zip_path, '-out', enc_path, '-k', pwd
+            ], check=True, capture_output=True)
+            os.replace(enc_path, zip_path)
+    except Exception:
+        pass  # اگر openssl نبود یا خطا، ZIP معمولی باقی می‌ماند
+
     # ══ بررسی سلامت فایل پس از ساخت ══
     try:
         import sqlite3
@@ -941,6 +958,14 @@ def birthday_check():
             )
             db.session.add(msg)
             sent_count += 1
+            # ارسال واقعی پیامک در صورت وجود پنل پیامکی
+            try:
+                from routes.settings_panel import farazsms_config
+                from utils.sms_service import send_sms
+                if msg.phone:
+                    send_sms(msg.phone, msg.message_text)
+            except Exception:
+                pass
     
     db.session.commit()
     flash(f'{sent_count} پیامک تولد ارسال شد', 'success')
@@ -984,3 +1009,18 @@ def toggle_dark_mode():
     resp.set_cookie('dark_mode', new_val, max_age=365*24*60*60)
     
     return resp
+
+# ══ عملیات انبوه (Bulk) ══
+@features_bp.route('/certificates/bulk/<cert_type>')
+@login_required
+def bulk_certificates(cert_type):
+    from flask import render_template
+    if cert_type == 'student':
+        from models.student import Student
+        items = Student.query.filter_by(is_active=True).limit(50).all()
+    elif cert_type == 'teacher':
+        from models.teacher import Teacher
+        items = Teacher.query.filter_by(is_active=True).limit(50).all()
+    else:
+        items = []
+    return render_template('certificates/beautiful_bulk.html', items=items, cert_type=cert_type)
