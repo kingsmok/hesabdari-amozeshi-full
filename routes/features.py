@@ -29,6 +29,33 @@ def _safe_backup_path(backup_dir, name):
     return path
 
 
+def perform_backup():
+    """منطق خالص پشتیبان‌گیری برای استفاده در روت و زمان‌بندی"""
+    from flask import current_app
+    import glob, zipfile
+    from utils.database_tools import sqlite_backup
+    from models.system import SystemSettings
+    
+    backup_dir = current_app.config['BACKUP_FOLDER']
+    os.makedirs(backup_dir, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_name = f'backup_{timestamp}.db'
+    backup_path = os.path.join(backup_dir, backup_name)
+    
+    sqlite_backup(backup_path)
+    zip_path = backup_path + '.zip'
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.write(backup_path, backup_name)
+    os.remove(backup_path)
+    
+    settings = SystemSettings.query.first()
+    max_keep = settings.max_backups if settings else 30
+    backups = sorted(glob.glob(os.path.join(backup_dir, 'backup_*.zip')))
+    while len(backups) > max_keep:
+        os.remove(backups.pop(0))
+    return os.path.basename(zip_path)
+
+
 @features_bp.route('/settings/backup/create', methods=['POST'])
 @login_required
 def create_backup():
@@ -48,26 +75,11 @@ def create_backup():
     backup_path = os.path.join(backup_dir, backup_name)
     
     try:
-        from utils.database_tools import sqlite_backup
-        sqlite_backup(backup_path)
-        
-        # فشرده‌سازی
-        import zipfile
-        zip_path = backup_path + '.zip'
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            zf.write(backup_path, backup_name)
-        os.remove(backup_path)
-        
-        # حذف نسخه‌های قدیمی
-        from models.system import SystemSettings
-        settings = SystemSettings.query.first()
-        max_keep = settings.max_backups if settings else 30
-        
-        backups = sorted(glob.glob(os.path.join(backup_dir, 'backup_*.zip')))
-        while len(backups) > max_keep:
-            os.remove(backups.pop(0))
-        
-        flash(f'پشتیبان‌گیری با موفقیت انجام شد: {backup_name}.zip', 'success')
+        from flask import current_app
+        with current_app.app_context():
+            from routes.features import perform_backup
+            result_name = perform_backup()
+        flash(f'پشتیبان‌گیری با موفقیت انجام شد: {result_name}', 'success')
     except Exception as e:
         flash(f'خطا در پشتیبان‌گیری: {str(e)}', 'error')
     
