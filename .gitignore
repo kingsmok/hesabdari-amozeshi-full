@@ -15,6 +15,10 @@ instance/*.db
 *.sqlite
 *.sqlite3
 
+# Backup files (automatically created by system)
+backups/
+*.backup
+
 # Build / installer artifacts
 *.spec
 build_installer.bat

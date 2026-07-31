@@ -23,7 +23,12 @@
             </div>
         </div>
         <div class="d-flex justify-content-end gap-2 mb-4">
-            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ذخیره</button>
+            <a href="{{ url_for('features.list_backups') }}" class="btn btn-outline-info"><i class="bi bi-list me-1"></i>لیست نسخه‌ها</a>
+            <form method="POST" action="{{ url_for('features.create_backup') }}" style="display:inline;" onsubmit="return confirm('پشتیبان‌گیری جدید ایجاد شود؟')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-success-custom"><i class="bi bi-cloud-arrow-up me-1"></i>پشتیبان‌گیری جدید</button>
+            </form>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ذخیره تنظیمات</button>
         </div>
     </form>
 </div>
