@@ -63,9 +63,13 @@
   </div>
 
   <div class="header-block">
-    <div class="logo-circle">ر</div>
-    <h2>گواهینامه</h2>
-    <div class="subtitle">آموزشگاه رهسا — طراحی شده آموزشگاه رهسا</div>
+    <div class="logo-circle" style="background: linear-gradient(135deg, #0d47a1, #1565c0); border: 3px solid #c5a060;">
+      {% if system_settings and system_settings.logo %}
+        <img src="{{ url_for('static', filename='uploads/'+system_settings.logo) }}" alt="logo" style="width:22mm;height:22mm;object-fit:contain;border-radius:50%;background:#fff;" onerror="this.style.display='none'; this.parentElement.textContent='ر';">
+      {% else %}ر{% endif %}
+    </div>
+    <h2>{{ system_settings.academy_name if system_settings else 'آموزشگاه رهسا' }}</h2>
+    <div class="subtitle">طراحی شده آموزشگاه رهسا — {{ system_settings.manager_name or 'مدیر سیستم' }}</div>
   </div>
 
   <div class="cert-body">
@@ -78,7 +82,7 @@
   </div>
 
   <div class="meta-strip">
-    <div class="meta-item"><div class="meta-label">شماره مدرک</div><div class="meta-val">{{ cert_code or 'CERT-001' }}</div></div>
+    <div class="meta-item"><div class="meta-label">شماره مدرک</div><div class="meta-val">{{ cert_code or ('CERT-' ~ (system_settings.academy_code or '001')) }}</div></div>
     <div class="meta-item"><div class="meta-label">تاریخ صدور</div><div class="meta-val">{{ issue_date or '۱۴۰۵/۰۱/۰۱' }}</div></div>
     <div class="meta-item"><div class="meta-label">کد هنرجو / سیستم</div><div class="meta-val">{{ student_code or '---' }}</div></div>
   </div>
@@ -90,9 +94,9 @@
       <div class="seal-bot">مهر رسمی</div>
     </div>
     <div class="signature-block">
-      <div class="sig-label">امضای مدیر آموزشگاه</div>
+      <div class="sig-label">امضای {{ system_settings.manager_name or 'مدیر آموزشگاه' }}</div>
       <div class="sig-line"></div>
-      <div class="sig-label">{{ manager_name or 'مدیر سیستم' }}</div>
+      <div class="sig-label">{{ system_settings.manager_name or 'مدیر سیستم' }}</div>
     </div>
   </div>
 
@@ -101,7 +105,7 @@
       <div class="qr-box">{% if qr_data %}<img src="data:image/png;base64,{{ qr_data }}" alt="QR">{% else %}<i class="bi bi-qr-code" style="font-size:14mm; color:#bfa15f;"></i>{% endif %}</div>
       <div class="qr-desc">اسکن برای اعتبارسنجی آنلاین — آموزشگاه رهسا</div>
     </div>
-    <p style="margin-top:2mm; font-weight:700; color:#0d47a1;">طراحی شده آموزشگاه رهسا</p>
+    <p style="margin-top:2mm; font-weight:700; color:#0d47a1;">{{ system_settings.academy_name or 'آموزشگاه رهسا' }} — طراحی شده آموزشگاه رهسا</p>
   </div>
 </div>
 
