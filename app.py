@@ -398,20 +398,7 @@ def create_default_data():
         
         db.session.commit()
     
-    # Create default admin user
-    if User.query.filter_by(username='admin').first() is None:
-        admin_role = Role.query.filter_by(is_admin=True).first()
-        admin = User(
-            username='admin',
-            full_name='مدیر سیستم',
-            role_id=admin_role.id if admin_role else 1,
-            is_active=True,
-            is_admin=True
-        )
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
-    
+    # NOTE: Default admin creation removed for security. Use setup wizard (setup.py) to create first admin.
     # Create default system settings
     if SystemSettings.query.count() == 0:
         settings_obj = SystemSettings(

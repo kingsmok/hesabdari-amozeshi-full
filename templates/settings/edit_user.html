@@ -1,40 +1,62 @@
 {% extends "base/layout.html" %}
-{% block title %}ویرایش کاربر{% endblock %}
+{% block title %}پروفایل کاربر{% endblock %}
 {% block breadcrumb %}
-<li><a href="{{ url_for('settings.users') }}">کاربران</a></li>
-<li class="active">ویرایش {{ user.full_name }}</li>
+<li><a href="{{ url_for('dashboard.index') }}">داشبورد</a></li>
+<li class="active">پروفایل کاربر</li>
 {% endblock %}
 
 {% block content %}
 <div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-pencil me-2 text-warning"></i>ویرایش کاربر<small>{{ user.full_name }}</small></h1></div>
-    <form method="POST">
+    <div class="page-header"><h1><i class="bi bi-person-circle me-2 text-info"></i>پروفایل کاربر<small>{{ user.full_name or current_user.full_name }}</small></h1></div>
+    <form method="POST" enctype="multipart/form-data">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="card-custom mb-4">
-            <div class="card-body-custom">
-                <div class="row g-3">
-                    <div class="col-md-3"><label class="form-label">نام کاربری</label><input type="text" class="form-control" value="{{ user.username }}" disabled></div>
-                    <div class="col-md-3"><label class="form-label">رمز جدید (خالی = بدون تغییر)</label><input type="password" name="password" class="form-control"></div>
-                    <div class="col-md-3"><label class="form-label">نام کامل</label><input type="text" name="full_name" class="form-control" value="{{ user.full_name }}" required></div>
-                    <div class="col-md-3"><label class="form-label">نقش</label>
-                        <select name="role_id" class="form-select">
-                            {% for r in roles %}<option value="{{ r.id }}" {{ 'selected' if r.id == user.role_id }}>{{ r.name }}</option>{% endfor %}
-                        </select>
+        <div class="row g-3">
+            <!-- کارت اطلاعات اصلی -->
+            <div class="col-lg-4">
+                <div class="card-custom mb-3 text-center p-4">
+                    <div style="width:100px;height:100px;background:linear-gradient(135deg,#0d47a1,#1565c0);border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;font-weight:800;box-shadow:0 8px 24px rgba(13,71,161,.3);">{{ (user.full_name or current_user.full_name or 'U')[0] }}</div>
+                    <h4 class="mb-1">{{ user.full_name or current_user.full_name or 'کاربر' }}</h4>
+                    <small class="text-muted">{{ user.username or current_user.username }}</small>
+                    <div class="mt-3 d-flex justify-content-center gap-2">
+                        <span class="badge bg-primary">{{ user.role.name if user.role else 'کاربر' }}</span>
+                        {% if user.is_admin %}<span class="badge bg-danger">مدیر کل</span>{% endif %}
                     </div>
-                    <div class="col-md-3"><label class="form-label">ایمیل</label><input type="email" name="email" class="form-control" value="{{ user.email or '' }}"></div>
-                    <div class="col-md-3"><label class="form-label">تلفن</label><input type="text" name="phone" class="form-control" value="{{ user.phone or '' }}"></div>
-                    <div class="col-md-3">
-                        <div class="form-check form-switch mt-4"><input class="form-check-input" type="checkbox" name="is_active" {{ 'checked' if user.is_active }}><label class="form-check-label">فعال</label></div>
+                </div>
+            </div>
+            <div class="col-lg-8">
+                <div class="card-custom mb-3">
+                    <div class="card-header-custom"><h5><i class="bi bi-pencil-square me-2 text-warning"></i>اطلاعات شخصی</h5></div>
+                    <div class="card-body-custom">
+                        <div class="row g-3">
+                            <div class="col-md-6"><label class="form-label">نام کاربری</label><input type="text" class="form-control" value="{{ user.username }}" disabled></div>
+                            <div class="col-md-6"><label class="form-label">نام کامل</label><input type="text" name="full_name" class="form-control" value="{{ user.full_name or '' }}" required></div>
+                            <div class="col-md-6"><label class="form-label">ایمیل</label><input type="email" name="email" class="form-control" value="{{ user.email or '' }}"></div>
+                            <div class="col-md-6"><label class="form-label">تلفن</label><input type="text" name="phone" class="form-control" value="{{ user.phone or '' }}"></div>
+                        </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="form-check form-switch mt-4"><input class="form-check-input" type="checkbox" name="is_admin" {{ 'checked' if user.is_admin }}><label class="form-check-label">مدیر کل</label></div>
+                </div>
+                <div class="card-custom mb-3">
+                    <div class="card-header-custom"><h5><i class="bi bi-shield-lock me-2 text-danger"></i>امنیت</h5></div>
+                    <div class="card-body-custom">
+                        <div class="row g-3">
+                            <div class="col-md-6"><label class="form-label">رمز جدید (خالی = بدون تغییر)</label><input type="password" name="password" class="form-control" placeholder="رمز عبور جدید"></div>
+                            <div class="col-md-6"><label class="form-label">نقش</label>
+                                <select name="role_id" class="form-select">
+                                    {% for r in roles %}<option value="{{ r.id }}" {{ 'selected' if r.id == user.role_id }}>{{ r.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-6"><div class="form-check form-switch mt-2"><input class="form-check-input" type="checkbox" name="is_active" {{ 'checked' if user.is_active }}><label class="form-check-label">فعال</label></div></div>
+                            <div class="col-md-6"><div class="form-check form-switch mt-2"><input class="form-check-input" type="checkbox" name="is_admin" {{ 'checked' if user.is_admin }}><label class="form-check-label">مدیر کل</label></div></div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         <div class="d-flex justify-content-end gap-2 mb-4">
-            <a href="{{ url_for('settings.users') }}" class="btn btn-outline-secondary">انصراف</a>
-            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ذخیره</button>
+            <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">بازگشت</a>
+            <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ذخیره تغییرات</button>
         </div>
     </form>
 </div>
