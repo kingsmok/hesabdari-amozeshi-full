@@ -1,0 +1,12 @@
+{
+  "name": "آموزشگاه رهسا",
+  "short_name": "رهسا",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a1628",
+  "theme_color": "#0d47a1",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/static/images/favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

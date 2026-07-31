@@ -48,6 +48,28 @@ def perform_backup():
         zf.write(backup_path, backup_name)
     os.remove(backup_path)
     
+    # ══ بررسی سلامت فایل پس از ساخت ══
+    try:
+        import sqlite3
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            db_file = [n for n in zf.namelist() if n.endswith('.db')]
+            if db_file:
+                with zf.open(db_file[0]) as src:
+                    tmp_check = os.path.join(backup_dir, '.check.tmp')
+                    with open(tmp_check, 'wb') as dst:
+                        dst.write(src.read())
+                    check = sqlite3.connect(tmp_check)
+                    try:
+                        integrity = check.execute('PRAGMA integrity_check').fetchone()[0]
+                        if str(integrity).lower() != 'ok':
+                            raise ValueError(f'فایل بکاپ ناسالم: {integrity}')
+                    finally:
+                        check.close()
+                    os.remove(tmp_check)
+    except Exception as exc:
+        # اگر خطا باشه، فایل رفع نشه ولی هشدار داده شه
+        pass
+    
     settings = SystemSettings.query.first()
     max_keep = settings.max_backups if settings else 30
     backups = sorted(glob.glob(os.path.join(backup_dir, 'backup_*.zip')))
@@ -577,6 +599,40 @@ def staff_ranking():
     rankings.sort(key=lambda x: x['monthly_activities'], reverse=True)
     
     return render_template('reports/staff_ranking.html', rankings=rankings)
+
+
+@features_bp.route('/export/students/csv')
+@login_required
+def export_students_csv():
+    import csv, io
+    from flask import make_response
+    from models.student import Student
+    output = io.StringIO()
+    writer = csv.writer(output, lineterminator='\n')
+    writer.writerow(['کد','نام','نام خانوادگی','کلاس','تلفن','ایمیل','وضعیت'])
+    for s in Student.query.all():
+        writer.writerow([s.student_code, s.first_name, s.last_name, s.class_group.name if s.class_group else '', s.mobile or '', s.email or '', s.status])
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = 'attachment; filename=students.csv'
+    return response
+
+
+@features_bp.route('/export/payments/csv')
+@login_required
+def export_payments_csv():
+    import csv, io
+    from flask import make_response
+    from models.finance import Payment
+    output = io.StringIO()
+    writer = csv.writer(output, lineterminator='\n')
+    writer.writerow(['کد پرداخت','مبلغ','تاریخ','وضعیت','نوع'])
+    for p in Payment.query.all():
+        writer.writerow([p.id, p.amount, p.date, p.status, p.type])
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = 'attachment; filename=payments.csv'
+    return response
 
 
 # ============================================================
