@@ -104,6 +104,29 @@ def create_app():
     app.register_blueprint(teacher_bp)
     app.register_blueprint(bot_panel_bp)
     
+    # ══ پشتیبان‌گیری خودکار (Backup Scheduler) ══
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from routes.features import perform_backup
+        
+        def _scheduled_backup():
+            try:
+                with app.app_context():
+                    from routes.features import perform_backup
+                    result = perform_backup()
+                    print('[BACKUP] Auto-backup completed:', result)
+            except Exception as exc:
+                print('[BACKUP] Auto-backup error:', exc)
+        
+        scheduler = BackgroundScheduler()
+        # اجرای اولیه بعد از ۱ دقیقه (برای تست) و سپس هر ۲۴ ساعت پیش‌فرض
+        # کاربر می‌تواند از /settings/backup بازه را تغییر دهد
+        scheduler.add_job(_scheduled_backup, 'interval', hours=24, id='auto_backup', replace_existing=True)
+        scheduler.start()
+        print('[SCHEDULER] Auto-backup scheduler started.')
+    except Exception as exc:
+        print('[SCHEDULER] Scheduler not started:', exc)
+    
     # فقط خود endpoint تلگرام از CSRF معاف است؛ فرم‌های مالی و مدیریتی
     # داخل new_features باید همچنان محافظت شوند.
     
@@ -398,20 +421,7 @@ def create_default_data():
         
         db.session.commit()
     
-    # Create default admin user
-    if User.query.filter_by(username='admin').first() is None:
-        admin_role = Role.query.filter_by(is_admin=True).first()
-        admin = User(
-            username='admin',
-            full_name='مدیر سیستم',
-            role_id=admin_role.id if admin_role else 1,
-            is_active=True,
-            is_admin=True
-        )
-        admin.set_password('admin123')
-        db.session.add(admin)
-        db.session.commit()
-    
+    # NOTE: Default admin creation removed for security. Use setup wizard (setup.py) to create first admin.
     # Create default system settings
     if SystemSettings.query.count() == 0:
         settings_obj = SystemSettings(

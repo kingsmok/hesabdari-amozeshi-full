@@ -3,7 +3,7 @@
 اجرا: python app_desktop.py
 نسخه نصب‌کننده: AcademyManager.exe
 """
-import sys, os, threading, time, socket, json
+import sys, os, threading, time, socket, json, platform
 
 # ═══ مسیر اصلی برنامه — سازگار با PyInstaller ═══
 if getattr(sys, 'frozen', False):
@@ -97,7 +97,7 @@ else:
 
 print(f"  آدرس محلی: http://localhost:{PORT}")
 print(f"  آدرس شبکه: http://{get_local_ip()}:{PORT}")
-print(f"  نام کاربری: admin / admin123")
+print(f"  نام کاربری: admin / **رمز حذف شده برای امنیت**")
 print("=" * 60)
 
 server_ready = threading.Event()
@@ -409,7 +409,9 @@ class MainWindow(QMainWindow):
 
     def _loaded(self, ok):
         if ok:
-            self.status.showMessage("آماده")
+            ip = get_local_ip()
+            specs = f"{platform.system()} {platform.release()} | {platform.machine()}"
+            self.status.showMessage(f"آماده | IP: {ip} | {specs}")
         else:
             self.status.showMessage("خطا — تلاش مجدد...")
             QTimer.singleShot(3000, self.web.reload)

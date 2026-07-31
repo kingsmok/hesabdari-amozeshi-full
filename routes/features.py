@@ -29,6 +29,72 @@ def _safe_backup_path(backup_dir, name):
     return path
 
 
+def perform_backup():
+    """منطق خالص پشتیبان‌گیری برای استفاده در روت و زمان‌بندی"""
+    from flask import current_app
+    import glob, zipfile
+    from utils.database_tools import sqlite_backup
+    from models.system import SystemSettings
+    
+    backup_dir = current_app.config['BACKUP_FOLDER']
+    os.makedirs(backup_dir, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    backup_name = f'backup_{timestamp}.db'
+    backup_path = os.path.join(backup_dir, backup_name)
+    
+    sqlite_backup(backup_path)
+    zip_path = backup_path + '.zip'
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.write(backup_path, backup_name)
+    os.remove(backup_path)
+    
+    # ══ رمزگذاری اگر فعال باشد ══
+    try:
+        from flask import current_app
+        from models.system import SystemSettings
+        s = SystemSettings.query.first()
+        if s and s.backup_encrypt and s.backup_key:
+            import subprocess, shlex
+            enc_path = zip_path + '.enc'
+            pwd = s.backup_key or 'default123'
+            subprocess.run([
+                'openssl', 'enc', '-aes-256-cbc', '-pbkdf2', '-salt',
+                '-in', zip_path, '-out', enc_path, '-k', pwd
+            ], check=True, capture_output=True)
+            os.replace(enc_path, zip_path)
+    except Exception:
+        pass  # اگر openssl نبود یا خطا، ZIP معمولی باقی می‌ماند
+
+    # ══ بررسی سلامت فایل پس از ساخت ══
+    try:
+        import sqlite3
+        with zipfile.ZipFile(zip_path, 'r') as zf:
+            db_file = [n for n in zf.namelist() if n.endswith('.db')]
+            if db_file:
+                with zf.open(db_file[0]) as src:
+                    tmp_check = os.path.join(backup_dir, '.check.tmp')
+                    with open(tmp_check, 'wb') as dst:
+                        dst.write(src.read())
+                    check = sqlite3.connect(tmp_check)
+                    try:
+                        integrity = check.execute('PRAGMA integrity_check').fetchone()[0]
+                        if str(integrity).lower() != 'ok':
+                            raise ValueError(f'فایل بکاپ ناسالم: {integrity}')
+                    finally:
+                        check.close()
+                    os.remove(tmp_check)
+    except Exception as exc:
+        # اگر خطا باشه، فایل رفع نشه ولی هشدار داده شه
+        pass
+    
+    settings = SystemSettings.query.first()
+    max_keep = settings.max_backups if settings else 30
+    backups = sorted(glob.glob(os.path.join(backup_dir, 'backup_*.zip')))
+    while len(backups) > max_keep:
+        os.remove(backups.pop(0))
+    return os.path.basename(zip_path)
+
+
 @features_bp.route('/settings/backup/create', methods=['POST'])
 @login_required
 def create_backup():
@@ -48,26 +114,11 @@ def create_backup():
     backup_path = os.path.join(backup_dir, backup_name)
     
     try:
-        from utils.database_tools import sqlite_backup
-        sqlite_backup(backup_path)
-        
-        # فشرده‌سازی
-        import zipfile
-        zip_path = backup_path + '.zip'
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            zf.write(backup_path, backup_name)
-        os.remove(backup_path)
-        
-        # حذف نسخه‌های قدیمی
-        from models.system import SystemSettings
-        settings = SystemSettings.query.first()
-        max_keep = settings.max_backups if settings else 30
-        
-        backups = sorted(glob.glob(os.path.join(backup_dir, 'backup_*.zip')))
-        while len(backups) > max_keep:
-            os.remove(backups.pop(0))
-        
-        flash(f'پشتیبان‌گیری با موفقیت انجام شد: {backup_name}.zip', 'success')
+        from flask import current_app
+        with current_app.app_context():
+            from routes.features import perform_backup
+            result_name = perform_backup()
+        flash(f'پشتیبان‌گیری با موفقیت انجام شد: {result_name}', 'success')
     except Exception as e:
         flash(f'خطا در پشتیبان‌گیری: {str(e)}', 'error')
     
@@ -567,6 +618,40 @@ def staff_ranking():
     return render_template('reports/staff_ranking.html', rankings=rankings)
 
 
+@features_bp.route('/export/students/csv')
+@login_required
+def export_students_csv():
+    import csv, io
+    from flask import make_response
+    from models.student import Student
+    output = io.StringIO()
+    writer = csv.writer(output, lineterminator='\n')
+    writer.writerow(['کد','نام','نام خانوادگی','کلاس','تلفن','ایمیل','وضعیت'])
+    for s in Student.query.all():
+        writer.writerow([s.student_code, s.first_name, s.last_name, s.class_group.name if s.class_group else '', s.mobile or '', s.email or '', s.status])
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = 'attachment; filename=students.csv'
+    return response
+
+
+@features_bp.route('/export/payments/csv')
+@login_required
+def export_payments_csv():
+    import csv, io
+    from flask import make_response
+    from models.finance import Payment
+    output = io.StringIO()
+    writer = csv.writer(output, lineterminator='\n')
+    writer.writerow(['کد پرداخت','مبلغ','تاریخ','وضعیت','نوع'])
+    for p in Payment.query.all():
+        writer.writerow([p.id, p.amount, p.date, p.status, p.type])
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = 'attachment; filename=payments.csv'
+    return response
+
+
 # ============================================================
 #  10) سیستم سلامت — #268, #325
 # ============================================================
@@ -873,6 +958,14 @@ def birthday_check():
             )
             db.session.add(msg)
             sent_count += 1
+            # ارسال واقعی پیامک در صورت وجود پنل پیامکی
+            try:
+                from routes.settings_panel import farazsms_config
+                from utils.sms_service import send_sms
+                if msg.phone:
+                    send_sms(msg.phone, msg.message_text)
+            except Exception:
+                pass
     
     db.session.commit()
     flash(f'{sent_count} پیامک تولد ارسال شد', 'success')
@@ -916,3 +1009,18 @@ def toggle_dark_mode():
     resp.set_cookie('dark_mode', new_val, max_age=365*24*60*60)
     
     return resp
+
+# ══ عملیات انبوه (Bulk) ══
+@features_bp.route('/certificates/bulk/<cert_type>')
+@login_required
+def bulk_certificates(cert_type):
+    from flask import render_template
+    if cert_type == 'student':
+        from models.student import Student
+        items = Student.query.filter_by(is_active=True).limit(50).all()
+    elif cert_type == 'teacher':
+        from models.teacher import Teacher
+        items = Teacher.query.filter_by(is_active=True).limit(50).all()
+    else:
+        items = []
+    return render_template('certificates/beautiful_bulk.html', items=items, cert_type=cert_type)

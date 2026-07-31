@@ -214,6 +214,50 @@ def pdf(id):
     )
 
 
+@certificates_bp.route('/beautiful/<cert_type>/<int:id>')
+@login_required
+def beautiful_certificate(cert_type, id):
+    from models.student import Student
+    from models.teacher import Teacher
+    from models.certificate import Certificate
+    import qrcode, io, base64
+    
+    if cert_type == 'student':
+        obj = Student.query.get_or_404(id)
+        name = obj.full_name
+        code = obj.student_code or '---'
+        course = obj.course.title if obj.course else 'دوره آموزشگاه رهسا'
+        cert_code = f'CERT-S-{id:05d}'
+    elif cert_type == 'teacher':
+        obj = Teacher.query.get_or_404(id)
+        name = obj.full_name
+        code = obj.teacher_code or '---'
+        course = 'دوره آموزشی و تدریس'
+        cert_code = f'CERT-T-{id:05d}'
+    else:
+        # system / default
+        obj = None
+        name = 'سیستم مدیریت آموزشگاه رهسا'
+        code = f'SYS-{id}'
+        course = 'گواهینامه عملکرد و اعتبارسنجی سیستم'
+        cert_code = f'CERT-X-{id:05d}'
+    
+    # Generate QR
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(f'{cert_type}:{id}:{cert_code}')
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#0d47a1", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    qr_data = base64.b64encode(buf.getvalue()).decode()
+    
+    return render_template('certificates/beautiful.html',
+                           name=name, student_code=code, course_title=course,
+                           cert_code=cert_code, issue_date='۱۴۰۵/۰۱/۰۱',
+                           manager_name='مدیر آموزشگاه رهسا', qr_data=qr_data)
+
+
 @certificates_bp.route('/<int:id>/cancel', methods=['POST'])
 @login_required
 def cancel(id):
