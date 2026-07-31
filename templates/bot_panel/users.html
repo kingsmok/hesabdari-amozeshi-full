@@ -1,0 +1,308 @@
+{% extends "base/layout.html" %}
+{% block title %}کاربران ربات{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>
+<li class="active">کاربران</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1>
+            <i class="bi bi-people-fill" style="color: #3b82f6;"></i>
+            کاربران ربات
+            <small>مدیریت کاربران ثبت‌نام شده در ربات تلگرام و بله</small>
+        </h1>
+    </div>
+
+    <!-- فیلتر شیشه‌ای -->
+    <div class="glass-panel mb-4">
+        <div class="glass-panel-body">
+            <form method="GET" class="row g-2 align-items-end">
+                <div class="col-md-4">
+                    <label class="glass-label">جستجو</label>
+                    <input type="text" name="search" class="glass-input" value="{{ search }}"
+                           placeholder="نام، شماره، chat_id...">
+                </div>
+                <div class="col-md-2">
+                    <label class="glass-label">پلتفرم</label>
+                    <select name="provider" class="glass-input">
+                        <option value="">همه</option>
+                        <option value="bale" {{ 'selected' if provider == 'bale' }}>بله</option>
+                        <option value="telegram" {{ 'selected' if provider == 'telegram' }}>تلگرام</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="glass-label">وضعیت تأیید</label>
+                    <select name="verified" class="glass-input">
+                        <option value="">همه</option>
+                        <option value="1" {{ 'selected' if verified == '1' }}>تأیید شده</option>
+                        <option value="0" {{ 'selected' if verified == '0' }}>تأیید نشده</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="glass-label">بلاک</label>
+                    <select name="blocked" class="glass-input">
+                        <option value="">همه</option>
+                        <option value="1" {{ 'selected' if blocked == '1' }}>بلاک شده</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="glass-btn glass-btn-blue" style="width:100%">
+                        <i class="bi bi-search"></i>
+                        <span>فیلتر</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- جدول کاربران -->
+    <div class="glass-panel">
+        <div class="glass-panel-head">
+            <i class="bi bi-list-ul"></i>
+            <span>لیست کاربران ({{ users.total }} نفر)</span>
+        </div>
+        <div class="glass-panel-body" style="padding: 0;">
+            {% if users.items %}
+            <div class="glass-table-wrapper">
+                <table class="glass-table">
+                    <thead>
+                        <tr>
+                            <th>ردیف</th>
+                            <th>نام</th>
+                            <th>شماره تلفن</th>
+                            <th>Chat ID</th>
+                            <th>پلتفرم</th>
+                            <th>وضعیت</th>
+                            <th>تاریخ عضویت</th>
+                            <th>عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in users.items %}
+                        <tr>
+                            <td>{{ (users.page - 1) * users.per_page + loop.index }}</td>
+                            <td>
+                                <strong>{{ u.full_name }}</strong>
+                                {% if u.username %}<br><small style="color:#9ca3af;">@{{ u.username }}</small>{% endif %}
+                            </td>
+                            <td>
+                                {% if u.phone %}
+                                <span class="glass-badge glass-badge-green">{{ u.phone }}</span>
+                                {% else %}
+                                <span class="glass-badge glass-badge-gray">ثبت نشده</span>
+                                {% endif %}
+                            </td>
+                            <td><code>{{ u.chat_id }}</code></td>
+                            <td>
+                                <span class="glass-badge {{ 'glass-badge-blue' if u.provider == 'bale' else 'glass-badge-purple' }}">
+                                    {{ 'بله' if u.provider == 'bale' else 'تلگرام' }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if u.is_blocked %}
+                                <span class="glass-badge glass-badge-red">بلاک</span>
+                                {% elif u.is_verified %}
+                                <span class="glass-badge glass-badge-green">تأیید شده</span>
+                                {% elif u.student_id %}
+                                <span class="glass-badge glass-badge-cyan">متصل به هنرجو</span>
+                                {% else %}
+                                <span class="glass-badge glass-badge-yellow">در انتظار</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ u.joined_at.strftime('%Y/%m/%d') if u.joined_at else '-' }}</td>
+                            <td>
+                                <a href="{{ url_for('bot_panel.user_detail', id=u.id) }}"
+                                   class="glass-action-btn glass-action-blue" title="جزئیات">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if users.pages > 1 %}
+            <div style="padding: 16px 20px; border-top: 1px solid rgba(0,0,0,0.05);">
+                <div class="glass-pagination">
+                    {% if users.has_prev %}
+                    <a href="{{ url_for('bot_panel.users', page=users.prev_num, search=search, provider=provider, verified=verified, blocked=blocked) }}"
+                       class="glass-page-link">«</a>
+                    {% endif %}
+                    {% for p in users.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if p %}
+                    <a href="{{ url_for('bot_panel.users', page=p, search=search, provider=provider, verified=verified, blocked=blocked) }}"
+                       class="glass-page-link {{ 'active' if p == users.page }}">{{ p }}</a>
+                    {% else %}
+                    <span class="glass-page-dots">…</span>
+                    {% endif %}
+                    {% endfor %}
+                    {% if users.has_next %}
+                    <a href="{{ url_for('bot_panel.users', page=users.next_num, search=search, provider=provider, verified=verified, blocked=blocked) }}"
+                       class="glass-page-link">»</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="glass-empty-state">
+                <i class="bi bi-people" style="font-size: 48px; opacity: 0.3;"></i>
+                <p>هنوز کاربری در ربات ثبت‌نام نکرده</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Reuse dashboard glass styles */
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.65);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    }
+    .glass-panel-head {
+        padding: 16px 20px;
+        font-weight: 700;
+        font-size: 14px;
+        color: #1a1a2e;
+        background: rgba(255, 255, 255, 0.5);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .glass-panel-body { padding: 20px; }
+    .glass-label { display: block; font-size: 12px; font-weight: 600; color: #4b5563; margin-bottom: 6px; }
+    .glass-input {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        font-size: 13px;
+        font-family: Vazirmatn, Tahoma, sans-serif;
+        color: #1a1a2e;
+    }
+    .glass-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); background: white; }
+    .glass-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: white;
+        border: 1px solid rgba(255,255,255,.2);
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .glass-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.15); color: white; }
+    .glass-btn-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+
+    /* Table */
+    .glass-table-wrapper { overflow-x: auto; }
+    .glass-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    .glass-table th {
+        padding: 12px 14px;
+        text-align: right;
+        font-weight: 700;
+        color: #4b5563;
+        background: rgba(0, 0, 0, 0.02);
+        border-bottom: 2px solid rgba(0, 0, 0, 0.06);
+        white-space: nowrap;
+    }
+    .glass-table td {
+        padding: 10px 14px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+        color: #374151;
+    }
+    .glass-table tbody tr:hover {
+        background: rgba(59, 130, 246, 0.03);
+    }
+
+    /* Badges */
+    .glass-badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+    }
+    .glass-badge-green { background: rgba(16,185,129,.12); color: #059669; }
+    .glass-badge-blue { background: rgba(59,130,246,.12); color: #1d4ed8; }
+    .glass-badge-purple { background: rgba(139,92,246,.12); color: #6d28d9; }
+    .glass-badge-red { background: rgba(239,68,68,.12); color: #dc2626; }
+    .glass-badge-yellow { background: rgba(245,158,11,.12); color: #d97706; }
+    .glass-badge-cyan { background: rgba(6,182,212,.12); color: #0891b2; }
+    .glass-badge-gray { background: rgba(107,114,128,.12); color: #6b7280; }
+
+    /* Action buttons */
+    .glass-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        color: white;
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    .glass-action-btn:hover { transform: scale(1.1); }
+    .glass-action-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .glass-action-green { background: linear-gradient(135deg, #10b981, #059669); }
+    .glass-action-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+    /* Pagination */
+    .glass-pagination {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+        align-items: center;
+    }
+    .glass-page-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(255,255,255,.8);
+        border: 1px solid rgba(0,0,0,.1);
+        color: #374151;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.2s;
+    }
+    .glass-page-link:hover, .glass-page-link.active {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        border-color: transparent;
+    }
+    .glass-page-dots { color: #9ca3af; padding: 0 4px; }
+
+    /* Empty state */
+    .glass-empty-state { text-align: center; padding: 40px 20px; color: #9ca3af; }
+    .glass-empty-state p { margin-top: 12px; font-size: 13px; }
+</style>
+{% endblock %}

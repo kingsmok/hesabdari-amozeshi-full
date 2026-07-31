@@ -1,0 +1,120 @@
+{% extends "base/layout.html" %}
+{% block title %}تاریخچه پیام گروهی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>
+<li class="active">تاریخچه ارسال</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1>
+            <i class="bi bi-clock-history" style="color: #ec4899;"></i>
+            تاریخچه پیام‌های گروهی
+            <small>گزارش تمام ارسال‌های گروهی</small>
+        </h1>
+    </div>
+
+    <div class="glass-panel">
+        <div class="glass-panel-head">
+            <i class="bi bi-list-ul"></i>
+            <span>لیست ارسال‌ها</span>
+        </div>
+        <div class="glass-panel-body" style="padding: 0;">
+            {% if broadcasts.items %}
+            <div class="glass-table-wrapper">
+                <table class="glass-table">
+                    <thead>
+                        <tr>
+                            <th>عنوان</th>
+                            <th>مخاطبین</th>
+                            <th>موفق</th>
+                            <th>ناموفق</th>
+                            <th>وضعیت</th>
+                            <th>تاریخ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bc in broadcasts.items %}
+                        <tr>
+                            <td>
+                                <strong>{{ bc.title or 'بدون عنوان' }}</strong>
+                                <br><small style="color:#9ca3af;">{{ bc.message_text[:60] }}...</small>
+                            </td>
+                            <td>{{ bc.total_recipients }}</td>
+                            <td>
+                                <span class="glass-badge glass-badge-green">{{ bc.sent_count }}</span>
+                            </td>
+                            <td>
+                                <span class="glass-badge glass-badge-red">{{ bc.failed_count }}</span>
+                            </td>
+                            <td>
+                                {% if bc.status == 'completed' %}
+                                <span class="glass-badge glass-badge-green">تکمیل شده</span>
+                                {% elif bc.status == 'sending' %}
+                                <span class="glass-badge glass-badge-yellow">در حال ارسال</span>
+                                {% else %}
+                                <span class="glass-badge glass-badge-gray">{{ bc.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ bc.created_at.strftime('%Y/%m/%d %H:%M') if bc.created_at else '-' }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if broadcasts.pages > 1 %}
+            <div style="padding: 16px 20px; border-top: 1px solid rgba(0,0,0,.05);">
+                <div class="glass-pagination">
+                    {% if broadcasts.has_prev %}
+                    <a href="{{ url_for('bot_panel.broadcast_history', page=broadcasts.prev_num) }}" class="glass-page-link">«</a>
+                    {% endif %}
+                    {% for p in broadcasts.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if p %}
+                    <a href="{{ url_for('bot_panel.broadcast_history', page=p) }}" class="glass-page-link {{ 'active' if p == broadcasts.page }}">{{ p }}</a>
+                    {% else %}
+                    <span class="glass-page-dots">…</span>
+                    {% endif %}
+                    {% endfor %}
+                    {% if broadcasts.has_next %}
+                    <a href="{{ url_for('bot_panel.broadcast_history', page=broadcasts.next_num) }}" class="glass-page-link">»</a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="glass-empty-state">
+                <i class="bi bi-inbox" style="font-size: 48px; opacity: 0.3;"></i>
+                <p>هنوز پیام گروهی ارسال نشده</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-panel { background: rgba(255,255,255,.65); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,.3); border-radius: 20px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.08); }
+    .glass-panel-head { padding: 16px 20px; font-weight: 700; font-size: 14px; color: #1a1a2e; background: rgba(255,255,255,.5); border-bottom: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 8px; }
+    .glass-panel-body { padding: 20px; }
+    .glass-table-wrapper { overflow-x: auto; }
+    .glass-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .glass-table th { padding: 12px 14px; text-align: right; font-weight: 700; color: #4b5563; background: rgba(0,0,0,.02); border-bottom: 2px solid rgba(0,0,0,.06); white-space: nowrap; }
+    .glass-table td { padding: 10px 14px; border-bottom: 1px solid rgba(0,0,0,.04); color: #374151; }
+    .glass-table tbody tr:hover { background: rgba(236,72,153,.03); }
+    .glass-badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+    .glass-badge-green { background: rgba(16,185,129,.12); color: #059669; }
+    .glass-badge-red { background: rgba(239,68,68,.12); color: #dc2626; }
+    .glass-badge-yellow { background: rgba(245,158,11,.12); color: #d97706; }
+    .glass-badge-gray { background: rgba(107,114,128,.12); color: #6b7280; }
+    .glass-pagination { display: flex; gap: 6px; justify-content: center; }
+    .glass-page-link { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,.8); border: 1px solid rgba(0,0,0,.1); color: #374151; text-decoration: none; font-size: 12px; font-weight: 600; transition: all 0.2s; }
+    .glass-page-link:hover, .glass-page-link.active { background: linear-gradient(135deg, #ec4899, #be185d); color: white; border-color: transparent; }
+    .glass-page-dots { color: #9ca3af; padding: 0 4px; }
+    .glass-empty-state { text-align: center; padding: 40px 20px; color: #9ca3af; }
+    .glass-empty-state p { margin-top: 12px; font-size: 13px; }
+</style>
+{% endblock %}

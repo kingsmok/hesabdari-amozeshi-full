@@ -1,0 +1,193 @@
+{% extends "base/layout.html" %}
+{% block title %}ارسال پیام گروهی{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>
+<li class="active">ارسال پیام گروهی</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1>
+            <i class="bi bi-megaphone-fill" style="color: #10b981;"></i>
+            ارسال پیام گروهی
+            <small>ارسال پیام به تمام کاربران ربات تلگرام و بله</small>
+        </h1>
+    </div>
+
+    <div class="row g-3">
+        <!-- آمار مخاطبین -->
+        <div class="col-md-4">
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-people"></i>
+                    <span>آمار مخاطبین</span>
+                </div>
+                <div class="glass-panel-body">
+                    <div class="glass-stat-list">
+                        <div class="glass-stat-item">
+                            <div class="glass-stat-icon" style="background: linear-gradient(135deg, #3b82f6, #1d4ed8);">
+                                <i class="bi bi-people-fill"></i>
+                            </div>
+                            <div>
+                                <span class="glass-stat-value">{{ total }}</span>
+                                <span class="glass-stat-label">کل کاربران فعال</span>
+                            </div>
+                        </div>
+                        <div class="glass-stat-item">
+                            <div class="glass-stat-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                                <i class="bi bi-patch-check-fill"></i>
+                            </div>
+                            <div>
+                                <span class="glass-stat-value">{{ verified }}</span>
+                                <span class="glass-stat-label">کاربران تأیید شده</span>
+                            </div>
+                        </div>
+                        <div class="glass-stat-item">
+                            <div class="glass-stat-icon" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+                                <i class="bi bi-mortarboard-fill"></i>
+                            </div>
+                            <div>
+                                <span class="glass-stat-value">{{ students }}</span>
+                                <span class="glass-stat-label">هنرجویان متصل</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- فرم ارسال -->
+        <div class="col-md-8">
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-send"></i>
+                    <span>ارسال پیام جدید</span>
+                </div>
+                <div class="glass-panel-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label class="glass-label">عنوان پیام (اختیاری)</label>
+                            <input type="text" name="title" class="glass-input" placeholder="مثال: اطلاعیه تعطیلی">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="glass-label">مخاطبین هدف</label>
+                            <select name="target_type" class="glass-input">
+                                <option value="all">👥 همه کاربران فعال ({{ total }} نفر)</option>
+                                <option value="verified">✅ فقط کاربران تأیید شده ({{ verified }} نفر)</option>
+                                <option value="students">🎓 فقط هنرجویان متصل ({{ students }} نفر)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="glass-label">پلتفرم</label>
+                            <select name="provider" class="glass-input">
+                                <option value="both">📱 هر دو (بله + تلگرام)</option>
+                                <option value="bale">💬 فقط بله</option>
+                                <option value="telegram">✈️ فقط تلگرام</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="glass-label">متن پیام <span class="text-danger">*</span></label>
+                            <textarea name="message_text" class="glass-input" rows="8" required
+                                      placeholder="متن پیام خود را اینجا بنویسید..."></textarea>
+                            <div class="glass-char-count" id="charCount">0 کاراکتر</div>
+                        </div>
+
+                        <div class="glass-warning-box">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <span>پیام به تمام کاربران هدف ارسال خواهد شد. این عمل قابل بازگشت نیست.</span>
+                        </div>
+
+                        <button type="submit" class="glass-btn glass-btn-green" style="width:100%; margin-top: 16px;"
+                                onclick="return confirm('آیا مطمئن هستید که می‌خواهید این پیام را به همه مخاطبین ارسال کنید؟')">
+                            <i class="bi bi-send-fill"></i>
+                            <span>ارسال پیام گروهی</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-panel {
+        background: rgba(255,255,255,.65);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,.3);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0,0,0,.08);
+    }
+    .glass-panel-head { padding: 16px 20px; font-weight: 700; font-size: 14px; color: #1a1a2e; background: rgba(255,255,255,.5); border-bottom: 1px solid rgba(0,0,0,.05); display: flex; align-items: center; gap: 8px; }
+    .glass-panel-body { padding: 20px; }
+    .glass-label { display: block; font-size: 12px; font-weight: 600; color: #4b5563; margin-bottom: 6px; }
+    .glass-input {
+        width: 100%; padding: 10px 14px; border: 1px solid rgba(0,0,0,.1); border-radius: 10px;
+        background: rgba(255,255,255,.8); font-size: 13px; font-family: Vazirmatn,Tahoma,sans-serif; color: #1a1a2e;
+    }
+    .glass-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.15); background: white; }
+    textarea.glass-input { resize: vertical; min-height: 120px; line-height: 1.8; }
+    select.glass-input { cursor: pointer; }
+
+    .glass-btn {
+        display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+        padding: 12px 16px; border-radius: 14px; text-decoration: none;
+        font-size: 13px; font-weight: 600; color: white; border: 1px solid rgba(255,255,255,.2);
+        cursor: pointer; transition: all 0.3s; font-family: Vazirmatn,Tahoma,sans-serif;
+    }
+    .glass-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.15); color: white; }
+    .glass-btn-green { background: linear-gradient(135deg, #10b981, #059669); }
+
+    /* Stats */
+    .glass-stat-list { display: flex; flex-direction: column; gap: 14px; }
+    .glass-stat-item {
+        display: flex; align-items: center; gap: 14px;
+        padding: 14px; border-radius: 14px;
+        background: rgba(255,255,255,.5);
+        border: 1px solid rgba(0,0,0,.04);
+        transition: all 0.2s;
+    }
+    .glass-stat-item:hover { transform: translateX(-4px); background: rgba(255,255,255,.8); }
+    .glass-stat-icon {
+        width: 44px; height: 44px; border-radius: 12px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px; color: white; flex-shrink: 0;
+    }
+    .glass-stat-value { display: block; font-size: 20px; font-weight: 800; color: #1a1a2e; }
+    .glass-stat-label { display: block; font-size: 11px; color: #6b7280; }
+
+    /* Warning box */
+    .glass-warning-box {
+        display: flex; align-items: center; gap: 10px;
+        padding: 12px 16px; border-radius: 10px;
+        background: rgba(245,158,11,.08);
+        border: 1px solid rgba(245,158,11,.15);
+        font-size: 12px; color: #92400e;
+    }
+    .glass-warning-box i { font-size: 16px; color: #f59e0b; }
+
+    /* Char counter */
+    .glass-char-count {
+        font-size: 11px; color: #9ca3af; margin-top: 4px; text-align: left;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const textarea = document.querySelector('textarea[name="message_text"]');
+    const counter = document.getElementById('charCount');
+    if (textarea && counter) {
+        textarea.addEventListener('input', function() {
+            counter.textContent = this.value.length + ' کاراکتر';
+        });
+    }
+});
+</script>
+{% endblock %}

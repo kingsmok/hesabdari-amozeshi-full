@@ -157,6 +157,9 @@
         <a href="{{ url_for('analytics.smart_dashboard') }}" class="nav-link-item">
             <i class="bi bi-robot"></i> داشبورد هوشمند
         </a>
+        <a href="{{ url_for('bot_panel.dashboard') }}" class="nav-link-item" style="background: rgba(124,58,237,.1); border: 1px solid rgba(124,58,237,.2);">
+            <i class="bi bi-robot" style="color: #7c3aed;"></i> پنل ربات
+        </a>
         <a href="{{ url_for('certificates.index') }}" class="nav-link-item">
             <i class="bi bi-award"></i> گواهینامه‌ها
         </a>
@@ -193,6 +196,7 @@
             <a href="{{ url_for('settings_panel.telegram_config') }}" class="nav-link-item"><i class="bi bi-telegram"></i> تلگرام</a>
             <a href="{{ url_for('settings_panel.bale_config') }}" class="nav-link-item"><i class="bi bi-chat-dots"></i> بله (بدون وب‌هوک)</a>
             <a href="{{ url_for('settings_panel.farazsms_config') }}" class="nav-link-item"><i class="bi bi-phone"></i> پنل پیامکی</a>
+            <a href="{{ url_for('bot_panel.dashboard') }}" class="nav-link-item"><i class="bi bi-grid-3x3-gap"></i> پنل کاربری ربات</a>
         </div>
         {% endif %}
     </nav>

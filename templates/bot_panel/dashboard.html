@@ -1,0 +1,415 @@
+{% extends "base/layout.html" %}
+{% block title %}پنل مدیریت ربات{% endblock %}
+{% block breadcrumb %}
+<li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>
+<li class="active">داشبورد</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1>
+            <i class="bi bi-robot" style="color: #7c3aed;"></i>
+            پنل مدیریت ربات
+            <small>مدیریت کاربران، پیام‌ها و تنظیمات ربات تلگرام و بله</small>
+        </h1>
+        {% if bale_status.running %}
+        <span class="badge-status badge-active"><i class="bi bi-broadcast me-1"></i> بله فعال</span>
+        {% elif settings and settings.bale_bot_token %}
+        <span class="badge-status badge-pending"><i class="bi bi-pause-circle me-1"></i> بله متوقف</span>
+        {% endif %}
+    </div>
+
+    <!-- آمار کاربران — کارت‌های شیشه‌ای -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-card glass-blue">
+                <div class="glass-card-icon">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div class="glass-card-body">
+                    <span class="glass-card-value">{{ stats.total_users }}</span>
+                    <span class="glass-card-label">کل کاربران ربات</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-card glass-green">
+                <div class="glass-card-icon">
+                    <i class="bi bi-patch-check-fill"></i>
+                </div>
+                <div class="glass-card-body">
+                    <span class="glass-card-value">{{ stats.verified_users }}</span>
+                    <span class="glass-card-label">کاربران تأیید شده</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-card glass-purple">
+                <div class="glass-card-icon">
+                    <i class="bi bi-chat-dots-fill"></i>
+                </div>
+                <div class="glass-card-body">
+                    <span class="glass-card-value">{{ stats.bale_users }}</span>
+                    <span class="glass-card-label">کاربران بله</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="glass-card glass-red">
+                <div class="glass-card-icon">
+                    <i class="bi bi-slash-circle-fill"></i>
+                </div>
+                <div class="glass-card-body">
+                    <span class="glass-card-value">{{ stats.blocked_users }}</span>
+                    <span class="glass-card-label">کاربران بلاک شده</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- دسترسی سریع — دکمه‌های شیشه‌ای -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-speedometer2"></i>
+                    <span>دسترسی سریع</span>
+                </div>
+                <div class="glass-buttons-grid">
+                    <a href="{{ url_for('bot_panel.users') }}" class="glass-btn glass-btn-blue">
+                        <i class="bi bi-people"></i>
+                        <span>کاربران ربات</span>
+                    </a>
+                    <a href="{{ url_for('bot_panel.broadcast') }}" class="glass-btn glass-btn-green">
+                        <i class="bi bi-megaphone"></i>
+                        <span>پیام گروهی</span>
+                    </a>
+                    <a href="{{ url_for('bot_panel.settings') }}" class="glass-btn glass-btn-purple">
+                        <i class="bi bi-gear"></i>
+                        <span>تنظیمات</span>
+                    </a>
+                    <a href="{{ url_for('bot_panel.keyboards') }}" class="glass-btn glass-btn-orange">
+                        <i class="bi bi-grid-3x3-gap"></i>
+                        <span>کیبوردها</span>
+                    </a>
+                    <a href="{{ url_for('bot_panel.stats') }}" class="glass-btn glass-btn-cyan">
+                        <i class="bi bi-graph-up"></i>
+                        <span>آمار و گزارش</span>
+                    </a>
+                    <a href="{{ url_for('bot_panel.broadcast_history') }}" class="glass-btn glass-btn-pink">
+                        <i class="bi bi-clock-history"></i>
+                        <span>تاریخچه ارسال</span>
+                    </a>
+                    <a href="{{ url_for('settings_panel.telegram_config') }}" class="glass-btn glass-btn-indigo">
+                        <i class="bi bi-telegram"></i>
+                        <span>تنظیم تلگرام</span>
+                    </a>
+                    <a href="{{ url_for('settings_panel.bale_config') }}" class="glass-btn glass-btn-teal">
+                        <i class="bi bi-chat-dots"></i>
+                        <span>تنظیم بله</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <!-- ارسال تست -->
+        <div class="col-lg-5">
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-send"></i>
+                    <span>ارسال پیام تست</span>
+                </div>
+                <div class="glass-panel-body">
+                    <form method="POST" action="{{ url_for('bot_panel.send_test') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label class="glass-label">شناسه چت (Chat ID)</label>
+                            <input type="text" name="chat_id" class="glass-input" required placeholder="مثال: 123456789">
+                        </div>
+                        <div class="mb-3">
+                            <label class="glass-label">متن پیام</label>
+                            <textarea name="message" class="glass-input" rows="3" required>تست اتصال از پنل مدیریت ✓</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="glass-label">پلتفرم</label>
+                            <select name="provider" class="glass-input">
+                                <option value="bale">بله</option>
+                                <option value="telegram">تلگرام</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="glass-btn glass-btn-blue" style="width:100%">
+                            <i class="bi bi-send-fill"></i>
+                            <span>ارسال تست</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- آخرین پیام‌ها -->
+        <div class="col-lg-7">
+            <div class="glass-panel">
+                <div class="glass-panel-head">
+                    <i class="bi bi-chat-left-text"></i>
+                    <span>آخرین پیام‌ها</span>
+                </div>
+                <div class="glass-panel-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if recent_messages %}
+                    <div class="glass-messages-list">
+                        {% for msg in recent_messages %}
+                        <div class="glass-message-item {{ 'glass-msg-in' if msg.direction == 'incoming' else 'glass-msg-out' }}">
+                            <div class="glass-message-header">
+                                <span class="glass-message-direction">
+                                    {% if msg.direction == 'incoming' %}
+                                    <i class="bi bi-arrow-down-left"></i> ورودی
+                                    {% else %}
+                                    <i class="bi bi-arrow-up-right"></i> خروجی
+                                    {% endif %}
+                                </span>
+                                <span class="glass-message-time">
+                                    {% if msg.sent_at %}{{ msg.sent_at.strftime('%H:%M - %Y/%m/%d') }}{% endif %}
+                                </span>
+                            </div>
+                            <div class="glass-message-text">
+                                {{ msg.text[:150] if msg.text else '-' }}
+                            </div>
+                            <div class="glass-message-meta">
+                                Chat: {{ msg.chat_id }}
+                                {% if msg.provider %} | {{ msg.provider }}{% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="glass-empty-state">
+                        <i class="bi bi-chat-square-text" style="font-size: 48px; opacity: 0.3;"></i>
+                        <p>هنوز پیامی دریافت نشده</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* ═══ Glass-morphism Design System ═══ */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    }
+    .glass-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+    }
+    .glass-card-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        color: white;
+        flex-shrink: 0;
+    }
+    .glass-card-value {
+        display: block;
+        font-size: 28px;
+        font-weight: 800;
+        line-height: 1.2;
+        color: #1a1a2e;
+    }
+    .glass-card-label {
+        display: block;
+        font-size: 12px;
+        color: #6b7280;
+        margin-top: 2px;
+    }
+
+    /* Color variants */
+    .glass-blue .glass-card-icon { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .glass-green .glass-card-icon { background: linear-gradient(135deg, #10b981, #059669); }
+    .glass-purple .glass-card-icon { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+    .glass-red .glass-card-icon { background: linear-gradient(135deg, #ef4444, #dc2626); }
+    .glass-card.glass-blue { background: rgba(59, 130, 246, 0.08); }
+    .glass-card.glass-green { background: rgba(16, 185, 129, 0.08); }
+    .glass-card.glass-purple { background: rgba(139, 92, 246, 0.08); }
+    .glass-card.glass-red { background: rgba(239, 68, 68, 0.08); }
+
+    /* Glass Panel */
+    .glass-panel {
+        background: rgba(255, 255, 255, 0.65);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    }
+    .glass-panel-head {
+        padding: 16px 20px;
+        font-weight: 700;
+        font-size: 14px;
+        color: #1a1a2e;
+        background: rgba(255, 255, 255, 0.5);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .glass-panel-body {
+        padding: 20px;
+    }
+
+    /* Glass Buttons Grid */
+    .glass-buttons-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        padding: 16px 20px;
+    }
+    @media (max-width: 768px) {
+        .glass-buttons-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    /* Glass Button */
+    .glass-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px 12px;
+        border-radius: 14px;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: white;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        background: transparent;
+    }
+    .glass-btn:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        color: white;
+    }
+    .glass-btn i {
+        font-size: 24px;
+    }
+    .glass-btn-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+    .glass-btn-green { background: linear-gradient(135deg, #10b981, #059669); }
+    .glass-btn-purple { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+    .glass-btn-orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    .glass-btn-cyan { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+    .glass-btn-pink { background: linear-gradient(135deg, #ec4899, #be185d); }
+    .glass-btn-indigo { background: linear-gradient(135deg, #6366f1, #4338ca); }
+    .glass-btn-teal { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+
+    /* Glass Input */
+    .glass-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #4b5563;
+        margin-bottom: 6px;
+    }
+    .glass-input {
+        width: 100%;
+        padding: 10px 14px;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(10px);
+        font-size: 13px;
+        font-family: Vazirmatn, Tahoma, sans-serif;
+        transition: all 0.2s;
+        color: #1a1a2e;
+    }
+    .glass-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        background: white;
+    }
+    textarea.glass-input {
+        resize: vertical;
+        min-height: 60px;
+    }
+    select.glass-input {
+        cursor: pointer;
+    }
+
+    /* Glass Messages List */
+    .glass-messages-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .glass-message-item {
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    .glass-msg-in {
+        background: rgba(59, 130, 246, 0.06);
+        border-color: rgba(59, 130, 246, 0.1);
+    }
+    .glass-msg-out {
+        background: rgba(16, 185, 129, 0.06);
+        border-color: rgba(16, 185, 129, 0.1);
+    }
+    .glass-message-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+    }
+    .glass-message-direction {
+        font-size: 11px;
+        font-weight: 700;
+        color: #6b7280;
+    }
+    .glass-message-time {
+        font-size: 10px;
+        color: #9ca3af;
+    }
+    .glass-message-text {
+        font-size: 12px;
+        color: #374151;
+        line-height: 1.6;
+    }
+    .glass-message-meta {
+        font-size: 10px;
+        color: #9ca3af;
+        margin-top: 4px;
+    }
+
+    /* Empty State */
+    .glass-empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #9ca3af;
+    }
+    .glass-empty-state p {
+        margin-top: 12px;
+        font-size: 13px;
+    }
+</style>
+{% endblock %}
