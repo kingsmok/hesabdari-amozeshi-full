@@ -85,11 +85,7 @@ def filter_teacher_classes(query, model_class):
     
     # اگر مدرس بود، فقط کلاس‌های خودش
     from models.teacher import Teacher
-    teacher = Teacher.query.filter_by(
-        national_code=current_user.username  # یا هر فیلد اتصال
-    ).first()
-    
+    teacher = Teacher.query.filter_by(user_id=current_user.id).first()
     if teacher:
         return query.filter_by(teacher_id=teacher.id)
-    
     return query

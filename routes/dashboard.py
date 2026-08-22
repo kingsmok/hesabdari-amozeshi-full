@@ -89,7 +89,9 @@ def teacher_dashboard():
     from models.attendance import TeacherAttendance
     
     # پیدا کردن مدرس مرتبط با کاربر
-    teacher = Teacher.query.filter_by(is_active=True).first()  # باید بر اساس user_id باشد
+    teacher = Teacher.query.filter_by(user_id=current_user.id, is_active=True).first()
+    if teacher is None:
+        teacher = Teacher.query.filter_by(user_id=current_user.id).first()
     
     today = datetime.utcnow()
     today_weekday = (today.weekday() + 2) % 7

@@ -241,7 +241,7 @@
                 {% endif %}
             {% endwith %}
 
-            <form method="POST" action="{{ url_for('auth.login') }}">
+            <form method="POST" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="form-floating position-relative">
