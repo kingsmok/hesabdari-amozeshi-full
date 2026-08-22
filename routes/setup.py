@@ -2,11 +2,25 @@
 مسیر ویزارد نصب و تنظیمات دیتابیس
 """
 import os
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, abort
+from flask_login import current_user, login_required
 from extensions import db
 from config import load_config, save_config, test_database_connection, create_database_if_not_exists
 
 setup_bp = Blueprint('setup', __name__)
+
+
+def _users_exist():
+    from models.user import User
+    return User.query.count() > 0
+
+
+def _require_fresh_install_or_admin():
+    if not _users_exist():
+        return None
+    if current_user.is_authenticated and current_user.is_admin:
+        return None
+    abort(403)
 
 
 @setup_bp.route('/setup', methods=['GET', 'POST'])
@@ -14,9 +28,12 @@ def wizard():
     """ویزارد نصب اولیه"""
     from models.user import User
     
-    # اگر کاربر admin وجود دارد، نیاز به ویزارد نیست
-    if User.query.count() > 0 and request.args.get('force') != '1':
+    # پس از نصب، فقط مدیر می‌تواند ویزارد را با force باز کند
+    if _users_exist() and request.args.get('force') != '1':
         return redirect('/')
+    if _users_exist() and request.args.get('force') == '1':
+        if not current_user.is_authenticated or not current_user.is_admin:
+            abort(403)
     
     config = load_config()
     
@@ -69,15 +86,32 @@ def wizard():
             return render_template('setup/wizard.html', step=3, config=config)
         
         elif step == '3':
-            # تنظیمات مدیر
+            # تنظیمات مدیر — ایجاد در صورت نبود کاربر
+            from models.user import Role
             admin_user = User.query.filter_by(username='admin').first()
-            if admin_user:
-                new_password = request.form.get('admin_password', '')
-                if new_password:
-                    admin_user.set_password(new_password)
-                    admin_user.full_name = request.form.get('admin_name', 'مدیر سیستم')
-                    db.session.commit()
-                    flash('رمز مدیر تغییر کرد', 'success')
+            new_password = request.form.get('admin_password', '')
+            full_name = request.form.get('admin_name', 'مدیر سیستم')
+            admin_role = Role.query.filter_by(is_admin=True).first()
+            if not admin_user:
+                if not new_password:
+                    flash('رمز عبور مدیر الزامی است', 'error')
+                    return render_template('setup/wizard.html', step=3, config=config)
+                admin_user = User(
+                    username='admin',
+                    full_name=full_name,
+                    is_admin=True,
+                    is_active=True,
+                    role_id=admin_role.id if admin_role else None,
+                )
+                admin_user.set_password(new_password)
+                db.session.add(admin_user)
+                db.session.commit()
+                flash('حساب مدیر ایجاد شد', 'success')
+            elif new_password:
+                admin_user.set_password(new_password)
+                admin_user.full_name = full_name
+                db.session.commit()
+                flash('رمز مدیر تغییر کرد', 'success')
             
             return render_template('setup/wizard.html', step=4, config=config)
     
@@ -87,6 +121,7 @@ def wizard():
 @setup_bp.route('/setup/test-db', methods=['POST'])
 def test_db():
     """API تست اتصال دیتابیس"""
+    _require_fresh_install_or_admin()
     config = load_config()
     db_type = request.json.get('type', 'sqlite')
     
@@ -103,8 +138,11 @@ def test_db():
 
 
 @setup_bp.route('/setup/database', methods=['GET', 'POST'])
+@login_required
 def database_settings():
     """تنظیمات دیتابیس"""
+    if not current_user.is_admin:
+        abort(403)
     config = load_config()
     
     if request.method == 'POST':

@@ -51,6 +51,11 @@ def course_add():
     from models.course import Course, Field, Syllabus
     
     if request.method == 'POST':
+        field_id = safe_int(request.form.get('field_id'))
+        if not field_id:
+            flash('انتخاب رشته آموزشی الزامی است', 'danger')
+            fields = Field.query.filter_by(is_active=True).all()
+            return render_template('new/course_add.html', fields=fields), 400
         last = Course.query.order_by(Course.id.desc()).first()
         next_num = (last.id + 1) if last else 1
         code = f'CRS-{next_num:04d}'
@@ -58,7 +63,7 @@ def course_add():
         course = Course(
             title=request.form['title'],
             code=code,
-            field_id=safe_int(request.form.get('field_id')),
+            field_id=field_id,
             description=request.form.get('description'),
             duration_hours=safe_int(request.form.get('duration_hours')),
             total_sessions=safe_int(request.form.get('total_sessions')),
@@ -414,6 +419,12 @@ def telegram_webhook():
     if not token:
         return jsonify({'ok': False, 'description': 'توکن تلگرام تنظیم نشده'}), 503
 
+    expected = request.args.get('secret') or request.headers.get('X-Telegram-Bot-Api-Secret-Token')
+    import hashlib
+    expected_secret = hashlib.sha256(token.encode('utf-8')).hexdigest()[:24]
+    if expected != expected_secret:
+        return jsonify({'ok': False, 'description': 'unauthorized'}), 401
+
     try:
         answer = build_academy_bot_response(message.get('text', ''))
         result = send_bot_message('telegram', token, message['chat']['id'], answer)
@@ -719,7 +730,8 @@ def pay_installment(id):
     
     # بروزرسانی صندوق
     if method == 'cash':
-        cashbox = Cashbox.query.first()
+        from models.finance import get_or_create_main_cashbox
+        cashbox = get_or_create_main_cashbox()
         if cashbox:
             cashbox.balance = (cashbox.balance or 0) + amount
             tx = CashboxTransaction(

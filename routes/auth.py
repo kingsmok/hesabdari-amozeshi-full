@@ -51,8 +51,20 @@ def login():
             
             login_user(user, remember=bool(remember))
             next_page = request.args.get('next')
-            return redirect(next_page or url_for('dashboard.index'))
+            if next_page and next_page.startswith('/') and not next_page.startswith('//'):
+                return redirect(next_page)
+            return redirect(url_for('dashboard.index'))
         else:
+            if user:
+                log = ActivityLog(
+                    user_id=user.id,
+                    action='failed_login',
+                    module='system',
+                    description=f'ورود ناموفق از IP: {request.remote_addr}',
+                    ip_address=request.remote_addr
+                )
+                db.session.add(log)
+                db.session.commit()
             flash('نام کاربری یا رمز عبور اشتباه است', 'error')
     
     return render_template('auth/login.html')

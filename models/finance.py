@@ -89,6 +89,16 @@ class Cashbox(db.Model):
     transactions = db.relationship('CashboxTransaction', backref='cashbox', lazy='dynamic')
 
 
+def get_or_create_main_cashbox():
+    """صندوق فعال پیش‌فرض؛ در نصب خالی ساخته می‌شود."""
+    box = Cashbox.query.filter_by(is_active=True).first() or Cashbox.query.first()
+    if box is None:
+        box = Cashbox(name='صندوق اصلی', code='CASH-001', balance=0, is_active=True)
+        db.session.add(box)
+        db.session.flush()
+    return box
+
+
 class CashboxTransaction(db.Model):
     """تراکنش صندوق"""
     __tablename__ = 'cashbox_transactions'

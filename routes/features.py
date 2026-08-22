@@ -209,6 +209,9 @@ def restore_backup(name):
 @login_required
 def download_backup(name):
     """دانلود فایل پشتیبان"""
+    if not current_user.is_admin:
+        flash('فقط مدیر کل می‌تواند پشتیبان را دانلود کند', 'error')
+        return redirect(url_for('settings.backup'))
     from flask import current_app
     backup_dir = current_app.config['BACKUP_FOLDER']
     path = _safe_backup_path(backup_dir, name)
@@ -222,6 +225,9 @@ def download_backup(name):
 @login_required
 def delete_backup(name):
     """حذف فایل پشتیبان"""
+    if not current_user.is_admin:
+        flash('فقط مدیر کل می‌تواند پشتیبان را حذف کند', 'error')
+        return redirect(url_for('settings.backup'))
     from flask import current_app
     backup_dir = current_app.config['BACKUP_FOLDER']
     path = _safe_backup_path(backup_dir, name)
@@ -626,9 +632,9 @@ def export_students_csv():
     from models.student import Student
     output = io.StringIO()
     writer = csv.writer(output, lineterminator='\n')
-    writer.writerow(['کد','نام','نام خانوادگی','کلاس','تلفن','ایمیل','وضعیت'])
+    writer.writerow(['کد','نام','نام خانوادگی','تلفن','ایمیل','وضعیت'])
     for s in Student.query.all():
-        writer.writerow([s.student_code, s.first_name, s.last_name, s.class_group.name if s.class_group else '', s.mobile or '', s.email or '', s.status])
+        writer.writerow([s.student_code, s.first_name, s.last_name, s.mobile or '', s.email or '', s.status])
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv; charset=utf-8'
     response.headers['Content-Disposition'] = 'attachment; filename=students.csv'
@@ -643,9 +649,9 @@ def export_payments_csv():
     from models.finance import Payment
     output = io.StringIO()
     writer = csv.writer(output, lineterminator='\n')
-    writer.writerow(['کد پرداخت','مبلغ','تاریخ','وضعیت','نوع'])
+    writer.writerow(['شماره رسید','مبلغ','تاریخ','وضعیت','روش پرداخت'])
     for p in Payment.query.all():
-        writer.writerow([p.id, p.amount, p.date, p.status, p.type])
+        writer.writerow([p.receipt_no, p.amount, p.payment_date, p.status, p.payment_method])
     response = make_response(output.getvalue())
     response.headers['Content-Type'] = 'text/csv; charset=utf-8'
     response.headers['Content-Disposition'] = 'attachment; filename=payments.csv'
@@ -1017,7 +1023,7 @@ def bulk_certificates(cert_type):
     from flask import render_template
     if cert_type == 'student':
         from models.student import Student
-        items = Student.query.filter_by(is_active=True).limit(50).all()
+        items = Student.query.filter_by(status='active').limit(50).all()
     elif cert_type == 'teacher':
         from models.teacher import Teacher
         items = Teacher.query.filter_by(is_active=True).limit(50).all()

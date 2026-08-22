@@ -66,7 +66,7 @@ def add():
             first_name=request.form['first_name'],
             last_name=request.form['last_name'],
             father_name=request.form.get('father_name'),
-            national_code=request.form.get('national_code'),
+            national_code=(request.form.get('national_code') or '').strip() or None,
             birth_certificate_no=request.form.get('birth_certificate_no'),
             birth_date=get_jalali_date(request.form, 'birth_date') if request.form.get('birth_date') else None,
             gender=request.form.get('gender'),
@@ -136,7 +136,7 @@ def edit(id):
         student.first_name = request.form['first_name']
         student.last_name = request.form['last_name']
         student.father_name = request.form.get('father_name')
-        student.national_code = request.form.get('national_code')
+        student.national_code = (request.form.get('national_code') or '').strip() or None
         student.birth_certificate_no = request.form.get('birth_certificate_no')
         student.birth_date = get_jalali_date(request.form, 'birth_date') if request.form.get('birth_date') else None
         student.gender = request.form.get('gender')

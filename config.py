@@ -197,10 +197,13 @@ def create_database_if_not_exists(config=None):
             )
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             cursor = conn.cursor()
-            cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = '{db['postgresql_database']}'")
+            db_name = db['postgresql_database']
+            if not isinstance(db_name, str) or not db_name.replace('_', '').isalnum():
+                return False, 'invalid database name'
+            cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
             exists = cursor.fetchone()
             if not exists:
-                cursor.execute(f'CREATE DATABASE "{db["postgresql_database"]}" WITH ENCODING = \'UTF8\'')
+                cursor.execute(f'CREATE DATABASE "{db_name}" WITH ENCODING = \'UTF8\'')
             conn.close()
             return True, f"PostgreSQL database '{db['postgresql_database']}' ready"
         except Exception as e:
@@ -217,7 +220,12 @@ def create_database_if_not_exists(config=None):
                 connect_timeout=5
             )
             cursor = conn.cursor()
-            cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db['mysql_database']}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+            db_name = db['mysql_database']
+            if not isinstance(db_name, str) or not db_name.replace('_', '').isalnum():
+                return False, 'invalid database name'
+            cursor.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            )
             conn.commit()
             conn.close()
             return True, f"MySQL database '{db['mysql_database']}' ready"
