@@ -1,0 +1,181 @@
+{% extends "base/layout.html" %}
+{% block title %}دستگاه‌های حضور و غیاب{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('attendance.index') }}">حضور و غیاب</a></li><li class="active">دستگاه‌ها</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-hdd-network"></i> دستگاه‌های حضور و غیاب<small>اتصال اثرانگشت، کارت، RFID و چهره از همین API</small></h1>
+    </div>
+
+    <div class="alert alert-info">
+        دستگاه باید به این آدرس POST بزند:
+        <code>POST /attendance/device/punch</code>
+        با هدر <code>X-Device-Token</code>
+        و بدنه <code>{"uid":"شماره کارت یا کد هنرجو","event":"in","method":"rfid"}</code>
+        برای خروج <code>event":"out"</code>.
+        سیستم خودش جلسه امروز هنرجو را پیدا می‌کند.
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-5">
+            <div class="card mb-3">
+                <div class="card-head"><h5>ثبت دستگاه جدید</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-2">
+                            <label class="form-label">نام دستگاه</label>
+                            <input name="name" class="form-control" required placeholder="مثلاً دستگاه ورودی طبقه ۱">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">کد</label>
+                            <input name="code" class="form-control" required placeholder="GATE-01">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">نوع</label>
+                            <select name="device_type" class="form-select">
+                                <option value="rfid">RFID / کارت</option>
+                                <option value="fingerprint">اثرانگشت</option>
+                                <option value="face">چهره</option>
+                                <option value="qr">QR</option>
+                                <option value="mixed">ترکیبی</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">محل نصب</label>
+                            <input name="location" class="form-control" placeholder="راهرو اصلی">
+                        </div>
+                        <button class="btn btn-primary">ثبت دستگاه و صدور توکن</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h5>اتصال کارت / UID به شخص</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST" action="{{ url_for('attendance.add_credential') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-2">
+                            <label class="form-label">UID کارت / سریال اثرانگشت</label>
+                            <input name="uid" class="form-control" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label">نوع شخص</label>
+                            <select name="person_type" class="form-select" id="personType">
+                                <option value="student">هنرجو</option>
+                                <option value="teacher">مدرس</option>
+                            </select>
+                        </div>
+                        <div class="mb-2" id="studentWrap">
+                            <label class="form-label">هنرجو</label>
+                            <select name="person_id" class="form-select" id="studentSel">
+                                {% for s in students %}
+                                <option value="{{ s.id }}">{{ s.full_name }} — {{ s.student_code }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-2 d-none" id="teacherWrap">
+                            <label class="form-label">مدرس</label>
+                            <select class="form-select" id="teacherSel">
+                                {% for t in teachers %}
+                                <option value="{{ t.id }}">{{ t.full_name }} — {{ t.teacher_code }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">روش</label>
+                            <select name="method" class="form-select">
+                                <option value="card">کارت</option>
+                                <option value="rfid">RFID</option>
+                                <option value="fingerprint">اثرانگشت</option>
+                                <option value="face">چهره</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-success">اتصال شناسه</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card mb-3">
+                <div class="card-head"><h5>دستگاه‌های ثبت‌شده</h5></div>
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th>نام</th><th>کد</th><th>توکن API</th><th>آخرین ارتباط</th><th></th></tr></thead>
+                        <tbody>
+                            {% for d in devices %}
+                            <tr>
+                                <td>{{ d.name }}<br><small class="text-muted">{{ d.device_type }} — {{ d.location or '-' }}</small></td>
+                                <td><code>{{ d.code }}</code></td>
+                                <td style="font-size:11px;direction:ltr"><code>{{ d.api_token }}</code></td>
+                                <td>{{ d.last_seen_at or '—' }}</td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('attendance.toggle_device', id=d.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button class="btn btn-sm {{ 'btn-outline-warning' if d.is_active else 'btn-outline-success' }}">{{ 'غیرفعال' if d.is_active else 'فعال' }}</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="5" class="text-center text-muted py-3">دستگاهی ثبت نشده</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-head"><h5>کارت‌های متصل</h5></div>
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th>UID</th><th>نوع</th><th>شناسه شخص</th><th>روش</th></tr></thead>
+                        <tbody>
+                            {% for c in credentials %}
+                            <tr>
+                                <td><code>{{ c.uid }}</code></td>
+                                <td>{{ 'هنرجو' if c.person_type == 'student' else 'مدرس' }}</td>
+                                <td>{{ c.person_id }}</td>
+                                <td>{{ c.method }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center text-muted py-3">کارتی ثبت نشده</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h5>لاگ دستگاه</h5></div>
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th>زمان</th><th>UID</th><th>نتیجه</th><th>پیام</th></tr></thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td>{{ log.created_at }}</td>
+                                <td><code>{{ log.uid }}</code></td>
+                                <td>{{ log.result }}</td>
+                                <td>{{ log.message }}</td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="4" class="text-center text-muted py-3">هنوز ضربه‌ای از دستگاه نیامده</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('personType').addEventListener('change', function() {
+    const isT = this.value === 'teacher';
+    document.getElementById('studentWrap').classList.toggle('d-none', isT);
+    document.getElementById('teacherWrap').classList.toggle('d-none', !isT);
+    document.getElementById('studentSel').name = isT ? '' : 'person_id';
+    document.getElementById('teacherSel').name = isT ? 'person_id' : '';
+});
+</script>
+{% endblock %}

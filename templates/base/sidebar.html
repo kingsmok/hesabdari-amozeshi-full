@@ -74,9 +74,19 @@
         {% endif %}
 
         {% if 'attendance' in user_menu %}
-        <a href="{{ url_for('attendance.index') }}" class="nav-link-item">
+        <div class="nav-link-item" onclick="toggleNav(this)">
             <i class="bi bi-clipboard2-check-fill"></i> حضور و غیاب
-        </a>
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub">
+            <a href="{{ url_for('attendance.index') }}" class="nav-link-item"><i class="bi bi-list-check"></i> ثبت حضور</a>
+            <a href="{{ url_for('attendance.bulk') }}" class="nav-link-item"><i class="bi bi-collection"></i> ثبت سریع جلسه</a>
+            <a href="{{ url_for('attendance.report') }}" class="nav-link-item"><i class="bi bi-bar-chart"></i> گزارش کلاس‌ها</a>
+            <a href="{{ url_for('attendance.statistics') }}" class="nav-link-item"><i class="bi bi-graph-up"></i> آمار غیبت</a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('attendance.devices') }}" class="nav-link-item"><i class="bi bi-hdd-network"></i> دستگاه‌ها</a>
+            {% endif %}
+        </div>
         {% endif %}
 
         {% if 'exams' in user_menu %}

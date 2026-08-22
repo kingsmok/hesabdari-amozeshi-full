@@ -6,14 +6,18 @@
     <div class="page-head">
         <h1><i class="bi bi-clipboard2-check-fill"></i> حضور و غیاب<small>مدیریت حضور هنرجویان و مدرسین</small></h1>
         <div class="d-flex gap-2">
+            <a href="{{ url_for('attendance.bulk') }}" class="btn btn-success"><i class="bi bi-lightning me-1"></i> ثبت سریع</a>
             <a href="{{ url_for('attendance.report') }}" class="btn btn-outline-primary"><i class="bi bi-bar-chart me-1"></i> گزارش</a>
             <a href="{{ url_for('attendance.statistics') }}" class="btn btn-outline-info"><i class="bi bi-graph-up me-1"></i> آمار</a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('attendance.devices') }}" class="btn btn-outline-dark"><i class="bi bi-hdd-network me-1"></i> دستگاه‌ها</a>
+            {% endif %}
         </div>
     </div>
 
     <!-- آمار امروز -->
     <div class="row g-3 mb-4">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="stat-box">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -24,7 +28,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
             <div class="stat-box">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -35,7 +39,18 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
+            <div class="stat-box">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">غایب امروز</div>
+                        <div class="stat-val" style="color:#c62828;">{{ today_absent }}</div>
+                    </div>
+                    <div class="stat-icon" style="background:#ffebee;color:#c62828;"><i class="bi bi-person-x"></i></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
             <div class="stat-box">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
@@ -49,6 +64,27 @@
             </div>
         </div>
     </div>
+
+    {% if today_sessions %}
+    <div class="card mb-4">
+        <div class="card-head"><h5><i class="bi bi-calendar-day"></i> جلسات امروز</h5></div>
+        <div class="table-responsive">
+            <table class="table mb-0">
+                <thead><tr><th>کلاس</th><th>جلسه</th><th>ساعت</th><th></th></tr></thead>
+                <tbody>
+                    {% for s in today_sessions %}
+                    <tr>
+                        <td>{{ s.class_group.name if s.class_group else '-' }}</td>
+                        <td>{{ s.session_number }}</td>
+                        <td>{{ s.start_time or '-' }} — {{ s.end_time or '-' }}</td>
+                        <td><a class="btn btn-sm btn-primary" href="{{ url_for('attendance.session_attendance', session_id=s.id) }}">ثبت حضور</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- لیست کلاس‌ها -->
     <div class="card">

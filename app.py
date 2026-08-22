@@ -22,13 +22,27 @@ def create_app():
     from config import load_config, get_database_uri, get_engine_options
     config = load_config()
     
-    app.config['SECRET_KEY'] = 'academy-manager-secret-key-2026'
+    secret = os.environ.get('SECRET_KEY') or config.get('app', {}).get('secret_key')
+    if not secret:
+        import secrets
+        secret = secrets.token_hex(32)
+        try:
+            config.setdefault('app', {})['secret_key'] = secret
+            from config import save_config
+            save_config(config)
+        except Exception:
+            pass
+    app.config['SECRET_KEY'] = secret
     app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri(config)
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = get_engine_options(config)
     app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'static', 'uploads')
     app.config['BACKUP_FOLDER'] = os.path.join(base_dir, 'backups')
     app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+    app.config['WTF_CSRF_TIME_LIMIT'] = 3600
     
     # Initialize extensions
     db.init_app(app)
@@ -211,6 +225,21 @@ def create_app():
             return str(date)
     
     # تابع کمکی تبدیل تاریخ شمسی به میلادی در route ها
+    @app.errorhandler(403)
+    def forbidden(_e):
+        from flask import render_template
+        return render_template('errors/403.html'), 403
+
+    @app.errorhandler(404)
+    def not_found(_e):
+        from flask import render_template
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def server_error(_e):
+        from flask import render_template
+        return render_template('errors/500.html'), 500
+
     @app.template_global()
     def parse_jalali(date_str):
         return parse_jalali_date(date_str)
@@ -308,6 +337,8 @@ def create_app():
             import models.bot
             
             db.create_all()
+            from utils.attendance_service import ensure_attendance_indexes
+            ensure_attendance_indexes()
             create_default_data()
             # اصلاح خودکار تاریخ‌های شمسی که در نسخه‌های قدیمی به‌اشتباه
             # مستقیماً در ستون میلادی ذخیره شده بودند (عملیات idempotent است).

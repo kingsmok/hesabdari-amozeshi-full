@@ -61,6 +61,8 @@ def main() -> int:
             'settings.expense_categories_pdf',
             'settings_panel.start_bale_polling',
             'settings_panel.farazsms_config',
+            'attendance.device_punch',
+            'attendance.devices',
         }
         endpoints = {rule.endpoint for rule in app.url_map.iter_rules()}
         missing = sorted(required_endpoints - endpoints)

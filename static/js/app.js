@@ -252,10 +252,10 @@ function globalSearch(q) {
                     box.innerHTML = '<div style="padding: 16px; text-align: center; color: #b0bec5; font-size: 12px;">نتیجه‌ای یافت نشد</div>';
                 } else {
                     box.innerHTML = data.results.map((r, i) =>
-                        `<a href="${r.url}" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; text-decoration: none; color: #37474f; border-bottom: 1px solid #f5f5f5; animation: fadeInUp 0.3s ease-out ${i * 0.05}s both;">
-                            <span style="background: ${r.color || '#e3f2fd'}; padding: 2px 8px; border-radius: 4px; font-size: 10px; color: #fff;">${r.type}</span>
-                            <span style="font-weight: 600; font-size: 12px;">${r.name}</span>
-                            <span style="font-size: 10px; color: #b0bec5;">${r.detail || ''}</span>
+                        `<a href="${escapeHtml(r.url || '#')}" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; text-decoration: none; color: #37474f; border-bottom: 1px solid #f5f5f5; animation: fadeInUp 0.3s ease-out ${i * 0.05}s both;">
+                            <span style="background: ${escapeHtml(r.color || '#e3f2fd')}; padding: 2px 8px; border-radius: 4px; font-size: 10px; color: #fff;">${escapeHtml(r.type || '')}</span>
+                            <span style="font-weight: 600; font-size: 12px;">${escapeHtml(r.name || '')}</span>
+                            <span style="font-size: 10px; color: #b0bec5;">${escapeHtml(r.detail || '')}</span>
                         </a>`
                     ).join('');
                 }
@@ -492,6 +492,15 @@ function fmtCurrency(n) {
         style: 'decimal', 
         maximumFractionDigits: 0 
     }).format(n) + ' تومان';
+}
+
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 // Debounce

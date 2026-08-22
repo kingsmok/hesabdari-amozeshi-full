@@ -94,15 +94,19 @@ def grade(id):
     if request.method == 'POST':
         if exam.class_id:
             registrations = exam.class_group.registrations.filter_by(status='active').all()
+            existing_by_student = {
+                r.student_id: r
+                for r in ExamResult.query.filter_by(exam_id=id).all()
+            }
             for reg in registrations:
                 max_score = exam.total_marks or 100
                 theory = max(0, min(safe_float(request.form.get(f'theory_{reg.student_id}')), max_score))
                 practical = max(0, min(safe_float(request.form.get(f'practical_{reg.student_id}')), max_score))
                 
-                total = (theory * exam.theory_weight / 100) + (practical * exam.practical_weight / 100)
-                passed = total >= exam.passing_marks
+                total = (theory * (exam.theory_weight or 0) / 100) + (practical * (exam.practical_weight or 0) / 100)
+                passed = total >= (exam.passing_marks or 0)
                 
-                existing = ExamResult.query.filter_by(exam_id=id, student_id=reg.student_id).first()
+                existing = existing_by_student.get(reg.student_id)
                 if existing:
                     existing.theory_score = theory
                     existing.practical_score = practical
@@ -159,7 +163,7 @@ def add_question():
             course_id=request.form.get('course_id') or None,
             chapter=request.form.get('chapter'),
             difficulty=request.form.get('difficulty', 'medium'),
-            marks=float(request.form.get('marks', 1)),
+            marks=max(0, safe_float(request.form.get('marks'), 1)),
             explanation=request.form.get('explanation'),
             created_by=current_user.id
         )

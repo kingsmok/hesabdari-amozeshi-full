@@ -4,26 +4,66 @@
 {% block content %}
 <div class="anim-in">
     <div class="page-head">
-        <h1><i class="bi bi-pencil"></i> ثبت حضور و غیاب<small>جلسه {{ session.session_number }} — {{ session.session_date|to_jalali }}</small></h1>
+        <h1><i class="bi bi-pencil"></i> ثبت حضور و غیاب<small>جلسه {{ session.session_number }} — {{ session.session_date|to_jalali }} — {{ session.start_time or '' }} تا {{ session.end_time or '' }}</small></h1>
         <div class="d-flex gap-2">
             <button type="button" class="btn btn-outline-success btn-sm" onclick="markAll('present')"><i class="bi bi-check-all me-1"></i> همه حاضر</button>
             <button type="button" class="btn btn-outline-danger btn-sm" onclick="markAll('absent')"><i class="bi bi-x-lg me-1"></i> همه غایب</button>
         </div>
     </div>
 
+    <div class="row g-3 mb-3">
+        <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-label">حاضر/تأخیر</div><div class="stat-val" style="color:#2e7d32">{{ stats.present }}</div></div></div>
+        <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-label">غایب</div><div class="stat-val" style="color:#c62828">{{ stats.absent }}</div></div></div>
+        <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-label">تأخیر</div><div class="stat-val" style="color:#e65100">{{ stats.late }}</div></div></div>
+        <div class="col-6 col-md-3"><div class="stat-box"><div class="stat-label">مرخصی</div><div class="stat-val">{{ stats.leave }}</div></div></div>
+    </div>
+
     <form method="POST" id="attendanceForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% if session.class_group.teacher %}
+        <div class="card mb-3">
+            <div class="card-head"><h5><i class="bi bi-person-workspace"></i> حضور مدرس — {{ session.class_group.teacher.full_name }}</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <label class="form-label">وضعیت</label>
+                        <select name="teacher_status" class="form-select form-select-sm">
+                            <option value="present" {{ 'selected' if not teacher_att or teacher_att.status == 'present' }}>حاضر</option>
+                            <option value="late" {{ 'selected' if teacher_att and teacher_att.status == 'late' }}>تأخیر</option>
+                            <option value="absent" {{ 'selected' if teacher_att and teacher_att.status == 'absent' }}>غایب</option>
+                            <option value="leave" {{ 'selected' if teacher_att and teacher_att.status == 'leave' }}>مرخصی</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">ورود</label>
+                        <input type="time" name="teacher_arrival" class="form-control form-control-sm" value="{{ teacher_att.arrival_time if teacher_att else session.start_time or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">خروج</label>
+                        <input type="time" name="teacher_departure" class="form-control form-control-sm" value="{{ teacher_att.departure_time if teacher_att else session.end_time or '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">توضیح</label>
+                        <input type="text" name="teacher_notes" class="form-control form-control-sm" value="{{ teacher_att.notes if teacher_att else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="card">
             <div class="card-body-padded" style="padding: 0;">
+                <div class="table-responsive">
                 <table class="table mb-0">
                     <thead>
                         <tr>
                             <th style="width: 40px;">#</th>
                             <th>نام</th>
                             <th>کد</th>
-                            <th style="width: 120px;">وضعیت</th>
-                            <th style="width: 100px;">ورود</th>
-                            <th style="width: 100px;">خروج</th>
+                            <th style="width: 130px;">وضعیت</th>
+                            <th style="width: 110px;">ورود</th>
+                            <th style="width: 110px;">خروج</th>
                             <th>توضیحات</th>
                         </tr>
                     </thead>
@@ -31,12 +71,17 @@
                         {% for item in students %}
                         <tr>
                             <td>{{ loop.index }}</td>
-                            <td><strong>{{ item.student.full_name }}</strong></td>
+                            <td>
+                                <strong>{{ item.student.full_name }}</strong>
+                                {% if item.attendance and item.attendance.entry_method and item.attendance.entry_method != 'manual' %}
+                                <span class="badge bg-info">{{ item.attendance.entry_method }}</span>
+                                {% endif %}
+                            </td>
                             <td><code>{{ item.student.student_code }}</code></td>
                             <td>
                                 <select name="status_{{ item.student.id }}" class="form-select form-select-sm">
                                     <option value="present" {{ 'selected' if item.attendance and item.attendance.status == 'present' }}>حاضر</option>
-                                    <option value="absent" {{ 'selected' if item.attendance and item.attendance.status == 'absent' }}>غایب</option>
+                                    <option value="absent" {{ 'selected' if not item.attendance or item.attendance.status == 'absent' }}>غایب</option>
                                     <option value="late" {{ 'selected' if item.attendance and item.attendance.status == 'late' }}>تأخیر</option>
                                     <option value="leave" {{ 'selected' if item.attendance and item.attendance.status == 'leave' }}>مرخصی</option>
                                 </select>
@@ -45,9 +90,12 @@
                             <td><input type="time" name="departure_{{ item.student.id }}" class="form-control form-control-sm" value="{{ item.attendance.departure_time if item.attendance else '' }}"></td>
                             <td><input type="text" name="notes_{{ item.student.id }}" class="form-control form-control-sm" value="{{ item.attendance.notes if item.attendance else '' }}" placeholder="توضیحات..."></td>
                         </tr>
+                        {% else %}
+                        <tr><td colspan="7" class="text-center py-4 text-muted">هنرجوی فعالی در این کلاس نیست</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
         <div class="d-flex justify-content-between mt-3 mb-4">
@@ -59,9 +107,7 @@
 
 <script>
 function markAll(status) {
-    document.querySelectorAll('select[name^="status_"]').forEach(sel => {
-        sel.value = status;
-    });
+    document.querySelectorAll('select[name^="status_"]').forEach(sel => { sel.value = status; });
 }
 </script>
 {% endblock %}

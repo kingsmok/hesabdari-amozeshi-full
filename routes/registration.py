@@ -151,8 +151,8 @@ def add():
 
             # اتصال پرداخت نقدی به صندوق نیز هم‌زمان ثبت می‌شود.
             if payment_method == 'cash':
-                from models.finance import Cashbox, CashboxTransaction
-                cashbox = Cashbox.query.filter_by(is_active=True).first()
+                from models.finance import CashboxTransaction, get_or_create_main_cashbox
+                cashbox = get_or_create_main_cashbox()
                 if cashbox:
                     cashbox.balance = (cashbox.balance or 0) + initial_payment
                     db.session.add(CashboxTransaction(
