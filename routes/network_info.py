@@ -56,6 +56,7 @@ def get_network_info():
 
 
 @network_bp.route('/network-info')
+@login_required
 def network_info():
     """صفحه اطلاعات شبکه"""
     info = get_network_info()

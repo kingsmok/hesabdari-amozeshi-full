@@ -6,7 +6,8 @@ from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from utils.jalali import current_jalali_year
 from models.finance import (
     Payment, Cashbox, CashboxTransaction, BankAccount, BankTransaction,
-    Check, Expense, ExpenseCategory, DiscountCode, SalaryContract, Payslip
+    Check, Expense, ExpenseCategory, DiscountCode, SalaryContract, Payslip,
+    get_or_create_main_cashbox,
 )
 from models.registration import Registration, Installment
 from models.student import Student
@@ -96,7 +97,7 @@ def add_payment():
         
         # Update cashbox
         if payment.payment_method == 'cash':
-            cashbox = Cashbox.query.first()
+            cashbox = get_or_create_main_cashbox()
             if cashbox:
                 cashbox.balance = (cashbox.balance or 0) + payment.amount
                 tx = CashboxTransaction(
