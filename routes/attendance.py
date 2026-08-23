@@ -162,7 +162,8 @@ def report():
     return render_template('attendance/report.html', class_stats=class_stats)
 
 
-@attendance_bp.route('/bulk', methods=['GET', 'POST'])
+@attendance_bp.route('/bulk', methods=['GET', 'POST'], endpoint='bulk')
+@attendance_bp.route('/bulk-attendance', methods=['GET', 'POST'], endpoint='bulk_attendance')
 @login_required
 def bulk_attendance():
     if request.method == 'POST':
@@ -171,7 +172,7 @@ def bulk_attendance():
         session = ClassSession.query.filter_by(id=session_id, class_id=class_id).first()
         if not session:
             flash('کلاس یا جلسه معتبر نیست', 'danger')
-            return redirect(url_for('attendance.bulk_attendance'))
+            return redirect(url_for('attendance.bulk'))
         return redirect(url_for('attendance.session_attendance', session_id=session.id))
     classes = ClassGroup.query.filter_by(status='active').all()
     return render_template('attendance/bulk.html', classes=classes)
