@@ -15,7 +15,7 @@ class Role(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationships
-    users = db.relationship('User', backref='role', lazy='dynamic')
+    users = db.relationship('User', backref=db.backref('role', lazy='joined'), lazy='dynamic')
     permissions = db.relationship('RolePermission', backref='role', lazy='dynamic')
     
     def __repr__(self):
@@ -65,7 +65,7 @@ class User(UserMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    branch = db.relationship('Branch', backref='users')
+    branch = db.relationship('Branch', backref=db.backref('users', lazy='dynamic'), lazy='joined')
     activities = db.relationship('ActivityLog', backref='user', lazy='dynamic')
     sessions = db.relationship('UserSession', backref='user', lazy='dynamic')
     
@@ -132,4 +132,7 @@ class ActivityLog(db.Model):
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.query.get(int(user_id))
+    try:
+        return db.session.get(User, int(user_id))
+    except (ValueError, TypeError):
+        return None

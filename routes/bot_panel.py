@@ -355,6 +355,10 @@ def keyboard_add():
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
+        if not name:
+            flash('نام کیبورد الزامی است', 'danger')
+            return render_template('bot_panel/keyboard_add.html'), 400
+
         description = request.form.get('description', '').strip()
         keyboard_type = request.form.get('keyboard_type', 'reply')
         provider = request.form.get('provider', 'both')
@@ -374,10 +378,15 @@ def keyboard_add():
             provider=provider,
             is_active=True
         )
-        db.session.add(kb)
-        db.session.commit()
-        flash(f'کیبورد "{name}" ایجاد شد', 'success')
-        return redirect(url_for('bot_panel.keyboards'))
+        try:
+            db.session.add(kb)
+            db.session.commit()
+            flash(f'کیبورد "{name}" ایجاد شد', 'success')
+            return redirect(url_for('bot_panel.keyboards'))
+        except Exception:
+            db.session.rollback()
+            flash('خطا در ثبت کیبورد (احتمالاً نام تکراری است)', 'danger')
+            return render_template('bot_panel/keyboard_add.html'), 400
 
     return render_template('bot_panel/keyboard_add.html')
 
@@ -438,6 +447,10 @@ def send_test():
     from models.system import SystemSettings
 
     chat_id = request.form.get('chat_id', '').strip()
+    if not chat_id:
+        flash('شناسه چت الزامی است', 'danger')
+        return redirect(url_for('bot_panel.dashboard'))
+
     message = request.form.get('message', 'تست از پنل مدیریت ✓').strip()
     provider = request.form.get('provider', 'bale')
 

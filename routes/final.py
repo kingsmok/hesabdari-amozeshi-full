@@ -225,7 +225,12 @@ def trigger_registration_sms():
     from models.system import Message
     
     reg_id = request.form.get('registration_id')
-    reg = Registration.query.get(reg_id)
+    if not reg_id:
+        return jsonify({'ok': False, 'error': 'شناسه ثبت‌نام الزامی است'}), 400
+    try:
+        reg = db.session.get(Registration, int(reg_id))
+    except (ValueError, TypeError):
+        reg = None
     
     if reg and reg.student and reg.student.mobile:
         msg_text = f"ثبت‌نام شما در دوره {reg.course.title if reg.course else ''} با موفقیت انجام شد. کد: {reg.reg_code}"
@@ -322,7 +327,12 @@ def trigger_payment_sms():
     from models.system import Message
     
     payment_id = request.form.get('payment_id')
-    payment = Payment.query.get(payment_id)
+    if not payment_id:
+        return jsonify({'ok': False, 'error': 'شناسه پرداخت الزامی است'}), 400
+    try:
+        payment = db.session.get(Payment, int(payment_id))
+    except (ValueError, TypeError):
+        payment = None
     
     if payment and payment.student and payment.student.mobile:
         msg_text = (

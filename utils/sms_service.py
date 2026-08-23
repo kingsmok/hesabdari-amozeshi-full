@@ -123,3 +123,8 @@ def send_configured_sms(phone: str, message: str, **kwargs) -> dict:
     from models.system import SystemSettings
 
     return send_farazsms(SystemSettings.query.first(), phone, message, **kwargs)
+
+
+# Alias for backward compatibility across modules
+send_sms = send_configured_sms
+
