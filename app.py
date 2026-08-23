@@ -222,7 +222,6 @@ def create_app():
             return f'{j.day} {months[j.month]} {j.year}'
         except:
             return str(date) if date else ''
-            return str(date)
     
     # تابع کمکی تبدیل تاریخ شمسی به میلادی در route ها
     @app.errorhandler(403)

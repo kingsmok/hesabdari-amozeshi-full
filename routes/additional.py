@@ -219,7 +219,7 @@ def pdf(id):
 def beautiful_certificate(cert_type, id):
     from models.student import Student
     from models.teacher import Teacher
-    from models.certificate import Certificate
+    from models.course import Certificate
     import qrcode, io, base64
     
     if cert_type == 'student':

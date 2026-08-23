@@ -10,7 +10,7 @@
   <div class="row g-3">
     {% for item in items %}
     <div class="col-md-6 col-lg-4">
-      <a href="{{ url_for('additional.beautiful_certificate', cert_type=cert_type, id=item.id) }}" class="btn btn-outline-primary w-100 mb-2" target="_blank">نمایش مدرک {{ item.full_name or item.name }}</a>
+      <a href="{{ url_for('certificates.beautiful_certificate', cert_type=cert_type, id=item.id) }}" class="btn btn-outline-primary w-100 mb-2" target="_blank">نمایش مدرک {{ item.full_name or item.name }}</a>
     </div>
     {% endfor %}
   </div>
