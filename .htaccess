@@ -1,0 +1,22 @@
+# .htaccess for shared hosting (Apache + mod_wsgi / Passenger / Flask)
+# Upload this + all project files to public_html / domain root.
+
+Options +FollowSymLinks -Indexes
+RewriteEngine On
+
+# If request is not a real file or directory, pass to WSGI
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ wsgi.py/$1 [QSA,L]
+
+# Security: deny access to sensitive files
+<FilesMatch "\.(py|pyc|pyo|pyd|json|db|sqlite|sqlite3|log)$">
+    Require all denied
+</FilesMatch>
+
+# For mod_wsgi direct setup (uncomment if your host supports it):
+# <IfModule mod_wsgi.c>
+#     WSGIScriptAlias / /absolute/path/to/hesabdari-amozeshi-full/wsgi.py
+#     WSGIPythonPath /absolute/path/to/hesabdari-amozeshi-full
+#     WSGIApplicationGroup %{GLOBAL}
+# </IfModule>
