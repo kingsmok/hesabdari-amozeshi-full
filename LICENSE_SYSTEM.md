@@ -42,19 +42,29 @@
 | `templates/license/banner.html` | نوار هشدار مهلت نرمش / حالت آفلاین |
 | `VERSION` | نسخه‌ی جاری (`1.0.1`) — مرجع `update/check` |
 | `tests/test_license.py` | ۵۸ آزمون با سرور لایسنس ساختگیِ امضاکننده |
+| `utils/backup_service.py` | موتور پشتیبان‌گیری/بازیابی: بسته ZIP با manifest، هش SHA-256، بررسی سلامت دیتابیس، پشتیبان ایمنی، ضد Zip-Slip، پشتیبان خودکار |
+| `routes/backup_center.py` | Blueprint `backup_center` روی `/backup-center`: ساخت، فهرست، دانلود، بازیابی، آپلود، حذف، پاکسازی، تنظیمات |
+| `templates/backup/index.html` | مرکز پشتیبان‌گیری و بازیابی (آمار، فرم‌ها، جدول نسخه‌ها) |
+| `templates/license/update.html` | مرکز به‌روزرسانی: وضعیت نسخه، بررسی سرور، نصب دستی بسته ZIP |
+| `check_license_server.py` | ابزار خط فرمان برای آزمون سرور واقعی روی دستگاه مشتری (کلید عمومی، امضا، nonce، نام فیلدها) |
+| `tests/test_backup.py` | ۳۳ آزمون: پشتیبان/بازیابی، نصب دستی بسته، سازگاری پاسخ سرور واقعی |
 
 ## ۳) فایل‌های تغییر یافته (فقط افزودنی)
 
 | فایل | تغییر |
 |---|---|
-| `app.py` | `from license_client import init_license; init_license(app)` پیش از ثبت Blueprintها · ثبت `license_bp` · بررسی بخش `backup` در `_scheduled_backup` · راه‌اندازی مشروط پولینگ بله |
+| `app.py` | `from license_client import init_license; init_license(app)` پیش از ثبت Blueprintها · ثبت `license_bp` و `backup_center_bp` · زمان‌بند پشتیبان هر ۱ ساعت با `utils.backup_service.run_scheduled_backup()` (بررسی بخش `backup`) · راه‌اندازی مشروط پولینگ بله |
 | `config.py` | بخش `license` در `load_config()` |
 | `requirements.txt` | `cryptography==43.0.1` |
 | `routes/*.py` (۲۱ فایل) | `import` + `@license_required` و `@licensed_section('...')` روی یک مسیر شاخص از هر بخش (لایه‌ی دوم مستقل) |
 | `utils/sms_service.py` | `send_configured_sms` بدون بخش `messaging` ارسال نمی‌کند (کنترل در عمق سرویس) |
 | `routes/features.py` | `perform_backup()` با `assert_feature('backup')` |
 | `templates/base/layout.html` | `{% include 'license/banner.html' %}` |
-| `templates/base/sidebar.html` | لینک «لایسنس و به‌روزرسانی» (بدون هیچ شرط `has_feature`) |
+| `templates/base/sidebar.html` | لینک‌های «لایسنس و به‌روزرسانی»، «پشتیبان‌گیری و بازیابی»، «به‌روزرسانی نرم‌افزار» (بدون هیچ شرط `has_feature`) |
+| `license_features.py` | نگاشت `backup_center.*` → بخش `backup` |
+| `license_updater.py` | افزودن `inspect_local_package` و `apply_local_package` (نصب دستی ZIP) + پذیرش `manifest.files` به‌صورت رشته |
+| `routes/license.py` | افزودن `/license/update-center`، `/license/update/check`، `/license/update/upload` |
+| `license_client.py` | لایه‌ی سازگاری `normalize_server_data` / `envelope_data` برای نام‌های مختلف فیلد و وضعیت در سرور واقعی |
 | `app_desktop.spec` | افزودن ماژول‌های لایسنس و `cryptography` به بیلد PyInstaller |
 | `tests/test_system.py` | fixture تزریق وضعیت معتبر در حافظه برای آزمون‌های موجود |
 | `.gitignore` | `restart.bat`، `.update_backup/` |
@@ -175,6 +185,125 @@ endpointی بدون نگاشت نمانده باشد (بخش ۱۴ آزمون).
    `routes/features.perform_backup`، تسک زمان‌بندی‌شده‌ی پشتیبان، پولینگ ربات بله
 5. تصمیم همیشه از **داده‌ی امضاشده** خوانده می‌شود، نه از یک پرچم بولی
 
+
+---
+
+## ۹) سرور واقعی، نه سرور ساختگی
+
+سرور ساختگی **فقط داخل `tests/test_license.py`** زندگی می‌کند؛ در هیچ مسیر اجرایی برنامه
+حضور ندارد و به بیلد هم نمی‌رود. آدرس پیش‌فرض محصول همان سرور شماست:
+
+```
+https://ls.ariapadideh.ir
+```
+
+و در صورت نیاز از `settings.json` قابل تغییر است:
+
+```json
+{ "license": { "server_url": "https://ls.ariapadideh.ir", "channel": "stable", "auto_update": true } }
+```
+
+### لایه‌ی سازگاری با نام‌گذاری سرور
+
+چون هر سرور واقعی ممکن است نام فیلدها را کمی متفاوت بفرستد، پس از **تایید امضا** یک ترجمه‌ی
+مقاوم روی *کپی* داده انجام می‌شود (پاکت خام دست‌نخورده می‌ماند تا امضای کش دوباره قابل بررسی باشد):
+
+| ورودی سرور | معادل داخلی |
+|---|---|
+| `features` / `feature_flags` / `enabled_features` (dict یا list یا رشته‌ی کامادار) | `allowed_features` به‌صورت `dict[str, bool]` |
+| `expiry_date` / `expire_date` / `valid_until` / `expires` | `expires_at` |
+| `customer_name` / `owner_name` | `client_name` |
+| `max_devices` / `device_limit` | `max_activations` |
+| `recheck_minutes` / `check_interval_minutes` | `revalidate_minutes` |
+| `grace_hours` / `offline_grace` | `offline_grace_hours` |
+| `VALID` / `ACTIVE` / `OK` / `ACTIVATED` | `SUCCESS` |
+| `NOT_FOUND` / `INVALID_LICENSE` | `INVALID_KEY` |
+| `SUSPENDED` / `REVOKED` / `DISABLED` | `INACTIVE` |
+| `MAX_DEVICES` / `ACTIVATION_LIMIT` | `ACTIVATION_LIMIT_REACHED` |
+
+قاعده‌ها تغییر نکرده‌اند: پیش‌فرض هر بخش **بسته** است، وضعیت ناشناخته «موفق» تلقی نمی‌شود و
+هیچ تصمیمی پیش از تایید امضا و تطبیق nonce گرفته نمی‌شود.
+
+### آزمون سرور واقعی روی دستگاه مشتری
+
+```bat
+python check_license_server.py                          :: فقط سلامت سرور و کلید عمومی
+python check_license_server.py 1234-ABCD-5678-EFGH      :: بررسی verify یک کلید واقعی
+python check_license_server.py --raw  1234-ABCD-...     :: چاپ پاکت خام پاسخ
+python check_license_server.py --activate 1234-ABCD-... :: فعال‌سازی واقعی همین دستگاه
+```
+
+خروجی نشان می‌دهد: اثر انگشت کلید عمومی سرور در برابر مقدار هاردکد، اعتبار امضا، بازگشت
+nonce، و اینکه فیلدهای پاسخ پس از ترجمه چه می‌شوند (به‌ویژه تعداد بخش‌های فعال).
+کلید لایسنس در خروجی پوشانده می‌شود تا بتوان آن را برای پشتیبانی فرستاد.
+
+---
+
+## ۱۰) مرکز پشتیبان‌گیری و بازیابی (`/backup-center`)
+
+ساختار هر بسته:
+
+```
+manifest.json          نوع، نسخه، زمان، هش SHA-256 دیتابیس، تعداد فایل‌های آپلودی، یادداشت
+database/academy.db    کپی سازگار با SQLite Backup API (نه کپی خام فایل)
+uploads/...            فایل‌های آپلودی (فقط در نوع «کامل»)
+config/settings.json   پیکربندی همان نصب
+VERSION                نسخه‌ی برنامه در زمان تهیه پشتیبان
+```
+
+| مسیر | کار |
+|---|---|
+| `GET /backup-center/` | آمار، تنظیمات خودکار و فهرست نسخه‌ها |
+| `POST /backup-center/create` | ساخت بسته کامل یا فقط-دیتابیس با یادداشت |
+| `GET /backup-center/download/<name>` | دانلود بسته |
+| `POST /backup-center/restore/<name>` | بازیابی (با پشتیبان ایمنی خودکار) |
+| `POST /backup-center/upload` | آپلود بسته از فایل کاربر، با گزینه‌ی بازیابی فوری |
+| `POST /backup-center/delete/<name>` | حذف بسته |
+| `POST /backup-center/prune` | پاکسازی نسخه‌های قدیمی بر اساس سقف |
+| `POST /backup-center/settings` | فعال/غیرفعال کردن پشتیبان خودکار، بازه و سقف نگهداری |
+
+تضمین‌ها:
+
+* پیش از هر بازیابی، یک **پشتیبان ایمنی** با پیشوند `safety_` گرفته می‌شود (و در پاکسازی حذف نمی‌شود).
+* هش SHA-256 دیتابیس و `PRAGMA integrity_check` پیش از جایگزینی بررسی می‌شود؛ بسته‌ی دستکاری‌شده
+  یا خراب **هرگز** جایگزین نمی‌شود و دیتابیس فعلی دست‌نخورده می‌ماند.
+* ضد Zip-Slip روی همه‌ی ورودی‌های بسته؛ نام فایل فقط از داخل پوشه‌ی پشتیبان‌ها پذیرفته می‌شود.
+* بسته‌های نسخه‌های قدیمی (`backup_*.db.zip`) هم قابل فهرست و بازیابی‌اند.
+* همه‌ی مسیرها: فقط مدیر کل + `@license_required` + `@licensed_section('backup')`.
+* زمان‌بند برنامه هر ساعت `run_scheduled_backup()` را صدا می‌زند و خودِ سرویس بر اساس
+  `auto_backup` / `backup_interval_hours` / `max_backups` تصمیم می‌گیرد.
+
+---
+
+## ۱۱) مرکز به‌روزرسانی و نصب بسته ZIP (`/license/update-center`)
+
+دو مسیر موازی:
+
+1. **سروری:** «بررسی نسخه جدید» → `/api/v1/update/check` (پاسخ امضاشده) → نمایش نسخه و
+   توضیحات → «دانلود و نصب» با تایید SHA-256.
+2. **دستی (آفلاین):** بسته‌ی ZIP را در همان صفحه آپلود می‌کنید. اگر پشتیبانی هش SHA-256 را
+   اعلام کرده باشد، همان‌جا وارد می‌کنید و بسته پیش از باز شدن با آن مقایسه می‌شود.
+
+مراحل نصب دستی: بررسی معتبر بودن ZIP → ضد Zip-Slip → تطبیق اختیاری هش → **پشتیبان خودکار
+دیتابیس** → نصب با همان موتور (`full` یا `manifest`) → به‌روزرسانی `VERSION` → در صورت خطا،
+بازگردانی خودکار فایل‌های قبلی.
+
+فهرست محافظت‌شده (بازنویسی نمی‌شود، حتی اگر داخل بسته باشد): `instance/`، `static/uploads/`،
+`uploads/`، `media/`، `logs/`، `backups/`، `.env`، `settings.json`، `migrations/versions`،
+و هر فایل با پسوند `.db/.sqlite/.log/.enc/.dat`.
+
+قالب `manifest.json` داخل بسته (حالت افزایشی):
+
+```json
+{ "files": [
+    {"action": "replace", "path": "routes/finance.py"},
+    {"action": "add",     "path": "templates/finance/new.html"},
+    {"action": "delete",  "path": "routes/legacy.py"}
+] }
+```
+
+فهرست ساده‌ی رشته‌ای (`"files": ["routes/finance.py"]`) هم پذیرفته می‌شود و `replace` فرض می‌شود.
+
 ---
 
 ## ۸) سناریوهای آزمون دستی
@@ -196,10 +325,18 @@ endpointی بدون نگاشت نمانده باشد (بخش ۱۴ آزمون).
 | آزادسازی دستگاه | `/license/status` → «آزادسازی این دستگاه» | یک ظرفیت آزاد و برنامه به صفحه‌ی فعال‌سازی برمی‌گردد |
 | به‌روزرسانی | `/license/status` → «بررسی به‌روزرسانی» | تایید SHA-256، نصب با پشتیبان، به‌روزرسانی `VERSION`، ری‌استارت (ویندوز) |
 | بسته‌ی دستکاری‌شده | هش بسته را در پنل تغییر دهید | دانلود پاک و نصب متوقف می‌شود؛ برنامه با نسخه‌ی قبلی ادامه می‌دهد |
+| نصب دستی بسته | `/license/update-center` → آپلود فایل ZIP | پشتیبان خودکار، نصب فایل‌ها، به‌روزرسانی `VERSION`؛ دیتابیس و آپلودها دست‌نخورده |
+| بسته‌ی دستی با هش اشتباه | همان صفحه، هش نادرست وارد کنید | «هش بسته هم‌خوانی ندارد»؛ هیچ فایلی تغییر نمی‌کند |
+| پشتیبان کامل | `/backup-center/` → «شروع پشتیبان‌گیری» (کامل) | فایل ZIP با دیتابیس + آپلودها + manifest ساخته می‌شود |
+| بازیابی | یک رکورد را حذف کنید، سپس «بازیابی» بزنید | رکورد برمی‌گردد و یک بسته‌ی `safety_` هم ساخته می‌شود |
+| بسته‌ی پشتیبان دستکاری‌شده | داخل ZIP فایل دیتابیس را عوض کنید | «هش دیتابیس هم‌خوانی ندارد»؛ دیتابیس فعلی سالم می‌ماند |
+| بازیابی از فایل بیرونی | ZIP پشتیبان دستگاه دیگر را آپلود و بازیابی کنید | داده‌ها منتقل می‌شوند؛ لایسنس همان دستگاه دست‌نخورده می‌ماند |
+| سرور واقعی | روی دستگاه مشتری `python check_license_server.py KEY` | اثر انگشت کلید عمومی، اعتبار امضا و فیلدهای پاسخ گزارش می‌شود |
 
 آزمون خودکار:
 
 ```bash
-python tests/test_license.py     # ۵۸ بررسی با سرور لایسنس ساختگیِ امضاکننده
-python -m pytest tests/test_system.py -q
+python tests/test_license.py                 # ۵۸ بررسی با سرور لایسنس ساختگیِ امضاکننده (فقط آزمون)
+python -m pytest tests/test_backup.py -q     # ۳۳ بررسی پشتیبان/بازیابی و نصب دستی بسته
+python -m pytest tests/test_system.py -q     # ۱۹ آزمون موجود برنامه
 ```
