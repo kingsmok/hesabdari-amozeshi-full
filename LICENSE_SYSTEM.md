@@ -42,12 +42,12 @@
 | `templates/license/banner.html` | نوار هشدار مهلت نرمش / حالت آفلاین |
 | `VERSION` | نسخه‌ی جاری (`1.0.1`) — مرجع `update/check` |
 | `tests/test_license.py` | ۶۲ آزمون با سرور لایسنس ساختگیِ امضاکننده |
-| `utils/backup_service.py` | موتور پشتیبان‌گیری/بازیابی: بسته ZIP با manifest، هش SHA-256، بررسی سلامت دیتابیس، پشتیبان ایمنی، ضد Zip-Slip، پشتیبان خودکار |
+| `utils/backup_service.py` | موتور پشتیبان‌گیری/بازیابی: بسته ZIP با manifest، هش SHA-256، بررسی سلامت دیتابیس، پشتیبان ایمنی، ضد Zip-Slip، پشتیبان خودکار، ارسال به ربات بله |
 | `routes/backup_center.py` | Blueprint `backup_center` روی `/backup-center`: ساخت، فهرست، دانلود، بازیابی، آپلود، حذف، پاکسازی، تنظیمات |
 | `templates/backup/index.html` | مرکز پشتیبان‌گیری و بازیابی (آمار، فرم‌ها، جدول نسخه‌ها) |
 | `templates/license/update.html` | مرکز به‌روزرسانی: وضعیت نسخه، بررسی سرور، نصب دستی بسته ZIP |
 | `check_license_server.py` | ابزار خط فرمان برای آزمون سرور واقعی روی دستگاه مشتری (کلید عمومی، امضا، nonce، نام فیلدها) |
-| `tests/test_backup.py` | ۳۳ آزمون: پشتیبان/بازیابی، نصب دستی بسته، سازگاری پاسخ سرور واقعی |
+| `tests/test_backup.py` | ۵۰ آزمون: پشتیبان/بازیابی، نصب دستی بسته، سازگاری پاسخ سرور واقعی، ارسال به ربات بله |
 
 ## ۳) فایل‌های تغییر یافته (فقط افزودنی)
 
@@ -65,6 +65,9 @@
 | `license_updater.py` | افزودن `inspect_local_package` و `apply_local_package` (نصب دستی ZIP) + پذیرش `manifest.files` به‌صورت رشته |
 | `routes/license.py` | افزودن `/license/update-center`، `/license/update/check`، `/license/update/upload` |
 | `license_client.py` | لایه‌ی سازگاری `normalize_server_data` / `envelope_data` برای نام‌های مختلف فیلد و وضعیت در سرور واقعی |
+| `utils/bot_services.py` | `send_bot_document()` (ارسال فایل به بله/تلگرام) + دستور مدیریتی `/backup` داخل ربات |
+| `models/system.py` | چهار ستون تازه‌ی `backup_bot_*` |
+| `utils/database_tools.py` | `ensure_settings_columns()` برای افزودن ستون‌ها به نصب‌های قدیمی |
 | `app_desktop.spec` | افزودن ماژول‌های لایسنس و `cryptography` به بیلد PyInstaller |
 | `tests/test_system.py` | fixture تزریق وضعیت معتبر در حافظه برای آزمون‌های موجود |
 | `.gitignore` | `restart.bat`، `.update_backup/` |
@@ -260,7 +263,8 @@ VERSION                نسخه‌ی برنامه در زمان تهیه پشت�
 | `POST /backup-center/upload` | آپلود بسته از فایل کاربر، با گزینه‌ی بازیابی فوری |
 | `POST /backup-center/delete/<name>` | حذف بسته |
 | `POST /backup-center/prune` | پاکسازی نسخه‌های قدیمی بر اساس سقف |
-| `POST /backup-center/settings` | فعال/غیرفعال کردن پشتیبان خودکار، بازه و سقف نگهداری |
+| `POST /backup-center/settings` | فعال/غیرفعال کردن پشتیبان خودکار، بازه و سقف نگهداری (`section=schedule`) و تنظیمات ربات (`section=bot`) |
+| `POST /backup-center/send/<name>` | ارسال بسته به ربات بله برای مدیر |
 
 تضمین‌ها:
 
@@ -272,6 +276,47 @@ VERSION                نسخه‌ی برنامه در زمان تهیه پشت�
 * همه‌ی مسیرها: فقط مدیر کل + `@license_required` + `@licensed_section('backup')`.
 * زمان‌بند برنامه هر ساعت `run_scheduled_backup()` را صدا می‌زند و خودِ سرویس بر اساس
   `auto_backup` / `backup_interval_hours` / `max_backups` تصمیم می‌گیرد.
+
+### ارسال پشتیبان به ربات بله (برای مدیر)
+
+مرکز پشتیبان‌گیری به ربات بله‌ی خودِ برنامه وصل است و بسته را برای مدیر می‌فرستد.
+
+**تنظیمات (در همان صفحه `/backup-center/`):**
+
+| فیلد | ستون دیتابیس | کار |
+|---|---|---|
+| ارسال خودکار به بله | `system_settings.backup_bot_enabled` | هر پشتیبان خودکار پس از ساخت ارسال می‌شود |
+| شناسه گفت‌وگوی مدیر | `system_settings.backup_bot_chat_id` | چند `chat_id` با کاما |
+| نوع بسته ارسالی | `system_settings.backup_bot_kind` | `database` (پیش‌فرض، سبک) یا `full` |
+| سقف حجم ارسال | `system_settings.backup_bot_max_mb` | پیش‌فرض ۴۵ مگابایت، سقف سرویس بله ۵۰ مگابایت |
+
+ستون‌های تازه با `utils/database_tools.ensure_settings_columns()` روی نصب‌های قدیمی
+هم اضافه می‌شوند (همان الگوی `ensure_attendance_indexes` خود برنامه).
+
+**مقصدها:** شناسه‌های واردشده در تنظیمات + هر کاربر رباتی که در پنل «مدیر ربات»
+(`BotUser.is_admin_bot`) شده باشد. تکراری‌ها حذف می‌شوند.
+
+**سه راه ارسال:**
+
+1. هنگام ساخت پشتیبان، تیک «پس از ساخت برای مدیر در بله ارسال شود».
+2. دکمه‌ی 🤖 روبه‌روی هر بسته در جدول نسخه‌ها (`POST /backup-center/send/<name>`).
+3. پشتیبان خودکار زمان‌بند: در صورت فعال بودن، پس از ساخت ارسال می‌کند.
+4. **داخل خود ربات:** مدیر در گفت‌وگوی بله دستور `/backup` (یا `/پشتیبان`) را
+   می‌فرستد؛ ربات همان‌جا بسته را می‌سازد و برای او می‌فرستد. برای کاربر عادی
+   این دستور اصلاً وجود ندارد و پاسخ «دستور شناخته نشد» می‌گیرد.
+
+**زیرنویس فایل ارسالی:** نام آموزشگاه، نام فایل، نوع بسته، حجم، تاریخ شمسی،
+نسخه‌ی نرم‌افزار، تعداد فایل‌های همراه و یادداشت.
+
+**قواعد ایمنی:**
+
+* ارسال با `sendDocument` و `multipart/form-data` روی `https://tapi.bale.ai` انجام می‌شود.
+* بسته‌ی بزرگ‌تر از سقف، **ارسال نمی‌شود** و پیام راهنما می‌دهد (دانلود دستی یا پشتیبان فقط-دیتابیس).
+* نبود توکن یا مقصد، پیام راهنمای فارسی می‌دهد؛ هیچ استثنایی به کاربر نشان داده نمی‌شود.
+* شکست ارسال **هرگز** پشتیبان‌گیری را باطل نمی‌کند؛ فایل سر جایش می‌ماند و خطا گزارش می‌شود.
+* `send_backup_to_bot()` مستقل از لایه‌ی مسیر، `assert_feature('backup')` را صدا می‌زند
+  (لایه‌ی کنترل عمقی فاز ۸٫۵٫۴).
+* هر ارسال موفق در `bot_messages` (خروجی) و `activity_logs` ثبت می‌شود.
 
 ---
 
@@ -337,7 +382,7 @@ VERSION                نسخه‌ی برنامه در زمان تهیه پشت�
 
 ```bash
 python tests/test_license.py                 # ۶۲ بررسی با سرور لایسنس ساختگیِ امضاکننده (فقط آزمون)
-python -m pytest tests/test_backup.py -q     # ۳۳ بررسی پشتیبان/بازیابی و نصب دستی بسته
+python -m pytest tests/test_backup.py -q     # ۵۰ بررسی پشتیبان/بازیابی، نصب دستی و ارسال به ربات
 python -m pytest tests/test_system.py -q     # ۱۹ آزمون موجود برنامه
 ```
 

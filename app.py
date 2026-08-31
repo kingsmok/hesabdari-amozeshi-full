@@ -350,6 +350,8 @@ def create_app():
             db.create_all()
             from utils.attendance_service import ensure_attendance_indexes
             ensure_attendance_indexes()
+            from utils.database_tools import ensure_settings_columns
+            ensure_settings_columns()
             create_default_data()
             # اصلاح خودکار تاریخ‌های شمسی که در نسخه‌های قدیمی به‌اشتباه
             # مستقیماً در ستون میلادی ذخیره شده بودند (عملیات idempotent است).

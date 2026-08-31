@@ -135,3 +135,26 @@ def sqlite_backup(destination: str) -> None:
     finally:
         target.close()
         source.close()
+
+
+def ensure_settings_columns() -> int:
+    """
+    ستون‌های تازه‌ی جدول تنظیمات را روی نصب‌های قدیمی اضافه می‌کند.
+    (SQLite با create_all ستون جدید به جدول موجود اضافه نمی‌کند.)
+    خروجی: تعداد ستون‌هایی که واقعاً اضافه شدند.
+    """
+    alters = [
+        "ALTER TABLE system_settings ADD COLUMN backup_bot_enabled BOOLEAN DEFAULT 0",
+        "ALTER TABLE system_settings ADD COLUMN backup_bot_chat_id VARCHAR(200)",
+        "ALTER TABLE system_settings ADD COLUMN backup_bot_max_mb INTEGER DEFAULT 45",
+        "ALTER TABLE system_settings ADD COLUMN backup_bot_kind VARCHAR(20) DEFAULT 'database'",
+    ]
+    added = 0
+    for sql in alters:
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+            added += 1
+        except Exception:
+            db.session.rollback()          # ستون از قبل وجود دارد
+    return added

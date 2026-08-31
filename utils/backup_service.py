@@ -416,6 +416,155 @@ def prune_backups(max_keep: int) -> int:
 
 
 # ══════════════════════════════════════════════════════════════
+#  ارسال بسته پشتیبان به ربات بله (برای مدیر)
+# ══════════════════════════════════════════════════════════════
+BOT_PROVIDER = 'bale'
+BOT_HARD_LIMIT_MB = 50          # سقف سرویس بله برای فایل عمومی
+
+
+def _settings_row():
+    from models.system import SystemSettings
+    return SystemSettings.query.first()
+
+
+def bot_targets(settings=None) -> list[str]:
+    """
+    مقصدهای ارسال: شناسه‌های واردشده در تنظیمات + کاربران «مدیر ربات».
+    ترتیب حفظ و تکراری‌ها حذف می‌شوند.
+    """
+    settings = settings or _settings_row()
+    targets: list[str] = []
+
+    raw = (getattr(settings, 'backup_bot_chat_id', '') or '') if settings else ''
+    for chunk in raw.replace('؛', ',').replace(';', ',').replace('\n', ',').split(','):
+        chat_id = chunk.strip()
+        if chat_id and chat_id not in targets:
+            targets.append(chat_id)
+
+    try:
+        from models.bot import BotUser
+        admins = BotUser.query.filter_by(is_admin_bot=True, provider=BOT_PROVIDER).all()
+        for admin in admins:
+            if admin.is_blocked:
+                continue
+            chat_id = str(admin.chat_id)
+            if chat_id not in targets:
+                targets.append(chat_id)
+    except Exception:                     # جدول ربات ممکن است هنوز ساخته نشده باشد
+        pass
+
+    return targets
+
+
+def bot_delivery_status() -> dict:
+    """وضعیت آمادگی ارسال به ربات، برای نمایش در رابط کاربری."""
+    settings = _settings_row()
+    token = (getattr(settings, 'bale_bot_token', '') or '') if settings else ''
+    targets = bot_targets(settings)
+    return {
+        'enabled': bool(getattr(settings, 'backup_bot_enabled', False)) if settings else False,
+        'has_token': bool(token),
+        'targets': targets,
+        'targets_count': len(targets),
+        'max_mb': int(getattr(settings, 'backup_bot_max_mb', 0) or 45) if settings else 45,
+        'kind': (getattr(settings, 'backup_bot_kind', '') or KIND_DATABASE) if settings else KIND_DATABASE,
+        'ready': bool(token) and bool(targets),
+    }
+
+
+def _caption_for(info: dict, settings=None) -> str:
+    settings = settings or _settings_row()
+    academy = (getattr(settings, 'academy_name', '') or '').strip() if settings else ''
+    kind_label = {KIND_FULL: 'کامل (دیتابیس + فایل‌ها)',
+                  KIND_DATABASE: 'فقط دیتابیس'}.get(info.get('kind'), info.get('kind') or '—')
+    try:
+        from utils.jalali import gregorian_to_jalali
+        stamp = f"{gregorian_to_jalali(datetime.now().date())} {datetime.now().strftime('%H:%M')}"
+    except Exception:
+        stamp = datetime.now().strftime('%Y/%m/%d %H:%M')
+
+    lines = [
+        '📦 بسته پشتیبان نرم‌افزار' + (f' — {academy}' if academy else ''),
+        f"نام فایل: {info['name']}",
+        f'نوع: {kind_label}',
+        f"حجم: {info['size_mb']} مگابایت",
+        f'تاریخ: {stamp}',
+        f"نسخه نرم‌افزار: {info.get('app_version') or '—'}",
+    ]
+    if info.get('uploads_count'):
+        lines.append(f"فایل‌های همراه: {info['uploads_count']}")
+    if info.get('note'):
+        lines.append(f"یادداشت: {info['note']}")
+    lines.append('این فایل را در جای امن نگه دارید؛ با آن می‌توان کل اطلاعات را بازگرداند.')
+    return '\n'.join(lines)
+
+
+def _log_bot_message(chat_id, text):
+    try:
+        from models.bot import BotMessage
+        db.session.add(BotMessage(chat_id=int(chat_id), direction='outgoing',
+                                  text=text[:1000], msg_type='document',
+                                  provider=BOT_PROVIDER))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def send_backup_to_bot(name: str, targets: list[str] | None = None) -> dict:
+    """
+    ارسال یک بسته‌ی پشتیبان موجود به ربات بله.
+    خروجی: dict گزارش {'sent', 'failed', 'targets', 'name'}
+    """
+    # لایه‌ی کنترل مستقل: بخش پشتیبان‌گیری باید در لایسنس باز باشد
+    try:
+        from license_client import assert_feature
+        assert_feature('backup')
+    except ImportError:
+        pass
+
+    path = safe_backup_path(name)
+    if not path or not os.path.isfile(path):
+        raise BackupError('فایل پشتیبان معتبر یافت نشد.')
+
+    settings = _settings_row()
+    token = (getattr(settings, 'bale_bot_token', '') or '').strip() if settings else ''
+    if not token:
+        raise BackupError('توکن ربات بله ثبت نشده است؛ ابتدا از بخش اتصالات آن را وارد کنید.')
+
+    targets = targets or bot_targets(settings)
+    if not targets:
+        raise BackupError('مقصدی برای ارسال مشخص نشده است؛ شناسه گفت‌وگوی مدیر را در '
+                          'تنظیمات وارد کنید یا یکی از کاربران ربات را «مدیر ربات» کنید.')
+
+    max_mb = int(getattr(settings, 'backup_bot_max_mb', 0) or 45) if settings else 45
+    max_mb = min(max_mb, BOT_HARD_LIMIT_MB)
+    size_mb = round(os.path.getsize(path) / (1024 * 1024), 2)
+    if size_mb > max_mb:
+        raise BackupError(f'حجم بسته {size_mb} مگابایت است و از سقف ارسال ربات '
+                          f'({max_mb} مگابایت) بیشتر است؛ از گزینه دانلود استفاده کنید '
+                          'یا پشتیبان «فقط دیتابیس» بگیرید.')
+
+    info = describe_backup(path)
+    caption = _caption_for(info, settings)
+
+    from utils.bot_services import send_bot_document
+
+    sent, failed = [], []
+    for chat_id in targets:
+        result = send_bot_document(BOT_PROVIDER, token, chat_id, path,
+                                   caption=caption, filename=info['name'])
+        if result.get('ok'):
+            sent.append(chat_id)
+            _log_bot_message(chat_id, caption)
+        else:
+            failed.append({'chat_id': chat_id,
+                           'error': result.get('description') or 'خطای نامشخص'})
+
+    return {'name': info['name'], 'size_mb': size_mb, 'targets': targets,
+            'sent': sent, 'failed': failed}
+
+
+# ══════════════════════════════════════════════════════════════
 #  پشتیبان‌گیری خودکار (توسط زمان‌بند برنامه صدا زده می‌شود)
 # ══════════════════════════════════════════════════════════════
 def latest_backup_time() -> datetime | None:
@@ -444,4 +593,20 @@ def run_scheduled_backup() -> str:
 
     info = create_backup(kind=KIND_FULL, note='پشتیبان خودکار')
     removed = prune_backups(settings.max_backups or 30)
-    return f"{info['name']} ساخته شد" + (f'؛ {removed} نسخه قدیمی حذف شد' if removed else '')
+    report = f"{info['name']} ساخته شد" + (f'؛ {removed} نسخه قدیمی حذف شد' if removed else '')
+
+    # ارسال خودکار به ربات بله (در صورت فعال بودن) — خطایش پشتیبان را باطل نمی‌کند
+    if getattr(settings, 'backup_bot_enabled', False):
+        try:
+            kind = getattr(settings, 'backup_bot_kind', '') or KIND_DATABASE
+            package = info
+            if kind == KIND_DATABASE:
+                package = create_backup(kind=KIND_DATABASE, note='پشتیبان خودکار برای ربات')
+            delivery = send_backup_to_bot(package['name'])
+            report += f"؛ برای {len(delivery['sent'])} مقصد در بله ارسال شد"
+            if delivery['failed']:
+                report += f" ({len(delivery['failed'])} مقصد ناموفق)"
+        except Exception as exc:
+            report += f'؛ ارسال به ربات انجام نشد ({exc})'
+
+    return report

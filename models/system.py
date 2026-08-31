@@ -46,6 +46,12 @@ class SystemSettings(db.Model):
     # Bale Messenger Bot
     bale_bot_token = db.Column(db.String(200))
     bale_webhook_url = db.Column(db.String(300))
+
+    # ارسال بسته پشتیبان به ربات بله (برای مدیر)
+    backup_bot_enabled = db.Column(db.Boolean, default=False)
+    backup_bot_chat_id = db.Column(db.String(200))      # چند شناسه با کاما
+    backup_bot_max_mb = db.Column(db.Integer, default=45)
+    backup_bot_kind = db.Column(db.String(20), default='database')
     
     # FarazSMS
     farazsms_api_key = db.Column(db.String(200))
