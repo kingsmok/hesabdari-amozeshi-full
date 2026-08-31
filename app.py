@@ -353,6 +353,11 @@ def create_app():
             from utils.database_tools import ensure_settings_columns
             ensure_settings_columns()
             create_default_data()
+            # اعمال تنظیمات نصب‌کننده (config.ini): ساخت حساب مدیر و آدرس هاست.
+            from utils.installer_config import apply_installer_config
+            installer_note = apply_installer_config()
+            if installer_note:
+                app.logger.info('installer config: %s', installer_note)
             # اصلاح خودکار تاریخ‌های شمسی که در نسخه‌های قدیمی به‌اشتباه
             # مستقیماً در ستون میلادی ذخیره شده بودند (عملیات idempotent است).
             from utils.database_tools import repair_legacy_jalali_dates
