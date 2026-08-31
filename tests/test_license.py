@@ -44,6 +44,7 @@ SERVER_BEHAVIOUR = {
     'offline_grace_hours': 72,
     'revalidate_minutes': 360,
     'in_grace': False,
+    'grace_days_remaining': None,
     'http_status': 200,
     'force_not_activated': False,
     'requests': [],
@@ -109,6 +110,8 @@ class _Handler(BaseHTTPRequestHandler):
                 'success': False,
                 'status': status,
                 'message': f'پیام سرور برای {status}',
+                'in_grace': SERVER_BEHAVIOUR['in_grace'],
+                'grace_days_remaining': SERVER_BEHAVIOUR['grace_days_remaining'],
                 'nonce': nonce,
                 'server_time': int(time.time()),
             }
@@ -358,6 +361,28 @@ def main():
         check('revalidate_minutes از پاسخ سرور', state.revalidate_minutes == 15)
         check('offline_grace_hours از پاسخ سرور', state.offline_grace_hours == 12)
         check('در مهلت نرمش برنامه کار می‌کند', state.valid and state.in_grace)
+
+        # سرور می‌گوید منقضی شده ولی مشتری در مهلت نرمش است → باید کار کند
+        SERVER_BEHAVIOUR['status'] = 'EXPIRED'
+        SERVER_BEHAVIOUR['grace_days_remaining'] = 3
+        license_client._store_state(None)
+        state = license_client.refresh_state()
+        check('انقضا در مهلت نرمش برنامه را نمی‌بندد',
+              state.valid and state.in_grace, state.status)
+        check('کش مهلت نرمش ذخیره می‌شود',
+              license_client.load_cache(device_id) is not None)
+
+        # پایان مهلت نرمش → قفل کامل و پاک شدن کش
+        SERVER_BEHAVIOUR['grace_days_remaining'] = 0
+        license_client._store_state(None)
+        state = license_client.refresh_state()
+        check('پایان مهلت نرمش یعنی قفل',
+              not state.valid and state.status == 'EXPIRED', state.status)
+        check('پس از پایان مهلت نرمش کش پاک می‌شود',
+              license_client.load_cache(device_id) is None)
+
+        SERVER_BEHAVIOUR['status'] = 'SUCCESS'
+        SERVER_BEHAVIOUR['grace_days_remaining'] = None
         SERVER_BEHAVIOUR['in_grace'] = False
         SERVER_BEHAVIOUR['revalidate_minutes'] = 360
         SERVER_BEHAVIOUR['offline_grace_hours'] = 72

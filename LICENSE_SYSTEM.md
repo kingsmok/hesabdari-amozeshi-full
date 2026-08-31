@@ -41,7 +41,7 @@
 | `templates/license/status.html` | وضعیت لایسنس و فهرست بخش‌ها |
 | `templates/license/banner.html` | نوار هشدار مهلت نرمش / حالت آفلاین |
 | `VERSION` | نسخه‌ی جاری (`1.0.1`) — مرجع `update/check` |
-| `tests/test_license.py` | ۵۸ آزمون با سرور لایسنس ساختگیِ امضاکننده |
+| `tests/test_license.py` | ۶۲ آزمون با سرور لایسنس ساختگیِ امضاکننده |
 | `utils/backup_service.py` | موتور پشتیبان‌گیری/بازیابی: بسته ZIP با manifest، هش SHA-256، بررسی سلامت دیتابیس، پشتیبان ایمنی، ضد Zip-Slip، پشتیبان خودکار |
 | `routes/backup_center.py` | Blueprint `backup_center` روی `/backup-center`: ساخت، فهرست، دانلود، بازیابی، آپلود، حذف، پاکسازی، تنظیمات |
 | `templates/backup/index.html` | مرکز پشتیبان‌گیری و بازیابی (آمار، فرم‌ها، جدول نسخه‌ها) |
@@ -336,7 +336,79 @@ VERSION                نسخه‌ی برنامه در زمان تهیه پشت�
 آزمون خودکار:
 
 ```bash
-python tests/test_license.py                 # ۵۸ بررسی با سرور لایسنس ساختگیِ امضاکننده (فقط آزمون)
+python tests/test_license.py                 # ۶۲ بررسی با سرور لایسنس ساختگیِ امضاکننده (فقط آزمون)
 python -m pytest tests/test_backup.py -q     # ۳۳ بررسی پشتیبان/بازیابی و نصب دستی بسته
 python -m pytest tests/test_system.py -q     # ۱۹ آزمون موجود برنامه
 ```
+
+---
+
+## ۱۲) چک‌لیست فاز ۹ — تایید بند به بند (با محل دقیق در کد)
+
+### درستی عملکرد
+
+| بند | وضعیت | مدرک |
+|---|---|---|
+| نقشه فاز ۰ ارائه شده | ✅ | بخش ۱ همین سند |
+| اجرای اول → فعال‌سازی خودکار | ✅ | `license_client.refresh_state():927` (verify → در صورت `NOT_ACTIVATED` → activate) |
+| اجرای دوم → از کش، بدون درخواست اضافه | ✅ | `get_state()` + `_needs_revalidation()`؛ آزمون «بدون درخواست اضافه» در `tests/test_license.py` |
+| `verify` قبل از `activate` | ✅ | `refresh_state():927` و `activate_with_key()` |
+| ضربان در ترد `daemon=True` | ✅ | `start_heartbeat():1170` (`HEARTBEAT_INTERVAL_SECONDS = 6*3600`) |
+| قطعی اینترنت تا ۷۲ ساعت | ✅ | `_state_from_cache()` + `DEFAULT_OFFLINE_GRACE_HOURS = 72` |
+| پس از ۷۲ ساعت، اتصال الزامی | ✅ | وضعیت `OFFLINE_EXPIRED` |
+| لایسنس منقضی حتی آفلاین رد می‌شود | ✅ | بررسی `expires_at` داخل `_state_from_cache()` |
+| مهلت نرمش برنامه را نمی‌بندد | ✅ | `_state_from_data()` — `EXPIRED` + `in_grace` → کار می‌کند + نوار هشدار `license/banner.html` |
+
+### امنیت
+
+| بند | وضعیت | مدرک |
+|---|---|---|
+| تایید امضای هر پاسخ | ✅ | `verify_signature():368`، فراخوانی در `_call():~610` پیش از هر تصمیم |
+| کلید عمومی هاردکد (نه دانلود در زمان اجرا) | ✅ | `PUBLIC_KEY_PEM` + `KEY_FINGERPRINT`؛ `/api/v1/public-key` فقط در ابزار `check_license_server.py` |
+| کش با HMAC و گره‌خورده به دستگاه | ✅ | `save_cache():482` / `load_cache():506` (Fernet با کلید مشتق از `device_id` + برچسب HMAC) |
+| فایل کش با دسترسی `0600` | ✅ | `_harden():415` |
+| قفل سمت سرور، نه فقط قالب | ✅ | نگهبان `before_request` در `init_license():1284` + `licensed_section():1236` |
+| جدول نگاشت بخش↔مسیر کامل | ✅ | بخش ۵ همین سند؛ `audit_endpoint_coverage()` صفر مسیر بدون نگاشت (۳۴۲ مسیر) |
+| هیچ آیتم منویی پشت `has_feature` | ✅ | `grep has_feature templates/` → بدون نتیجه (جز صفحه‌ی وضعیت لایسنس) |
+| بخش قفل: کد ۲۰۰ و پیام واحد | ✅ | `licensed_section()` → `license/locked.html` با متن دقیق «لایسنس شما معتبر نیست» |
+| هم‌خوانی کلیدها | ✅ | آزمون «همه کلیدهای نگاشت در AVAILABLE_FEATURES هستند» |
+| کلید لایسنس در لاگ/پیام چاپ نمی‌شود | ✅ | آزمون «کلید در پیام‌ها ظاهر نمی‌شود»؛ در ابزار CLI هم پوشانده می‌شود |
+| هشدار اختلاف ساعت > ۳۰۰ ثانیه | ✅ | `_check_server_clock():580` |
+
+### فعال‌سازی و ضدکرک
+
+| بند | وضعیت | مدرک |
+|---|---|---|
+| هیچ کلید/نام مشتری/فیچر ثابتی در کد | ✅ | `grep` روی کد: تنها منبع `allowed_features` پاسخ امضاشده است |
+| بدون کلید برنامه بالا می‌آید | ✅ | وضعیت `NO_KEY` → هدایت به `/license/activate` (بدون ۵۰۰) |
+| ذخیره‌ی رمزنگاری‌شده و وابسته به دستگاه | ✅ | `save_license_key():444` (Fernet با کلید مشتق از `device_id`) |
+| پیام خطا از `data.message` سرور | ✅ | `_state_from_data()`؛ `STATUS_HINTS` فقط پشتیبان است |
+| `nonce` تازه در هر درخواست و تطبیق آن | ✅ | `_call()` — `secrets.token_hex(16)` و رد پاسخ با nonce متفاوت |
+| تشخیص عقب کشیدن ساعت | ✅ | `max_server_time` در کش → وضعیت `CLOCK_TAMPER` |
+| چند نقطه‌ی مستقل بررسی | ✅ | نگهبان سراسری + `licensed_section` روی ۲۶ مسیر + `assert_feature` در `sms_service` و `perform_backup` + بررسی استارتاپ |
+| `allowed_features` فقط از پاسخ امضاشده | ✅ | `LicenseState.allowed_features` روی `data` امضاشده؛ پیش‌فرض بسته |
+| بررسی SHA-256 پیش از باز کردن بسته | ✅ | `download_and_verify():147` و `apply_local_package():429` |
+| دفاع Zip-Slip روی همه‌ی ورودی‌ها | ✅ | `download_and_verify()`، `_validate_zip()`، `backup_service._validate_members()` |
+| فهرست محافظت‌شده کامل | ✅ | `is_preserved():67` — شامل `instance/`, `static/uploads/`, `settings.json`, `*.db` |
+| بازگردانی خودکار در صورت شکست نصب | ✅ | `_rollback():234` (آزمون‌شده در `tests/test_backup.py`) |
+| بررسی متقابل هدرهای دانلود | ✅ | `X-Package-SHA256` و `X-Package-Version`؛ ناهم‌خوانی = توقف نصب |
+| ارسال `download_token` در صورت جدا بودن از URL | ✅ | هدر `X-Download-Token` + پارامتر `token` |
+
+### کیفیت کد و تحویل
+
+| بند | وضعیت | مدرک |
+|---|---|---|
+| هم‌سبکی با برنامه‌ی موجود | ✅ | همان الگوی Blueprint، `flash()`، قالب `base/layout.html`، فارسی‌نویسی توضیحات |
+| تمرکز منطق در فایل جدا | ✅ | `license_client.py` / `license_features.py` / `license_updater.py` |
+| بازنویسی نشدن فایل‌های موجود | ✅ | تغییرات فقط افزودنی (جدول بخش ۳) |
+| پیام‌های فارسی و راهنما | ✅ | همه‌ی پیام‌ها فارسی؛ بدون stack trace برای کاربر |
+| بدون `TODO` / کد نیمه‌کاره | ✅ | تنها `pass`های موجود سه `except OSError: pass` عمدی هستند |
+| وابستگی‌ها در `requirements.txt` | ✅ | `requests==2.32.4`، `cryptography==43.0.1` |
+| آزمون خودکار | ✅ | ۶۲ + ۳۳ + ۱۹ آزمون، همه سبز |
+
+### تنها موردی که در این محیط قابل اجرا نبود
+
+سندباکس توسعه دسترسی HTTPS خروجی ندارد (`curl https://ls.ariapadideh.ir` قطع می‌شود)،
+بنابراین **تماس زنده با سرور واقعی** آزموده نشده است. برای همین `check_license_server.py`
+ساخته شد تا همان زنجیره (کلید عمومی → امضا → nonce → نام فیلدها) را روی دستگاه مشتری
+اجرا و گزارش کند.

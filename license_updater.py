@@ -149,11 +149,32 @@ def download_and_verify(info):
     folder = tempfile.mkdtemp(prefix='update_')
     path = os.path.join(folder, 'package.zip')
 
-    with requests.get(info['download_url'], stream=True, timeout=DOWNLOAD_TIMEOUT) as response:
+    # توکن دانلود (اگر سرور جدا فرستاده باشد) هم در هدر و هم در پارامتر
+    headers = {}
+    params = {}
+    token = str(info.get('download_token') or '').strip()
+    if token and 'token=' not in str(info['download_url']):
+        headers['X-Download-Token'] = token
+        params['token'] = token
+
+    with requests.get(info['download_url'], stream=True, timeout=DOWNLOAD_TIMEOUT,
+                      headers=headers or None, params=params or None) as response:
         response.raise_for_status()
         header_hash = response.headers.get('X-Package-SHA256')
         if header_hash and header_hash.lower() != str(info['sha256']).lower():
             raise RuntimeError('هش هدر دانلود با هش امضاشده هم‌خوانی ندارد.')
+        # هدرهای دیگر فقط بررسی متقابل‌اند؛ مرجع نهایی همان داده‌ی امضاشده است
+        header_version = str(response.headers.get('X-Package-Version') or '').strip()
+        signed_version = str(info.get('latest_version') or '').strip()
+        if header_version and signed_version and header_version != signed_version:
+            raise RuntimeError('نسخه‌ی فایل دانلودی با نسخه‌ی امضاشده هم‌خوانی ندارد.')
+        for header_name, field in (('X-Apply-Mode', 'apply_mode'),
+                                   ('X-Restart-Mode', 'restart_mode')):
+            value = str(response.headers.get(header_name) or '').strip().lower()
+            signed_value = str(info.get(field) or '').strip().lower()
+            if value and signed_value and value != signed_value:
+                logger.warning('update: %s هدر (%s) با مقدار امضاشده (%s) فرق دارد؛ '
+                               'مقدار امضاشده ملاک است', header_name, value, signed_value)
         with open(path, 'wb') as handle:
             for chunk in response.iter_content(65536):
                 handle.write(chunk)
