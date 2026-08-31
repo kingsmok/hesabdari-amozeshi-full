@@ -119,7 +119,12 @@ pytest tests/test_installer_config.py -q      # ۱۰ آزمون
 - `contents_directory='.'` تنظیم شده تا PyInstaller ۶ خروجی را در پوشه‌ی
   `_internal` نریزد؛ کل برنامه مسیرها را از کنار فایل اجرایی می‌خواند.
 - `settings.json` بسته‌بندی نمی‌شود (مخصوص هر نصب).
-- درایورهای `psycopg2`/`pymysql` در `excludes` هستند (نسخه‌ی دسکتاپ SQLite است و
-  `config.py` آن‌ها را داخل `try/except ImportError` وارد می‌کند).
+- درایورهای `psycopg2`/`pymysql` فقط از **بسته‌ی ویندوزی** حذف شده‌اند
+  (`excludes`)؛ این کار هیچ اثری روی اجرای وب/هاست ندارد.
+  پیش‌فرض هر دو حالت (دسکتاپ و وب) SQLite است — `config.py` نوع دیتابیس را
+  `sqlite` می‌گذارد و SQLite با ماژول استاندارد `sqlite3` کار می‌کند و به هیچ
+  درایور اضافه‌ای نیاز ندارد. اگر روزی روی هاست MySQL/PostgreSQL خواستید، کافی است
+  `pip install pymysql` یا `psycopg2-binary` را روی همان سرور نصب کنید؛
+  `config.py` آن‌ها را داخل `try/except ImportError` وارد می‌کند.
 - برای ساخت به `PyQt6` و `PyQt6-WebEngine` نیاز است:
   `pip install -r requirements-build.txt` (خود `build.bat` هم بررسی می‌کند).
