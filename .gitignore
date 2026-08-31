@@ -42,3 +42,7 @@ cookies.txt
 *.swp
 *.swo
 *~
+
+# License / update artifacts (device-bound, never in VCS)
+restart.bat
+.update_backup/

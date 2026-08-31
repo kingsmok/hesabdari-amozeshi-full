@@ -11,6 +11,7 @@ import requests
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 
 bot_panel_bp = Blueprint('bot_panel', __name__)
@@ -21,7 +22,9 @@ bot_panel_bp = Blueprint('bot_panel', __name__)
 # ═══════════════════════════════════════════════════════════════
 
 @bot_panel_bp.route('/bot-panel')
+@license_required
 @login_required
+@licensed_section('bot_panel')
 def dashboard():
     """داشبورد پنل ربات"""
     from models.bot import BotUser, BotMessage, BotBroadcast

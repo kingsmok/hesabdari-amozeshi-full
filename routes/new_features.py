@@ -11,6 +11,7 @@ import os, json, io, requests
 from datetime import datetime, timedelta, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, current_app
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db, csrf
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 
@@ -25,7 +26,9 @@ new_features_bp = Blueprint('new_features', __name__)
 # ═══════════════════════════════════════════════════════════════
 
 @new_features_bp.route('/courses', strict_slashes=False)
+@license_required
 @login_required
+@licensed_section('courses')
 def course_list():
     """لیست کامل دوره‌ها"""
     from models.course import Course, Field
@@ -615,7 +618,9 @@ def send_installment_reminders():
 # ═══════════════════════════════════════════════════════════════
 
 @new_features_bp.route('/finance/installments')
+@license_required
 @login_required
+@licensed_section('installments')
 def installment_dashboard():
     """داشبورد مدیریت اقساط"""
     from models.registration import Installment, Registration

@@ -1,6 +1,7 @@
 """Students routes"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date
 from utils.jalali import current_jalali_year
@@ -14,7 +15,9 @@ students_bp = Blueprint('students', __name__)
 
 
 @students_bp.route('/')
+@license_required
 @login_required
+@licensed_section('students')
 def index():
     page = request.args.get('page', 1, type=int)
     per_page = 20

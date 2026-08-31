@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فعال‌سازی نرم‌افزار</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='fonts/Vazirmatn-font-face.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}">
+    <style>
+        * { font-family: Vazirmatn, Tahoma, Arial, sans-serif; box-sizing: border-box; }
+        body { background: linear-gradient(135deg, #eef2f7, #f7f9fc); display: flex; min-height: 100vh;
+               align-items: center; justify-content: center; margin: 0; color: #37474f; font-size: 13px; }
+        .card-activate { background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.10);
+                         width: 100%; max-width: 470px; padding: 34px 34px 28px; }
+        .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .brand-logo { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center;
+                      justify-content: center; color: #fff; font-size: 20px;
+                      background: linear-gradient(135deg, #0d47a1, #1565c0); }
+        .brand-title { font-size: 15px; font-weight: 700; color: #0a1628; }
+        .brand-sub { font-size: 11px; color: #90a4ae; }
+        h1 { font-size: 17px; font-weight: 700; margin: 22px 0 6px; color: #0a1628; }
+        p.hint { font-size: 12px; color: #78909c; line-height: 2; margin: 0 0 18px; }
+        label { font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px; }
+        input[type=text] { width: 100%; padding: 12px 14px; border: 1px solid #cfd8dc; border-radius: 8px;
+                           font-size: 14px; letter-spacing: 1px; direction: ltr; text-align: center;
+                           text-transform: uppercase; }
+        input[type=text]:focus { outline: none; border-color: #1565c0; box-shadow: 0 0 0 3px rgba(21,101,192,.12); }
+        button { width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 8px; color: #fff;
+                 font-size: 13px; font-weight: 700; cursor: pointer;
+                 background: linear-gradient(135deg, #0d47a1, #1565c0); }
+        button:hover { filter: brightness(1.08); }
+        .alert-error { background: #ffebee; color: #b71c1c; border: 1px solid #ffcdd2; border-radius: 8px;
+                       padding: 12px 14px; font-size: 12.5px; line-height: 1.9; margin-bottom: 16px; }
+        .meta { margin-top: 20px; padding-top: 16px; border-top: 1px dashed #e0e4e8; font-size: 11px;
+                color: #90a4ae; line-height: 2; }
+        .meta code { direction: ltr; display: inline-block; font-size: 10.5px; color: #546e7a; }
+    </style>
+</head>
+<body>
+    <div class="card-activate">
+        <div class="brand">
+            <div class="brand-logo"><i class="bi bi-key-fill"></i></div>
+            <div>
+                <div class="brand-title">حساب داری آموزشگاهی رهسا</div>
+                <div class="brand-sub">فعال‌سازی نرم‌افزار</div>
+            </div>
+        </div>
+
+        <h1>کلید لایسنس خود را وارد کنید</h1>
+        <p class="hint">
+            کلید لایسنس هنگام خرید در اختیار شما قرار گرفته است. پس از تأیید،
+            دسترسی بخش‌های خریداری‌شده به‌صورت خودکار فعال می‌شود.
+        </p>
+
+        {% if error %}
+        <div class="alert-error"><i class="bi bi-exclamation-triangle-fill"></i> {{ error }}</div>
+        {% endif %}
+
+        <form method="POST" autocomplete="off">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="license_key">کلید لایسنس</label>
+            <input type="text" id="license_key" name="license_key" value="{{ entered_key or '' }}"
+                   placeholder="XXXX-XXXX-XXXX-XXXX" autofocus required>
+            <button type="submit"><i class="bi bi-check2-circle"></i> فعال‌سازی</button>
+        </form>
+
+        <div class="meta">
+            شناسه این دستگاه برای پشتیبانی:
+            <code>{{ license_state.data.get('device_fingerprint', '') or '' }}</code>
+            <div>در صورت بروز مشکل در فعال‌سازی با پشتیبانی تماس بگیرید.</div>
+        </div>
+    </div>
+</body>
+</html>

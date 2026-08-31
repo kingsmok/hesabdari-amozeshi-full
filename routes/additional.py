@@ -1,6 +1,7 @@
 """Additional routes - Certificates, Complaints, Surveys, Tickets, Analytics"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from models.course import Certificate, CertificateTemplate
@@ -48,7 +49,9 @@ def _create_certificate(registration, template_id=None, notes=None):
 
 
 @certificates_bp.route('/')
+@license_required
 @login_required
+@licensed_section('certificates')
 def index():
     certs = Certificate.query.order_by(Certificate.issue_date.desc(), Certificate.id.desc()).all()
     issued_registration_ids = [
@@ -375,7 +378,9 @@ tickets_bp = Blueprint('tickets', __name__)
 
 
 @tickets_bp.route('/')
+@license_required
 @login_required
+@licensed_section('crm')
 def index():
     if current_user.is_admin:
         tickets = Ticket.query.order_by(Ticket.created_at.desc()).all()
@@ -491,7 +496,9 @@ analytics_bp = Blueprint('analytics', __name__)
 
 
 @analytics_bp.route('/dashboard')
+@license_required
 @login_required
+@licensed_section('analytics')
 def smart_dashboard():
     from models.student import Student
     from models.registration import Registration
