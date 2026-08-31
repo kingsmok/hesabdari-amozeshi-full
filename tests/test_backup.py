@@ -29,6 +29,29 @@ from utils.backup_service import BackupError            # noqa: E402
 # ══════════════════════════════════════════════════════════════
 #  محیط ایزوله: دیتابیس، پوشه پشتیبان و پوشه آپلود موقت
 # ══════════════════════════════════════════════════════════════
+@pytest.fixture(autouse=True)
+def licensed_state():
+    """
+    آزمون‌ها نباید به سرور لایسنس وصل شوند؛ یک وضعیت معتبر فقط در حافظه
+    تزریق می‌شود تا کنترل‌های عمقی (assert_feature) واقعی اجرا شوند.
+    """
+    from license_features import AVAILABLE_FEATURES
+
+    data = {'success': True, 'status': 'SUCCESS',
+            'allowed_features': {item['key']: True for item in AVAILABLE_FEATURES}}
+    original = license_client.refresh_state
+
+    def _fake_refresh(*_args, **_kwargs):
+        return license_client._store_state(license_client.LicenseState(
+            status='SUCCESS', message='', data=data, valid=True, source='online'))
+
+    license_client.refresh_state = _fake_refresh
+    _fake_refresh()
+    yield
+    license_client.refresh_state = original
+    license_client._store_state(None)
+
+
 @pytest.fixture()
 def app(tmp_path):
     application = Flask(__name__, root_path=str(tmp_path))
@@ -457,6 +480,238 @@ class TestScheduledBackup:
             for item in os.listdir(folder):
                 os.utime(os.path.join(folder, item), (old_time, old_time))
         assert len(backup_service.list_backups()) == 2
+
+
+# ══════════════════════════════════════════════════════════════
+#  ۷) ارسال بسته پشتیبان به ربات بله
+# ══════════════════════════════════════════════════════════════
+class _Settings:
+    academy_name = 'آموزشگاه نمونه'
+    bale_bot_token = 'TOKEN-123'
+    backup_bot_enabled = True
+    backup_bot_chat_id = '111, 222'
+    backup_bot_max_mb = 45
+    backup_bot_kind = 'database'
+    auto_backup = False
+    backup_interval_hours = 24
+    max_backups = 10
+
+
+class TestBotDelivery:
+    @staticmethod
+    def _patch_settings(monkeypatch, **overrides):
+        settings = _Settings()
+        for key, value in overrides.items():
+            setattr(settings, key, value)
+        monkeypatch.setattr(backup_service, '_settings_row', lambda: settings)
+        return settings
+
+    @staticmethod
+    def _capture_sender(monkeypatch, ok=True, description=''):
+        calls = []
+
+        def _fake_send(provider, token, chat_id, file_path, caption='', filename=None,
+                       timeout=180):
+            calls.append({'provider': provider, 'token': token, 'chat_id': chat_id,
+                          'file_path': file_path, 'caption': caption,
+                          'filename': filename})
+            return {'ok': ok, 'description': description}
+
+        module = types.ModuleType('utils.bot_services')
+        module.send_bot_document = _fake_send
+        monkeypatch.setitem(sys.modules, 'utils.bot_services', module)
+        return calls
+
+    def test_targets_come_from_settings_and_bot_admins(self, app, monkeypatch):
+        self._patch_settings(monkeypatch)
+        monkeypatch.setattr(backup_service, 'BotUser', None, raising=False)
+        targets = backup_service.bot_targets()
+        assert targets == ['111', '222']          # جدول ربات در این آزمون خالی است
+
+    def test_send_uses_bale_endpoint_with_caption(self, app, monkeypatch):
+        self._patch_settings(monkeypatch)
+        calls = self._capture_sender(monkeypatch)
+        info = backup_service.create_backup(kind='database', note='ارسال آزمایشی')
+
+        report = backup_service.send_backup_to_bot(info['name'])
+
+        assert report['sent'] == ['111', '222']
+        assert report['failed'] == []
+        assert len(calls) == 2
+        assert calls[0]['provider'] == 'bale'
+        assert calls[0]['token'] == 'TOKEN-123'
+        assert calls[0]['filename'] == info['name']
+        caption = calls[0]['caption']
+        assert 'آموزشگاه نمونه' in caption
+        assert info['name'] in caption
+        assert 'ارسال آزمایشی' in caption
+
+    def test_failed_target_is_reported_not_raised(self, app, monkeypatch):
+        self._patch_settings(monkeypatch)
+        self._capture_sender(monkeypatch, ok=False, description='chat not found')
+        info = backup_service.create_backup(kind='database')
+
+        report = backup_service.send_backup_to_bot(info['name'])
+        assert report['sent'] == []
+        assert [item['error'] for item in report['failed']] == ['chat not found'] * 2
+
+    def test_missing_token_is_rejected(self, app, monkeypatch):
+        self._patch_settings(monkeypatch, bale_bot_token='')
+        info = backup_service.create_backup(kind='database')
+        with pytest.raises(BackupError) as error:
+            backup_service.send_backup_to_bot(info['name'])
+        assert 'توکن' in str(error.value)
+
+    def test_missing_target_is_rejected(self, app, monkeypatch):
+        self._patch_settings(monkeypatch, backup_bot_chat_id='')
+        info = backup_service.create_backup(kind='database')
+        with pytest.raises(BackupError) as error:
+            backup_service.send_backup_to_bot(info['name'])
+        assert 'مقصد' in str(error.value)
+
+    def test_oversized_package_is_rejected(self, app, monkeypatch):
+        self._patch_settings(monkeypatch, backup_bot_max_mb=1)
+        calls = self._capture_sender(monkeypatch)
+        info = backup_service.create_backup(kind='database')
+        path = backup_service.safe_backup_path(info['name'])
+        with open(path, 'ab') as handle:                 # بزرگ‌کردن مصنوعی بسته
+            handle.write(b'0' * (2 * 1024 * 1024))
+
+        with pytest.raises(BackupError) as error:
+            backup_service.send_backup_to_bot(info['name'])
+        assert 'سقف' in str(error.value)
+        assert calls == []                               # هیچ آپلودی انجام نشده است
+
+    def test_hard_limit_caps_configured_value(self, app, monkeypatch):
+        self._patch_settings(monkeypatch, backup_bot_max_mb=500)
+        status = backup_service.bot_delivery_status()
+        assert status['max_mb'] == 500                   # مقدار خام تنظیمات
+        # ولی هنگام ارسال، سقف سرویس (۵۰ مگابایت) اعمال می‌شود
+        assert backup_service.BOT_HARD_LIMIT_MB == 50
+
+    def test_delivery_status_reports_readiness(self, app, monkeypatch):
+        self._patch_settings(monkeypatch)
+        status = backup_service.bot_delivery_status()
+        assert status['ready'] is True
+        assert status['targets_count'] == 2
+
+        self._patch_settings(monkeypatch, bale_bot_token='')
+        assert backup_service.bot_delivery_status()['ready'] is False
+
+    def test_locked_license_blocks_delivery(self, app, monkeypatch):
+        """کنترل مستقل در عمق سرویس: بخش پشتیبان‌گیری قفل باشد، ارسال انجام نمی‌شود."""
+        from license_client import FeatureLocked, LicenseState
+
+        self._patch_settings(monkeypatch)
+        calls = self._capture_sender(monkeypatch)
+        info = backup_service.create_backup(kind='database')
+
+        license_client._store_state(LicenseState(
+            status='SUCCESS', message='', valid=True, source='online',
+            data={'allowed_features': {'backup': False}}))
+        with pytest.raises(FeatureLocked):
+            backup_service.send_backup_to_bot(info['name'])
+        assert calls == []
+
+    def test_scheduled_backup_sends_when_enabled(self, app, monkeypatch):
+        settings = self._patch_settings(monkeypatch, auto_backup=True)
+        module = types.ModuleType('models.system')
+        module.SystemSettings = type(
+            'SystemSettings', (),
+            {'query': type('Query', (), {'first': staticmethod(lambda: settings)})()})
+        monkeypatch.setitem(sys.modules, 'models.system', module)
+        calls = self._capture_sender(monkeypatch)
+
+        message = backup_service.run_scheduled_backup()
+        assert 'ارسال شد' in message
+        assert len(calls) == 2                           # دو مقصد تنظیم‌شده
+        # بسته‌ی ارسالی «فقط دیتابیس» است تا حجم کم بماند
+        assert all('database' in call['filename'] for call in calls)
+
+    def test_scheduled_backup_survives_bot_failure(self, app, monkeypatch):
+        settings = self._patch_settings(monkeypatch, auto_backup=True,
+                                        bale_bot_token='')
+        module = types.ModuleType('models.system')
+        module.SystemSettings = type(
+            'SystemSettings', (),
+            {'query': type('Query', (), {'first': staticmethod(lambda: settings)})()})
+        monkeypatch.setitem(sys.modules, 'models.system', module)
+
+        message = backup_service.run_scheduled_backup()
+        assert 'ساخته شد' in message                     # پشتیبان انجام شده
+        assert 'ارسال به ربات انجام نشد' in message
+        assert backup_service.list_backups()             # فایل سر جایش است
+
+
+# ══════════════════════════════════════════════════════════════
+#  ۸) دستور «پشتیبان» داخل خود ربات بله
+# ══════════════════════════════════════════════════════════════
+class _BotUser:
+    def __init__(self, is_admin_bot=False):
+        self.is_admin_bot = is_admin_bot
+
+
+class TestBotCommand:
+    @staticmethod
+    def _prepare(monkeypatch, ok=True):
+        from utils import bot_services
+
+        settings = _Settings()
+        monkeypatch.setattr(backup_service, '_settings_row', lambda: settings)
+        module = types.ModuleType('models.system')
+        module.SystemSettings = type(
+            'SystemSettings', (),
+            {'query': type('Query', (), {'first': staticmethod(lambda: settings)})()})
+        monkeypatch.setitem(sys.modules, 'models.system', module)
+
+        calls = []
+
+        def _fake_send(provider, token, chat_id, file_path, caption='', filename=None,
+                       timeout=180):
+            calls.append(chat_id)
+            return {'ok': ok, 'description': '' if ok else 'chat not found'}
+
+        sender = types.ModuleType('utils.bot_services')
+        sender.send_bot_document = _fake_send
+        monkeypatch.setitem(sys.modules, 'utils.bot_services', sender)
+        return bot_services, calls
+
+    def test_admin_gets_backup_in_chat(self, app, monkeypatch):
+        bot_services, calls = self._prepare(monkeypatch)
+        reply = bot_services.handle_backup_command(_BotUser(is_admin_bot=True), 999)
+        assert 'ارسال شد' in reply
+        assert calls == ['999']                      # فقط به همان گفت‌وگو
+        assert len(backup_service.list_backups()) == 1
+
+    def test_chat_id_listed_in_settings_is_also_admin(self, app, monkeypatch):
+        bot_services, calls = self._prepare(monkeypatch)
+        reply = bot_services.handle_backup_command(_BotUser(is_admin_bot=False), 111)
+        assert 'ارسال شد' in reply
+        assert calls == ['111']
+
+    def test_normal_user_gets_no_hint_and_no_backup(self, app, monkeypatch):
+        bot_services, calls = self._prepare(monkeypatch)
+        reply = bot_services.handle_backup_command(_BotUser(is_admin_bot=False), 777)
+        assert 'پشتیبان' not in reply                # هیچ نشانه‌ای از وجود دستور
+        assert calls == []
+        assert backup_service.list_backups() == []
+
+    def test_send_failure_is_reported_politely(self, app, monkeypatch):
+        bot_services, _calls = self._prepare(monkeypatch, ok=False)
+        reply = bot_services.handle_backup_command(_BotUser(is_admin_bot=True), 999)
+        assert 'ارسال نشد' in reply
+        assert 'chat not found' in reply
+
+    def test_locked_license_gives_safe_message(self, app, monkeypatch):
+        from license_client import LicenseState
+
+        bot_services, calls = self._prepare(monkeypatch)
+        license_client._store_state(LicenseState(
+            status='SUCCESS', message='', valid=True, source='online',
+            data={'allowed_features': {'backup': False}}))
+        reply = bot_services.handle_backup_command(_BotUser(is_admin_bot=True), 999)
+        assert reply.startswith('⛔️')
+        assert calls == []
 
 
 def test_database_integrity_of_generated_package(app, tmp_path):

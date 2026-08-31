@@ -68,6 +68,14 @@
                         <input type="text" name="note" class="form-control form-control-sm"
                                placeholder="مثلاً: پیش از بستن سال مالی">
                     </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="send_to_bot"
+                               id="send_to_bot" {{ 'disabled' if not bot.ready }}>
+                        <label class="form-check-label" for="send_to_bot" style="font-size:12px;">
+                            پس از ساخت، برای مدیر در ربات بله ارسال شود
+                            {% if not bot.ready %}<span style="color:#e57373;">(هنوز آماده نیست)</span>{% endif %}
+                        </label>
+                    </div>
                     <button type="submit" class="btn btn-primary btn-sm">
                         <i class="bi bi-play-circle me-1"></i> شروع پشتیبان‌گیری
                     </button>
@@ -107,6 +115,7 @@
                 </h2>
                 <form method="POST" action="{{ url_for('backup_center.save_settings') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="section" value="schedule">
                     <div class="form-check form-switch mb-3">
                         <input class="form-check-input" type="checkbox" name="auto_backup" id="auto_backup"
                                {{ 'checked' if settings and settings.auto_backup }}>
@@ -129,6 +138,56 @@
                     <button type="submit" class="btn btn-primary btn-sm mt-3">
                         <i class="bi bi-check-circle me-1"></i> ذخیره تنظیمات
                     </button>
+                </form>
+
+                <hr>
+                <h2 style="font-size:14px;font-weight:700;margin:16px 0 10px;">
+                    <i class="bi bi-robot"></i> ارسال به ربات بله
+                    {% if bot.ready %}<span class="badge bg-success">آماده</span>
+                    {% elif not bot.has_token %}<span class="badge bg-danger">توکن ثبت نشده</span>
+                    {% else %}<span class="badge bg-warning text-dark">مقصدی تعیین نشده</span>{% endif %}
+                </h2>
+                <form method="POST" action="{{ url_for('backup_center.save_settings') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="section" value="bot">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="backup_bot_enabled"
+                               id="backup_bot_enabled" {{ 'checked' if bot.enabled }}>
+                        <label class="form-check-label" for="backup_bot_enabled">
+                            ارسال خودکار پشتیبان به ربات بله
+                        </label>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">شناسه گفت‌وگوی مدیر (chat_id)</label>
+                        <input type="text" name="backup_bot_chat_id" class="form-control form-control-sm"
+                               style="direction:ltr;" placeholder="۱۲۳۴۵۶۷۸۹ — چند مقصد را با کاما جدا کنید"
+                               value="{{ settings.backup_bot_chat_id or '' if settings else '' }}">
+                        <div style="font-size:11px;color:#90a4ae;margin-top:4px;">
+                            کاربرانی که در بخش ربات «مدیر ربات» شده‌اند هم به‌صورت خودکار مقصد هستند
+                            (اکنون {{ bot.targets_count }} مقصد).
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">نوع بسته ارسالی</label>
+                            <select name="backup_bot_kind" class="form-select form-select-sm">
+                                <option value="database" {{ 'selected' if bot.kind == 'database' }}>فقط دیتابیس (سبک)</option>
+                                <option value="full" {{ 'selected' if bot.kind == 'full' }}>کامل</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">سقف حجم ارسال (مگابایت)</label>
+                            <input type="number" min="1" max="50" name="backup_bot_max_mb"
+                                   class="form-control form-control-sm" value="{{ bot.max_mb }}">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary btn-sm mt-3">
+                        <i class="bi bi-check-circle me-1"></i> ذخیره تنظیمات ربات
+                    </button>
+                    {% if not bot.has_token %}
+                    <a href="{{ url_for('settings_panel.diagnostics') }}"
+                       class="btn btn-outline-secondary btn-sm mt-3">ثبت توکن ربات بله</a>
+                    {% endif %}
                 </form>
 
                 <hr>
@@ -192,6 +251,14 @@
                                     <input type="hidden" name="restore_uploads" value="1">
                                     <button class="btn btn-outline-primary btn-sm" type="submit">
                                         <i class="bi bi-arrow-counterclockwise"></i> بازیابی
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('backup_center.send_to_bot', name=item.name) }}"
+                                      onsubmit="return confirm('این بسته برای مدیر در ربات بله ارسال شود؟');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-outline-success btn-sm" type="submit"
+                                            title="ارسال به ربات بله" {{ 'disabled' if not bot.ready }}>
+                                        <i class="bi bi-robot"></i>
                                     </button>
                                 </form>
                                 <form method="POST" action="{{ url_for('backup_center.delete', name=item.name) }}"
