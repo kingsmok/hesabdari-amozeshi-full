@@ -1,0 +1,29 @@
+; ============================================================================
+;  config.ini — نمونه
+;  این فایل توسط نصب‌کننده (setup.iss / بخش [Code]) در کنار فایل اجرایی
+;  ساخته می‌شود: {app}\config.ini
+;  در محیط توسعه می‌توانید این فایل را به config.ini تغییر نام دهید.
+;  توجه: config.ini در .gitignore است و نباید کامیت شود.
+; ============================================================================
+
+[Admin]
+; حساب مدیری که در اولین اجرا ساخته می‌شود
+username=admin
+; پس از ساخت حساب، برنامه این مقدار را خالی و consumed را true می‌کند
+password=ChangeMe123
+password_consumed=false
+
+[Platform]
+; آدرس هاست cPanel / سایت (با یا بدون https — نصب‌کننده نرمال‌سازی می‌کند)
+host_url=https://panel.example.com
+verify_ssl=true
+
+[License]
+server_url=https://ls.ariapadideh.ir
+channel=stable
+auto_update=true
+
+[Install]
+version=1.0.1
+installed_at=2026-08-31 10:20:30
+install_dir=C:\Program Files\Hesabdari Rahsa
