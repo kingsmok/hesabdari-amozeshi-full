@@ -4,6 +4,7 @@
 from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 
 teacher_bp = Blueprint('teacher_portal', __name__)
@@ -20,7 +21,9 @@ def get_my_teacher():
 
 
 @teacher_bp.route('/my')
+@license_required
 @login_required
+@licensed_section('teacher_portal')
 def my_dashboard():
     teacher = get_my_teacher()
     if not teacher:

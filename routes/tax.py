@@ -8,6 +8,7 @@
 from datetime import datetime, date
 from flask import Blueprint, render_template, request, redirect, url_for, flash, make_response
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 import io
 
@@ -71,7 +72,9 @@ def calculate_monthly_tax(monthly_income):
 #  داشبورد مالیاتی
 # ═══════════════════════════════════════════
 @tax_bp.route('/tax')
+@license_required
 @login_required
+@licensed_section('tax')
 def dashboard():
     from models.finance import Payslip
     from models.teacher import Teacher

@@ -1,0 +1,120 @@
+{% extends "base/layout.html" %}
+{% block title %}به‌روزرسانی نرم‌افزار{% endblock %}
+{% block breadcrumb %}
+<li class="active">به‌روزرسانی نرم‌افزار</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-arrow-repeat"></i> مرکز به‌روزرسانی نرم‌افزار</h1>
+    </div>
+
+    {% if required_message %}
+    <div class="alert alert-danger" style="font-size:13px;">
+        <i class="bi bi-exclamation-octagon-fill me-1"></i> {{ required_message }}
+    </div>
+    {% endif %}
+
+    <div class="row g-3">
+        <!-- ═══ وضعیت فعلی ═══ -->
+        <div class="col-lg-5">
+            <div class="card h-100"><div class="card-body-padded">
+                <h2 style="font-size:14px;font-weight:700;margin-bottom:14px;">
+                    <i class="bi bi-info-circle"></i> وضعیت فعلی
+                </h2>
+                <table class="table table-sm" style="font-size:12.5px;">
+                    <tr><td style="color:#78909c;">نرم‌افزار</td><td>{{ product_name }}</td></tr>
+                    <tr><td style="color:#78909c;">نسخه نصب‌شده</td>
+                        <td><span class="badge bg-primary" style="direction:ltr;">{{ version }}</span></td></tr>
+                    <tr><td style="color:#78909c;">کانال</td><td style="direction:ltr;">{{ channel }}</td></tr>
+                    <tr><td style="color:#78909c;">سرور</td>
+                        <td style="direction:ltr;font-size:11px;">{{ server_url }}</td></tr>
+                    <tr><td style="color:#78909c;">لایسنس</td>
+                        <td>
+                            {% if state.valid %}<span class="badge bg-success">معتبر</span>
+                            {% else %}<span class="badge bg-danger">نامعتبر</span>{% endif %}
+                        </td></tr>
+                </table>
+
+                <form method="POST" action="{{ url_for('license.check_only') }}" class="mt-2">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-cloud-arrow-down me-1"></i> بررسی نسخه جدید از سرور
+                    </button>
+                </form>
+
+                {% if pending %}
+                <div class="alert alert-info mt-3" style="font-size:12.5px;">
+                    <div><b>نسخه {{ pending.latest_version }}</b> آماده نصب است
+                        {% if pending.update_required %}<span class="badge bg-danger">الزامی</span>{% endif %}
+                    </div>
+                    {% if pending.release_notes %}
+                    <div style="margin-top:6px;white-space:pre-line;">{{ pending.release_notes }}</div>
+                    {% endif %}
+                    <form method="POST" action="{{ url_for('license.check_update') }}" class="mt-2"
+                          onsubmit="return confirm('نسخه جدید دانلود و نصب شود؟');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="bi bi-download me-1"></i> دانلود و نصب خودکار
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div></div>
+        </div>
+
+        <!-- ═══ نصب دستی ═══ -->
+        <div class="col-lg-7">
+            <div class="card h-100"><div class="card-body-padded">
+                <h2 style="font-size:14px;font-weight:700;margin-bottom:6px;">
+                    <i class="bi bi-file-earmark-zip"></i> نصب بسته به‌روزرسانی (فایل ZIP)
+                </h2>
+                <p style="font-size:12px;color:#78909c;line-height:2;">
+                    اگر بسته‌ی نسخه‌ی جدید را از پشتیبانی دریافت کرده‌اید، همین‌جا آن را نصب کنید.
+                    پیش از نصب یک پشتیبان از دیتابیس گرفته می‌شود و اگر نصب نیمه‌کاره بماند،
+                    فایل‌های قبلی به‌صورت خودکار برگردانده می‌شوند. اطلاعات شما
+                    (دیتابیس، فایل‌های آپلودی، تنظیمات و لایسنس) هرگز بازنویسی نمی‌شود.
+                </p>
+
+                <form method="POST" action="{{ url_for('license.upload_package') }}"
+                      enctype="multipart/form-data"
+                      onsubmit="return confirm('بسته انتخاب‌شده نصب شود؟');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-2">
+                        <label class="form-label">فایل بسته (.zip)</label>
+                        <input type="file" name="package" accept=".zip"
+                               class="form-control form-control-sm" required>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <label class="form-label">هش SHA-256 اعلام‌شده (اختیاری ولی توصیه‌شده)</label>
+                            <input type="text" name="sha256" class="form-control form-control-sm"
+                                   style="direction:ltr;font-size:11px;"
+                                   placeholder="64 کاراکتر hex">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">شماره نسخه (اختیاری)</label>
+                            <input type="text" name="version" class="form-control form-control-sm"
+                                   style="direction:ltr;" placeholder="1.0.2">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm mt-3">
+                        <i class="bi bi-box-arrow-in-down me-1"></i> نصب بسته
+                    </button>
+                    <a href="{{ url_for('backup_center.index') }}" class="btn btn-outline-secondary btn-sm mt-3">
+                        <i class="bi bi-shield-lock me-1"></i> پیش از نصب، پشتیبان بگیرم
+                    </a>
+                </form>
+
+                <hr>
+                <div style="font-size:11.5px;color:#78909c;line-height:2;">
+                    <div><i class="bi bi-check2-circle"></i> ساختار بسته: یا کل پوشه‌ی برنامه، یا فایل‌های تغییر‌یافته به‌همراه <code>manifest.json</code>.</div>
+                    <div><i class="bi bi-check2-circle"></i> اگر بسته فایل <code>VERSION</code> یا <code>update.json</code> داشته باشد، شماره نسخه خودکار خوانده می‌شود.</div>
+                    <div><i class="bi bi-check2-circle"></i> مسیرهای خطرناک (Zip-Slip) و بسته‌های خراب پیش از باز شدن رد می‌شوند.</div>
+                </div>
+            </div></div>
+        </div>
+    </div>
+</div>
+{% endblock %}

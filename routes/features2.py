@@ -6,6 +6,7 @@ import os, hashlib, json, time, platform, socket
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, session
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 
 features2_bp = Blueprint('features2', __name__)
@@ -15,7 +16,9 @@ features2_bp = Blueprint('features2', __name__)
 #  1) اتصال دستگاه حضور و غیاب — #62, #291
 # ============================================================
 @features2_bp.route('/settings/hardware/attendance-device', methods=['GET', 'POST'])
+@license_required
 @login_required
+@licensed_section('hardware_devices')
 def attendance_device():
     """تنظیمات اتصال دستگاه حضور و غیاب"""
     from models.system import SystemSettings
@@ -699,7 +702,9 @@ def view_favorites():
 #  25) فرم‌ساز — #319
 # ============================================================
 @features2_bp.route('/settings/form-builder', methods=['GET', 'POST'])
+@license_required
 @login_required
+@licensed_section('advanced_tools')
 def form_builder():
     """فرم‌ساز داخلی"""
     if request.method == 'POST':

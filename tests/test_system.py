@@ -36,6 +36,34 @@ def test_app():
     return app
 
 
+@pytest.fixture(scope='module', autouse=True)
+def licensed_state(test_app):
+    """
+    آزمون‌ها نباید به سرور لایسنس وصل شوند؛ یک وضعیت معتبر
+    فقط در حافظه‌ی همین پروسه تزریق می‌شود (نه روی دیسک و نه در بیلد).
+    """
+    import license_client
+    from license_features import AVAILABLE_FEATURES
+
+    data = {
+        'success': True,
+        'status': 'SUCCESS',
+        'client_name': 'آموزشگاه آزمون',
+        'allowed_features': {item['key']: True for item in AVAILABLE_FEATURES},
+    }
+    original_refresh = license_client.refresh_state
+
+    def _fake_refresh(*_args, **_kwargs):
+        return license_client._store_state(license_client.LicenseState(
+            status='SUCCESS', message='', data=data, valid=True, source='online'))
+
+    license_client.refresh_state = _fake_refresh
+    _fake_refresh()
+    yield
+    license_client.refresh_state = original_refresh
+    license_client._store_state(None)
+
+
 @pytest.fixture(scope='module')
 def test_client(test_app):
     return test_app.test_client()

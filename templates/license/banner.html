@@ -1,0 +1,17 @@
+{% if license_state and license_state.valid and license_state.in_grace %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert"
+     style="border-radius: var(--radius-sm); font-size: 13px; border: none; box-shadow: var(--shadow-sm);">
+    <i class="bi bi-exclamation-circle-fill me-2"></i>
+    اعتبار لایسنس شما به پایان رسیده و در مهلت نرمش هستید{% if license_state.grace_days_remaining is not none %}
+    ({{ license_state.grace_days_remaining }} روز باقی مانده){% endif %}؛
+    لطفاً نسبت به تمدید اقدام کنید.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% elif license_state and license_state.valid and license_state.source == 'cache' %}
+<div class="alert alert-info alert-dismissible fade show" role="alert"
+     style="border-radius: var(--radius-sm); font-size: 13px; border: none; box-shadow: var(--shadow-sm);">
+    <i class="bi bi-wifi-off me-2"></i>
+    ارتباط با سرور لایسنس برقرار نشد؛ برنامه با آخرین اعتبارسنجی موفق کار می‌کند.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}

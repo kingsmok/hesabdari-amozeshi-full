@@ -194,9 +194,12 @@
             <a href="{{ url_for('settings.general') }}" class="nav-link-item"><i class="bi bi-sliders2"></i> تنظیمات عمومی</a>
             <a href="{{ url_for('settings.branches') }}" class="nav-link-item"><i class="bi bi-building"></i> شعب</a>
             <a href="{{ url_for('settings.backup') }}" class="nav-link-item"><i class="bi bi-cloud-arrow-up"></i> پشتیبان‌گیری</a>
+            <a href="{{ url_for('backup_center.index') }}" class="nav-link-item"><i class="bi bi-shield-lock"></i> پشتیبان‌گیری و بازیابی</a>
+            <a href="{{ url_for('license.update_center') }}" class="nav-link-item"><i class="bi bi-arrow-repeat"></i> به‌روزرسانی نرم‌افزار</a>
             <a href="{{ url_for('settings.logs') }}" class="nav-link-item"><i class="bi bi-clock-history"></i> لاگ فعالیت‌ها</a>
             <a href="{{ url_for('settings_panel.diagnostics') }}" class="nav-link-item"><i class="bi bi-activity"></i> پایش فنی و ارتباطات</a>
             <a href="{{ url_for('features.system_health') }}" class="nav-link-item"><i class="bi bi-heart-pulse"></i> سلامت سیستم</a>
+            <a href="{{ url_for('license.status') }}" class="nav-link-item"><i class="bi bi-shield-check"></i> لایسنس و به‌روزرسانی</a>
         </div>
 
         <div class="nav-link-item" onclick="toggleNav(this)">

@@ -7,12 +7,15 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import threading
 import time
 from datetime import datetime
 
 import requests
+
+logger = logging.getLogger('bot.services')
 
 
 def _normalize_phone(value: str) -> str | None:
@@ -210,6 +213,93 @@ def send_bot_photo(provider: str, token: str, chat_id, photo_url: str,
     return result
 
 
+def send_bot_document(provider: str, token: str, chat_id, file_path: str,
+                      caption: str = '', filename: str = None,
+                      timeout: int = 180) -> dict:
+    """
+    ارسال فایل (سند) به ربات بله یا تلگرام با multipart/form-data.
+    سقف حجم در هر دو سرویس ۵۰ مگابایت است.
+    """
+    import os
+
+    base_url = 'https://tapi.bale.ai' if provider == 'bale' else 'https://api.telegram.org'
+    if not os.path.isfile(file_path):
+        return {'ok': False, 'description': 'فایل موردنظر پیدا نشد'}
+
+    data = {'chat_id': str(chat_id)}
+    if caption:
+        data['caption'] = caption[:1024]        # سقف زیرنویس در هر دو سرویس
+
+    try:
+        with open(file_path, 'rb') as handle:
+            files = {'document': (filename or os.path.basename(file_path), handle,
+                                  'application/octet-stream')}
+            response = requests.post(
+                f'{base_url}/bot{token}/sendDocument',
+                data=data, files=files, timeout=timeout,
+            )
+    except requests.RequestException as exc:
+        return {'ok': False, 'description': f'خطای شبکه: {type(exc).__name__}'}
+
+    try:
+        result = response.json()
+    except ValueError:
+        result = {'ok': False, 'description': f'HTTP {response.status_code}'}
+    if not response.ok:
+        result['ok'] = False
+        result.setdefault('description', f'HTTP {response.status_code}')
+    return result
+
+
+def is_backup_admin(bot_user, chat_id) -> bool:
+    """
+    مدیر پشتیبان‌گیری: کاربری که در پنل «مدیر ربات» شده،
+    یا شناسه‌اش در تنظیمات ارسال پشتیبان ثبت شده است.
+    """
+    if bot_user is not None and getattr(bot_user, 'is_admin_bot', False):
+        return True
+    try:
+        from utils.backup_service import bot_targets
+        return str(chat_id) in bot_targets()
+    except Exception:
+        return False
+
+
+def handle_backup_command(bot_user, chat_id, provider: str = 'bale') -> str:
+    """
+    ساخت بسته پشتیبان و ارسال آن در همان گفت‌وگو — فقط برای مدیر ربات.
+    برای کاربر عادی هیچ نشانه‌ای از وجود این دستور داده نمی‌شود.
+    """
+    from models.system import SystemSettings
+
+    if not is_backup_admin(bot_user, chat_id):
+        return 'دستور شناخته نشد. برای دیدن منو /start را بفرستید.'
+
+    try:
+        from utils.backup_service import (BackupError, KIND_DATABASE, create_backup,
+                                          send_backup_to_bot)
+    except ImportError:
+        return '⛔️ سرویس پشتیبان‌گیری در دسترس نیست.'
+
+    settings = SystemSettings.query.first()
+    kind = (getattr(settings, 'backup_bot_kind', '') or KIND_DATABASE) if settings else KIND_DATABASE
+
+    try:
+        info = create_backup(kind=kind, note='درخواست از ربات')
+        report = send_backup_to_bot(info['name'], targets=[str(chat_id)])
+    except BackupError as exc:
+        return f'⛔️ {exc}'
+    except Exception:
+        logger.exception('bot: backup command failed')
+        return '⛔️ پشتیبان‌گیری انجام نشد؛ لطفاً از خود نرم‌افزار اقدام کنید.'
+
+    if report['sent']:
+        return (f"✅ بسته پشتیبان ساخته و ارسال شد.\n"
+                f"نام: {info['name']}\nحجم: {info['size_mb']} مگابایت")
+    error = report['failed'][0]['error'] if report['failed'] else 'نامشخص'
+    return f'⚠️ بسته ساخته شد ولی ارسال نشد: {error}'
+
+
 # ═══════════════════════════════════════════════════════════════
 #  پردازش دستورات و متن پیام
 # ═══════════════════════════════════════════════════════════════
@@ -298,6 +388,11 @@ def process_bot_message(text: str, chat_info: dict, contact: dict = None,
             'لطفاً به دفتر آموزشگاه مراجعه کنید تا اطلاعات شما ثبت شود.',
             build_main_menu_keyboard(provider)
         )
+
+    # ── دستور پشتیبان‌گیری (فقط مدیر ربات) ──
+    if text in ('/backup', '/پشتیبان', '📦 پشتیبان‌گیری'):
+        return (handle_backup_command(bot_user, chat_id, provider),
+                build_main_menu_keyboard(provider))
 
     # ── دستورات ──
     if text in ('/start', '/help', '🔙 بازگشت به منوی اصلی', '🔙 بازگشت'):
