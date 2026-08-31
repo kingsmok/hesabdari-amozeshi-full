@@ -158,6 +158,7 @@ BLUEPRINT_FEATURES = {
     'surveys': 'crm',
     'tickets': 'crm',
     'goals': 'crm',
+    'backup_center': 'backup',
 }
 
 

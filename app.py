@@ -89,6 +89,7 @@ def create_app():
     from routes.permissions import perms_bp
     from routes.teacher_portal import teacher_bp
     from routes.bot_panel import bot_panel_bp
+    from routes.backup_center import backup_center_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(license_bp)
@@ -123,12 +124,14 @@ def create_app():
     app.register_blueprint(perms_bp, url_prefix='/perms')
     app.register_blueprint(teacher_bp)
     app.register_blueprint(bot_panel_bp)
+    app.register_blueprint(backup_center_bp)
     
     # ══ پشتیبان‌گیری خودکار (Backup Scheduler) ══
+    # هر ساعت بررسی می‌شود؛ خودِ سرویس بر اساس تنظیمات سیستم
+    # (auto_backup / backup_interval_hours / max_backups) تصمیم می‌گیرد.
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
-        from routes.features import perform_backup
-        
+
         def _scheduled_backup():
             try:
                 with app.app_context():
@@ -137,16 +140,14 @@ def create_app():
                         # تسک زمان‌بندی‌شده‌ی یک بخش قفل‌شده اجرا نمی‌شود
                         print('[BACKUP] Skipped — بخش پشتیبان‌گیری در لایسنس فعال نیست')
                         return
-                    from routes.features import perform_backup
-                    result = perform_backup()
-                    print('[BACKUP] Auto-backup completed:', result)
+                    from utils.backup_service import run_scheduled_backup
+                    print('[BACKUP]', run_scheduled_backup())
             except Exception as exc:
                 print('[BACKUP] Auto-backup error:', exc)
-        
+
         scheduler = BackgroundScheduler()
-        # اجرای اولیه بعد از ۱ دقیقه (برای تست) و سپس هر ۲۴ ساعت پیش‌فرض
-        # کاربر می‌تواند از /settings/backup بازه را تغییر دهد
-        scheduler.add_job(_scheduled_backup, 'interval', hours=24, id='auto_backup', replace_existing=True)
+        scheduler.add_job(_scheduled_backup, 'interval', hours=1,
+                          id='auto_backup', replace_existing=True)
         scheduler.start()
         print('[SCHEDULER] Auto-backup scheduler started.')
     except Exception as exc:

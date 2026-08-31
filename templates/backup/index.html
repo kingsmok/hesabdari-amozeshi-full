@@ -1,0 +1,217 @@
+{% extends "base/layout.html" %}
+{% block title %}پشتیبان‌گیری و بازیابی{% endblock %}
+{% block breadcrumb %}
+<li class="active">پشتیبان‌گیری و بازیابی</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-shield-lock"></i> مرکز پشتیبان‌گیری و بازیابی</h1>
+    </div>
+
+    <!-- ═══ آمار ═══ -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="card"><div class="card-body-padded">
+                <div class="stat-label">تعداد نسخه‌های پشتیبان</div>
+                <div style="font-size:22px;font-weight:700;">{{ stats.count }}</div>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card"><div class="card-body-padded">
+                <div class="stat-label">حجم کل پشتیبان‌ها</div>
+                <div style="font-size:22px;font-weight:700;">{{ stats.total_mb }} <small>MB</small></div>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card"><div class="card-body-padded">
+                <div class="stat-label">حجم دیتابیس فعلی</div>
+                <div style="font-size:22px;font-weight:700;">{{ db_size_mb }} <small>MB</small></div>
+            </div></div>
+        </div>
+        <div class="col-md-3">
+            <div class="card"><div class="card-body-padded">
+                <div class="stat-label">آخرین پشتیبان</div>
+                <div style="font-size:13px;font-weight:700;">
+                    {{ stats.latest.modified if stats.latest else 'هنوز پشتیبانی گرفته نشده' }}
+                </div>
+            </div></div>
+        </div>
+    </div>
+
+    {% if db_backend != 'sqlite' %}
+    <div class="alert alert-warning" style="font-size:12.5px;">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        دیتابیس فعلی «{{ db_backend }}» است؛ پشتیبان‌گیری داخلی فقط برای SQLite در دسترس است.
+    </div>
+    {% endif %}
+
+    <div class="row g-3">
+        <!-- ═══ ساخت پشتیبان ═══ -->
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-body-padded">
+                <h2 style="font-size:14px;font-weight:700;margin-bottom:14px;">
+                    <i class="bi bi-cloud-arrow-up"></i> ساخت پشتیبان جدید
+                </h2>
+                <form method="POST" action="{{ url_for('backup_center.create') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-2">
+                        <label class="form-label">نوع پشتیبان</label>
+                        <select name="kind" class="form-select form-select-sm">
+                            <option value="full">کامل (دیتابیس + فایل‌های آپلودی + تنظیمات)</option>
+                            <option value="database">فقط دیتابیس (سریع و کم‌حجم)</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">توضیح (اختیاری)</label>
+                        <input type="text" name="note" class="form-control form-control-sm"
+                               placeholder="مثلاً: پیش از بستن سال مالی">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-play-circle me-1"></i> شروع پشتیبان‌گیری
+                    </button>
+                </form>
+
+                <hr>
+
+                <h2 style="font-size:14px;font-weight:700;margin:16px 0 12px;">
+                    <i class="bi bi-upload"></i> بازیابی از فایل
+                </h2>
+                <form method="POST" action="{{ url_for('backup_center.upload') }}"
+                      enctype="multipart/form-data"
+                      onsubmit="return confirm('فایل انتخاب‌شده بارگذاری شود؟');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-2">
+                        <input type="file" name="backup_file" accept=".zip"
+                               class="form-control form-control-sm" required>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="restore_now" id="restore_now">
+                        <label class="form-check-label" for="restore_now" style="font-size:12px;">
+                            بلافاصله پس از بارگذاری بازیابی شود
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-box-arrow-in-down me-1"></i> بارگذاری بسته
+                    </button>
+                </form>
+            </div></div>
+        </div>
+
+        <!-- ═══ تنظیمات خودکار ═══ -->
+        <div class="col-lg-6">
+            <div class="card h-100"><div class="card-body-padded">
+                <h2 style="font-size:14px;font-weight:700;margin-bottom:14px;">
+                    <i class="bi bi-clock-history"></i> پشتیبان‌گیری خودکار
+                </h2>
+                <form method="POST" action="{{ url_for('backup_center.save_settings') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="auto_backup" id="auto_backup"
+                               {{ 'checked' if settings and settings.auto_backup }}>
+                        <label class="form-check-label" for="auto_backup">فعال بودن پشتیبان خودکار</label>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label">فاصله (ساعت)</label>
+                            <input type="number" min="1" max="720" name="backup_interval_hours"
+                                   class="form-control form-control-sm"
+                                   value="{{ settings.backup_interval_hours or 24 if settings else 24 }}">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">حداکثر نسخه نگهداری</label>
+                            <input type="number" min="1" max="500" name="max_backups"
+                                   class="form-control form-control-sm"
+                                   value="{{ settings.max_backups or 30 if settings else 30 }}">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm mt-3">
+                        <i class="bi bi-check-circle me-1"></i> ذخیره تنظیمات
+                    </button>
+                </form>
+
+                <hr>
+                <div style="font-size:11.5px;color:#78909c;line-height:2;">
+                    <div><i class="bi bi-folder2-open"></i> محل ذخیره: <code style="direction:ltr;">{{ stats.folder }}</code></div>
+                    <div><i class="bi bi-info-circle"></i> پیش از هر بازیابی، یک «پشتیبان ایمنی» خودکار ساخته می‌شود.</div>
+                    <div><i class="bi bi-shield-check"></i> سلامت دیتابیس و هش بسته پیش از جایگزینی بررسی می‌شود.</div>
+                </div>
+                <form method="POST" action="{{ url_for('backup_center.prune') }}" class="mt-2"
+                      onsubmit="return confirm('نسخه‌های قدیمی‌تر از سقف تعیین‌شده حذف شوند؟');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-trash3 me-1"></i> پاکسازی نسخه‌های قدیمی
+                    </button>
+                </form>
+            </div></div>
+        </div>
+    </div>
+
+    <!-- ═══ فهرست بسته‌ها ═══ -->
+    <div class="card mt-3"><div class="card-body-padded">
+        <h2 style="font-size:14px;font-weight:700;margin-bottom:12px;">
+            <i class="bi bi-archive"></i> نسخه‌های پشتیبان موجود
+        </h2>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>نام فایل</th>
+                        <th>نوع</th>
+                        <th>تاریخ</th>
+                        <th>حجم</th>
+                        <th>نسخه</th>
+                        <th>توضیح</th>
+                        <th style="width:230px;">عملیات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in backups %}
+                    <tr>
+                        <td style="direction:ltr;font-size:11px;">{{ item.name }}</td>
+                        <td>
+                            {% if item.is_safety %}<span class="badge bg-warning text-dark">ایمنی</span>
+                            {% elif item.kind == 'full' %}<span class="badge bg-success">کامل</span>
+                            {% elif item.kind == 'database' %}<span class="badge bg-info text-dark">دیتابیس</span>
+                            {% else %}<span class="badge bg-secondary">قدیمی</span>{% endif %}
+                        </td>
+                        <td style="font-size:11.5px;">{{ item.modified }}</td>
+                        <td>{{ item.size_mb }} MB</td>
+                        <td>{{ item.app_version }}</td>
+                        <td style="font-size:11.5px;">{{ item.note }}</td>
+                        <td>
+                            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                                <a class="btn btn-outline-secondary btn-sm"
+                                   href="{{ url_for('backup_center.download', name=item.name) }}">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('backup_center.restore', name=item.name) }}"
+                                      onsubmit="return confirm('اطلاعات فعلی با محتوای این بسته جایگزین شود؟ پیش از آن پشتیبان ایمنی گرفته می‌شود.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="restore_uploads" value="1">
+                                    <button class="btn btn-outline-primary btn-sm" type="submit">
+                                        <i class="bi bi-arrow-counterclockwise"></i> بازیابی
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('backup_center.delete', name=item.name) }}"
+                                      onsubmit="return confirm('این بسته پشتیبان حذف شود؟');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-outline-danger btn-sm" type="submit">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="7" class="text-center" style="color:#90a4ae;">
+                        هنوز هیچ بسته پشتیبانی ساخته نشده است.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div></div>
+</div>
+{% endblock %}

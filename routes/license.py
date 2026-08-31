@@ -23,6 +23,10 @@ from license_client import (
 
 license_bp = Blueprint('license', __name__, url_prefix='/license')
 
+# آخرین نتیجه‌ی بررسی سرور، فقط برای نمایش در صفحه‌ی مرکز به‌روزرسانی
+_pending_update = {'info': None}
+
+
 
 @license_bp.route('/activate', methods=['GET', 'POST'])
 def activate():
@@ -105,6 +109,104 @@ def check_update():
     flash(result.get('message') or 'بررسی به‌روزرسانی انجام شد.',
           'success' if result.get('status') in ('UPDATED', 'NO_UPDATE') else 'warning')
     return redirect(url_for('license.status'))
+
+
+@license_bp.route('/update-center')
+@login_required
+def update_center():
+    """مرکز به‌روزرسانی: نسخه فعلی، بررسی سرور و نصب دستی بسته ZIP."""
+    if not current_user.is_admin:
+        flash('فقط مدیر کل دسترسی دارد', 'error')
+        return redirect(url_for('dashboard.index'))
+    from license_updater import required_update_message
+    state = get_state()
+    return render_template(
+        'license/update.html',
+        state=state,
+        product_name=PRODUCT_NAME,
+        version=current_version(),
+        channel=license_client.update_channel(),
+        server_url=license_client.server_url(),
+        required_message=required_update_message(),
+        pending=_pending_update.get('info'),
+    )
+
+
+@license_bp.route('/update/check', methods=['POST'])
+@login_required
+def check_only():
+    """فقط پرسش از سرور — بدون نصب."""
+    if not current_user.is_admin:
+        flash('فقط مدیر کل دسترسی دارد', 'error')
+        return redirect(url_for('dashboard.index'))
+    try:
+        from license_updater import check_for_update
+        info = check_for_update()
+    except Exception as exc:                       # noqa: BLE001
+        license_client.logger.info('update: بررسی ناموفق (%s)', exc)
+        _pending_update['info'] = None
+        flash('ارتباط با سرور به‌روزرسانی برقرار نشد؛ می‌توانید بسته را دستی نصب کنید.', 'warning')
+        return redirect(url_for('license.update_center'))
+
+    if not info:
+        _pending_update['info'] = None
+        flash(f'نرم‌افزار شما به‌روز است (نسخه {current_version()}).', 'success')
+    else:
+        _pending_update['info'] = {
+            'latest_version': info.get('latest_version'),
+            'release_notes': info.get('release_notes') or '',
+            'update_required': bool(info.get('update_required')),
+            'size_mb': info.get('size_mb') or info.get('package_size_mb') or '—',
+            'sha256': info.get('sha256'),
+        }
+        flash(f"نسخه {info.get('latest_version')} برای نصب آماده است.", 'info')
+    return redirect(url_for('license.update_center'))
+
+
+@license_bp.route('/update/upload', methods=['POST'])
+@login_required
+def upload_package():
+    """نصب دستی بسته‌ی به‌روزرسانی که کاربر آپلود می‌کند."""
+    if not current_user.is_admin:
+        flash('فقط مدیر کل دسترسی دارد', 'error')
+        return redirect(url_for('dashboard.index'))
+
+    file_storage = request.files.get('package')
+    if not file_storage or not file_storage.filename:
+        flash('فایل بسته به‌روزرسانی را انتخاب کنید.', 'error')
+        return redirect(url_for('license.update_center'))
+    if not file_storage.filename.lower().endswith('.zip'):
+        flash('فقط فایل ZIP پذیرفته می‌شود.', 'error')
+        return redirect(url_for('license.update_center'))
+
+    import os
+    import tempfile
+
+    folder = tempfile.mkdtemp(prefix='upload_pkg_')
+    staged = os.path.join(folder, 'package.zip')
+    try:
+        file_storage.save(staged)
+        from license_updater import apply_local_package, inspect_local_package
+        report = inspect_local_package(staged)
+        expected = (request.form.get('sha256') or '').strip()
+        result = apply_local_package(
+            staged,
+            expected_sha256=expected or None,
+            version=(request.form.get('version') or '').strip() or None,
+        )
+        _pending_update['info'] = None
+        flash(
+            f"بسته با {report['files']} فایل نصب شد؛ نسخه فعلی: {result['latest_version']}."
+            + (f" پشتیبان پیش از نصب: {result['safety_backup']}." if result.get('safety_backup') else '')
+            + ' برای اعمال کامل، برنامه را یک‌بار ببندید و دوباره باز کنید.',
+            'success')
+    except Exception as exc:                       # noqa: BLE001
+        license_client.logger.exception('نصب دستی بسته ناموفق بود')
+        flash(f'نصب بسته انجام نشد: {exc}', 'error')
+    finally:
+        import shutil
+        shutil.rmtree(folder, ignore_errors=True)
+    return redirect(url_for('license.update_center'))
 
 
 @license_bp.route('/health')

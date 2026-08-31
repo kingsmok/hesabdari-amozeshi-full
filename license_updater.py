@@ -126,7 +126,7 @@ def check_for_update():
         'channel': update_channel(),
     }
     envelope = license_client._call('/api/v1/update/check', payload)
-    data = envelope['data']
+    data = license_client.envelope_data(envelope)
 
     if not data.get('success'):
         logger.info('update: server said %s', data.get('status'))
@@ -258,7 +258,12 @@ def _plan_full(source_root):
 def _plan_manifest(source_root, manifest):
     plan = []
     for item in manifest.get('files') or []:
-        action = str(item.get('action') or '').lower()
+        # ورودی می‌تواند رشته‌ی ساده («مسیر فایل») یا dict کامل باشد
+        if isinstance(item, str):
+            item = {'action': 'replace', 'path': item}
+        elif not isinstance(item, dict):
+            continue
+        action = str(item.get('action') or 'replace').lower()
         rel = str(item.get('path') or '').replace('\\', '/').strip('/')
         if not rel or is_preserved(rel):
             logger.info('update: مسیر محافظت‌شده در manifest نادیده گرفته شد: %s', rel)
@@ -327,6 +332,128 @@ def apply_update(package_path, info):
     shutil.rmtree(os.path.dirname(package_path), ignore_errors=True)
     _cleanup_old_backups(root)
     return version
+
+
+# ══════════════════════════════════════════════════════════════
+#  ۸٫۴٫۱ — نصب دستی بسته ZIP (بدون سرور)
+#  برای زمانی که مشتری بسته را از پشتیبانی می‌گیرد و خودش نصب می‌کند.
+# ══════════════════════════════════════════════════════════════
+def _validate_zip(path):
+    """سلامت و امنیت مسیرهای داخل بسته را بررسی می‌کند."""
+    if not zipfile.is_zipfile(path):
+        raise RuntimeError('فایل انتخاب‌شده یک بسته ZIP معتبر نیست.')
+    with zipfile.ZipFile(path) as archive:
+        if archive.testzip() is not None:
+            raise RuntimeError('بسته خراب است.')
+        for member in archive.namelist():
+            normalized = member.replace('\\', '/')
+            if normalized.startswith('/') or '..' in normalized.split('/'):
+                raise RuntimeError(f'مسیر خطرناک در بسته: {member}')
+            if len(normalized) > 1 and normalized[1] == ':':
+                raise RuntimeError(f'مسیر مطلق در بسته: {member}')
+
+
+def _read_package_info(path):
+    """
+    اطلاعات نسخه را از داخل بسته می‌خواند (اختیاری).
+    فایل‌های شناخته‌شده: update.json / update_info.json / VERSION
+    """
+    info = {}
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = {name.replace('\\', '/'): name for name in archive.namelist()}
+            for candidate in ('update.json', 'update_info.json'):
+                for key, original in names.items():
+                    if key.rsplit('/', 1)[-1] == candidate:
+                        info.update(json.loads(archive.read(original).decode('utf-8')))
+                        break
+                if info:
+                    break
+            if not info.get('latest_version'):
+                for key, original in names.items():
+                    if key.rsplit('/', 1)[-1] == 'VERSION':
+                        info['latest_version'] = archive.read(original).decode('utf-8').strip()
+                        break
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+        return {}
+    return info
+
+
+def inspect_local_package(path):
+    """گزارش خواندنی از بسته‌ی محلی: نسخه، هش، تعداد فایل‌ها، حالت نصب."""
+    _validate_zip(path)
+    info = _read_package_info(path)
+    with zipfile.ZipFile(path) as archive:
+        members = [name for name in archive.namelist() if not name.endswith('/')]
+        has_manifest = any(name.replace('\\', '/').rsplit('/', 1)[-1] == 'manifest.json'
+                           for name in archive.namelist())
+    return {
+        'sha256': _sha256_of(path),
+        'size_mb': round(os.path.getsize(path) / (1024 * 1024), 2),
+        'files': len(members),
+        'latest_version': str(info.get('latest_version') or '').strip(),
+        'release_notes': info.get('release_notes') or '',
+        'apply_mode': 'manifest' if has_manifest else 'full',
+    }
+
+
+def _sha256_of(path):
+    digest = hashlib.sha256()
+    with open(path, 'rb') as handle:
+        for chunk in iter(lambda: handle.read(65536), b''):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def apply_local_package(path, expected_sha256=None, version=None, make_backup=True):
+    """
+    نصب یک بسته‌ی ZIP که کاربر خودش انتخاب کرده است.
+
+    مراحل: بررسی ZIP → تطبیق اختیاری هش → پشتیبان دیتابیس →
+    نصب با همان موتور به‌روزرسانی (با بازگردانی خودکار در صورت خطا).
+    """
+    if not _apply_lock.acquire(blocking=False):
+        raise RuntimeError('یک به‌روزرسانی دیگر در حال انجام است.')
+    try:
+        _validate_zip(path)
+        digest = _sha256_of(path)
+        if expected_sha256 and digest.lower() != str(expected_sha256).strip().lower():
+            raise RuntimeError('هش بسته با مقدار واردشده هم‌خوانی ندارد؛ نصب انجام نشد.')
+
+        package_info = _read_package_info(path)
+        target_version = str(version or package_info.get('latest_version') or '').strip()
+
+        safety_backup = None
+        if make_backup:
+            try:
+                from utils import backup_service
+                safety_backup = backup_service.create_backup(
+                    kind=backup_service.KIND_DATABASE,
+                    note='پیش از نصب بسته به‌روزرسانی',
+                )['name']
+            except Exception as exc:                       # پشتیبان نباید مانع نصب شود
+                logger.warning('update: پشتیبان پیش از نصب گرفته نشد (%s)', exc)
+
+        # بسته در پوشه‌ی موقت کپی می‌شود چون apply_update پوشه‌ی والد را پاک می‌کند
+        folder = tempfile.mkdtemp(prefix='update_local_')
+        staged = os.path.join(folder, 'package.zip')
+        shutil.copy2(path, staged)
+
+        info = dict(package_info)
+        info['latest_version'] = target_version
+        info['apply_mode'] = info.get('apply_mode') or 'full'
+        applied = apply_update(staged, info)
+        _set_required_update(None)
+        logger.info('update: بسته محلی نصب شد (نسخه %s)', applied or current_version())
+        return {
+            'status': 'UPDATED',
+            'latest_version': applied or current_version(),
+            'sha256': digest,
+            'safety_backup': safety_backup,
+            'message': 'بسته با موفقیت نصب شد.',
+        }
+    finally:
+        _apply_lock.release()
 
 
 # ══════════════════════════════════════════════════════════════

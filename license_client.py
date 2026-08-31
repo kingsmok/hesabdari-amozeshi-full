@@ -108,6 +108,171 @@ STATUS_HINTS = {
 
 
 # ══════════════════════════════════════════════════════════════
+#  سازگاری با نام‌گذاری‌های مختلف سرور واقعی
+#  ────────────────────────────────────────────────────────────
+#  امضا همیشه روی «پاکت خام» تایید می‌شود؛ این لایه فقط پس از
+#  تایید امضا، نام فیلدها و وضعیت‌ها را به واژگان داخلی برنامه
+#  ترجمه می‌کند. هیچ‌گاه وضعیتی از هیچ ساخته نمی‌شود.
+# ══════════════════════════════════════════════════════════════
+SUCCESS_STATUS_ALIASES = frozenset({
+    'SUCCESS', 'VALID', 'ACTIVE', 'OK', 'ACTIVATED', 'LICENSE_VALID', 'VERIFIED',
+})
+
+STATUS_ALIASES = {
+    'NOT_FOUND': 'INVALID_KEY',
+    'KEY_NOT_FOUND': 'INVALID_KEY',
+    'LICENSE_NOT_FOUND': 'INVALID_KEY',
+    'INVALID': 'INVALID_KEY',
+    'INVALID_LICENSE': 'INVALID_KEY',
+    'INVALID_LICENSE_KEY': 'INVALID_KEY',
+    'DISABLED': 'INACTIVE',
+    'SUSPENDED': 'INACTIVE',
+    'REVOKED': 'INACTIVE',
+    'BLOCKED': 'INACTIVE',
+    'LICENSE_EXPIRED': 'EXPIRED',
+    'EXPIRED_LICENSE': 'EXPIRED',
+    'DEVICE_NOT_MATCH': 'DEVICE_MISMATCH',
+    'HARDWARE_MISMATCH': 'DEVICE_MISMATCH',
+    'DEVICE_NOT_ACTIVATED': 'NOT_ACTIVATED',
+    'NOT_ACTIVE_ON_DEVICE': 'NOT_ACTIVATED',
+    'DEVICE_NOT_FOUND': 'NOT_ACTIVATED',
+    'MAX_ACTIVATIONS': 'ACTIVATION_LIMIT_REACHED',
+    'MAX_DEVICES': 'ACTIVATION_LIMIT_REACHED',
+    'ACTIVATION_LIMIT': 'ACTIVATION_LIMIT_REACHED',
+    'DEVICE_LIMIT_REACHED': 'ACTIVATION_LIMIT_REACHED',
+    'PRODUCT_NOT_MATCH': 'PRODUCT_MISMATCH',
+    'WRONG_PRODUCT': 'PRODUCT_MISMATCH',
+    'APP_TYPE_NOT_MATCH': 'APP_TYPE_MISMATCH',
+    'TOO_MANY_REQUESTS': 'RATE_LIMITED',
+    'INTERNAL_ERROR': 'SERVER_ERROR',
+    'ERROR': 'SERVER_ERROR',
+}
+
+# نام‌های جایگزینِ فیلدها → نام داخلی
+FIELD_ALIASES = {
+    'features': 'allowed_features',
+    'feature_flags': 'allowed_features',
+    'enabled_features': 'allowed_features',
+    'permitted_features': 'allowed_features',
+    'expiry_date': 'expires_at',
+    'expire_date': 'expires_at',
+    'expiration_date': 'expires_at',
+    'expires': 'expires_at',
+    'valid_until': 'expires_at',
+    'customer_name': 'client_name',
+    'customer': 'client_name',
+    'owner_name': 'client_name',
+    'holder_name': 'client_name',
+    'device_id': 'device_fingerprint',
+    'device_identifier': 'device_fingerprint',
+    'hardware_id': 'device_fingerprint',
+    'trial': 'is_trial',
+    'is_trial_license': 'is_trial',
+    'grace': 'in_grace',
+    'grace_mode': 'in_grace',
+    'grace_days': 'grace_days_remaining',
+    'recheck_minutes': 'revalidate_minutes',
+    'revalidate_after_minutes': 'revalidate_minutes',
+    'check_interval_minutes': 'revalidate_minutes',
+    'offline_grace': 'offline_grace_hours',
+    'grace_hours': 'offline_grace_hours',
+    'device_limit': 'max_activations',
+    'max_devices': 'max_activations',
+    'activations_count': 'current_activations',
+    'used_activations': 'current_activations',
+    'server_timestamp': 'server_time',
+    'now': 'server_time',
+    'notes': 'release_notes',
+    'changelog': 'release_notes',
+    'version': 'latest_version',
+    'new_version': 'latest_version',
+    'file_url': 'download_url',
+    'package_url': 'download_url',
+    'checksum': 'sha256',
+    'file_hash': 'sha256',
+}
+
+_TRUE_WORDS = {'1', 'true', 'yes', 'on', 'enabled', 'active', 'allowed'}
+
+
+def _as_bool(value):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    return str(value).strip().lower() in _TRUE_WORDS
+
+
+def _normalize_features(value):
+    """
+    سرور ممکن است بخش‌های مجاز را به‌صورت dict یا list بفرستد.
+    خروجی همیشه dict[str, bool] است. پیش‌فرض هر بخش بسته می‌ماند.
+    """
+    if isinstance(value, dict):
+        return {str(key): _as_bool(flag) for key, flag in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        result = {}
+        for item in value:
+            if isinstance(item, str):
+                result[item.strip()] = True
+            elif isinstance(item, dict):
+                key = item.get('key') or item.get('name') or item.get('code')
+                if key:
+                    enabled = item.get('enabled', item.get('allowed', item.get('active', True)))
+                    result[str(key)] = _as_bool(enabled)
+        return result
+    if isinstance(value, str):
+        return {part.strip(): True for part in value.replace(';', ',').split(',') if part.strip()}
+    return {}
+
+
+def normalize_server_data(raw):
+    """
+    ترجمه‌ی پاسخ سرور واقعی به واژگان داخلی — روی یک کپی، تا پاکت
+    اصلی برای بازبینی امضا (کش) دست‌نخورده بماند.
+    """
+    if not isinstance(raw, dict):
+        return {}
+
+    data = dict(raw)
+    for alias, target in FIELD_ALIASES.items():
+        if alias in data and target not in data:
+            data[target] = data[alias]
+
+    if 'allowed_features' in data:
+        data['allowed_features'] = _normalize_features(data['allowed_features'])
+
+    status = str(data.get('status') or '').strip().upper()
+    if status:
+        status = STATUS_ALIASES.get(status, status)
+        if status in SUCCESS_STATUS_ALIASES:
+            status = 'SUCCESS'
+        data['status'] = status
+
+    if 'success' in data:
+        data['success'] = _as_bool(data['success'])
+    elif status:
+        data['success'] = status == 'SUCCESS'
+
+    # اگر سرور فقط success=True فرستاد و وضعیتی نداد
+    if not data.get('status') and data.get('success'):
+        data['status'] = 'SUCCESS'
+
+    for flag in ('is_trial', 'in_grace', 'force_recheck', 'update_available', 'update_required'):
+        if flag in data:
+            data[flag] = _as_bool(data[flag])
+
+    return data
+
+
+def envelope_data(envelope):
+    """داده‌ی نرمال‌شده‌ی یک پاکتِ امضا‌تاییدشده."""
+    if not isinstance(envelope, dict):
+        return {}
+    return normalize_server_data(envelope.get('data'))
+
+
+# ══════════════════════════════════════════════════════════════
 #  استثناها
 # ══════════════════════════════════════════════════════════════
 class LicenseError(Exception):
@@ -701,7 +866,7 @@ def _state_from_cache(device_id, fallback_status='OFFLINE', fallback_message='')
         return LicenseState(status='SIGNATURE_ERROR',
                             message='اعتبارسنجی لایسنس ناموفق بود. ' + CONTACT_MESSAGE)
 
-    data = envelope.get('data') or {}
+    data = envelope_data(envelope)
 
     if data.get('device_fingerprint') and data['device_fingerprint'] != device_id:
         _record_integrity_event('cache_device', 'کش متعلق به دستگاه دیگری است')
@@ -773,13 +938,13 @@ def refresh_state(force_online=True):
             logger.info('license: server unreachable (%s) — falling back to cache', exc)
             return _store_state(_state_from_cache(device_id))
 
-        data = envelope['data']
+        data = envelope_data(envelope)
 
         # هنوز روی این دستگاه فعال نشده → مسیر activate
         if str(data.get('status')) == 'NOT_ACTIVATED':
             try:
                 envelope = call_activate(license_key)
-                data = envelope['data']
+                data = envelope_data(envelope)
             except SignatureError as exc:
                 clear_cache()
                 logger.warning('license: %s', exc)
@@ -890,10 +1055,10 @@ def activate_with_key(raw_key):
     # یک فعال‌سازی بی‌دلیل سوخته نمی‌شود.
     try:
         envelope = call_verify(key)
-        data = envelope['data']
+        data = envelope_data(envelope)
         if str(data.get('status')) == 'NOT_ACTIVATED':
             envelope = call_activate(key)
-            data = envelope['data']
+            data = envelope_data(envelope)
     except SignatureError:
         return {'success': False,
                 'message': 'امضای سرور نامعتبر است. ' + CONTACT_MESSAGE}
@@ -929,7 +1094,7 @@ def deactivate_current_device():
         return {'success': False,
                 'message': 'ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی کنید.'}
 
-    data = envelope['data']
+    data = envelope_data(envelope)
     if data.get('success'):
         clear_cache()
         clear_license_key()
@@ -969,7 +1134,7 @@ def _heartbeat_loop():
             if not key:
                 continue
             envelope = call_heartbeat(key)
-            data = envelope['data']
+            data = envelope_data(envelope)
             status = str(data.get('status') or '')
             if data.get('success') and status == 'SUCCESS':
                 save_cache(envelope, get_device_identifier(), server_time=data.get('server_time'))
