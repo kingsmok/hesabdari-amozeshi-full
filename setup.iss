@@ -1,4 +1,4 @@
-; ============================================================================
+﻿; ============================================================================
 ;  Hesabdari Rahsa - Windows installer (Inno Setup 6)
 ;
 ;  Build:   ISCC.exe setup.iss        (or run build.bat which does everything)

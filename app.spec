@@ -18,12 +18,11 @@ Design notes
 import os
 
 # ── Paths ────────────────────────────────────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.abspath(SPEC))          # noqa: F821 (SPEC injected by PyInstaller)
+BASE_DIR = SPECPATH                                        # noqa: F821 (injected by PyInstaller)
 ENTRY_SCRIPT = os.path.join(BASE_DIR, 'app_desktop.py')
 ICON_FILE = os.path.join(BASE_DIR, 'static', 'images', 'icon.ico')
 
 APP_NAME = 'AcademyManager'
-block_cipher = None
 
 
 def data_file(relative, target='.'):
@@ -64,8 +63,9 @@ datas = [item for item in (
 
     # Metadata / defaults
     data_file('VERSION'),
-    data_file('settings.json'),
     data_file('config.ini'),          # written by the installer; optional in dev
+    # NOTE: settings.json is deliberately NOT bundled - it is per installation
+    #       and is generated at first launch from config.ini + defaults.
     data_file('README.md'),
 ) if item]
 
@@ -136,13 +136,10 @@ a = Analysis(                                              # noqa: F821
         'tkinter', 'matplotlib', 'numpy', 'scipy', 'pandas', 'IPython',
         'PySide2', 'PySide6', 'PyQt5', 'pytest', 'unittest',
     ],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)      # noqa: F821
+pyz = PYZ(a.pure, a.zipped_data)                           # noqa: F821
 
 exe = EXE(                                                 # noqa: F821
     pyz,
@@ -150,6 +147,12 @@ exe = EXE(                                                 # noqa: F821
     [],
     exclude_binaries=True,          # onedir: binaries live in COLLECT
     name=APP_NAME,
+    # PyInstaller >= 6 puts the payload in "_internal" by default. The whole
+    # application (config.py, first_run.py, app_desktop.py, the updater and the
+    # installer) resolves its paths from dirname(sys.executable), so keep the
+    # classic FLAT onedir layout: templates/, static/, instance/, config.ini
+    # all live next to AcademyManager.exe.
+    contents_directory='.',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

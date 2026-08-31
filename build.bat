@@ -126,8 +126,11 @@ REM  Step 4/4 - Report
 REM ---------------------------------------------------------------------------
 echo.
 echo [4/4] Verifying the result...
+REM Pick the most recently written installer (dir /o-d sorts by date, newest first)
 set "SETUP_FILE="
-for %%f in ("%OUTPUT_DIR%\*.exe") do set "SETUP_FILE=%%~ff"
+for /f "delims=" %%f in ('dir /b /o-d "%OUTPUT_DIR%\*.exe" 2^>nul') do (
+    if not defined SETUP_FILE set "SETUP_FILE=%CD%\%OUTPUT_DIR%\%%f"
+)
 if not defined SETUP_FILE (
     echo   [ERROR] No installer was found in %OUTPUT_DIR%.
     goto :fail
