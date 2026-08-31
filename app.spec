@@ -78,7 +78,8 @@ hiddenimports = [
     'flask', 'flask_sqlalchemy', 'flask_login', 'flask_wtf', 'flask_migrate',
     'flask_babel', 'wtforms', 'werkzeug', 'werkzeug.security',
     'jinja2', 'jinja2.ext', 'itsdangerous', 'click', 'blinker',
-    'sqlalchemy', 'sqlalchemy.dialects.sqlite', 'sqlalchemy.sql.default_comparator',
+    'sqlalchemy', 'sqlalchemy.dialects.sqlite', 'sqlalchemy.dialects.sqlite.pysqlite',
+    'sqlalchemy.sql.default_comparator',
 
     # PyQt6 (desktop shell + embedded browser)
     'PyQt6', 'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets',
@@ -92,7 +93,7 @@ hiddenimports = [
     'arabic_reshaper', 'bidi', 'bidi.algorithm',
     'openpyxl', 'qrcode', 'PIL', 'PIL.Image',
     'apscheduler', 'apscheduler.schedulers.background',
-    'apscheduler.triggers.interval',
+    'apscheduler.triggers.interval', 'pytz', 'tzlocal', 'six',
 
     # Cryptography — used for license signature verification and sealed cache
     'cryptography', 'cryptography.fernet',
@@ -134,7 +135,10 @@ a = Analysis(                                              # noqa: F821
     # Keep the bundle small and avoid Qt binding conflicts
     excludes=[
         'tkinter', 'matplotlib', 'numpy', 'scipy', 'pandas', 'IPython',
-        'PySide2', 'PySide6', 'PyQt5', 'pytest', 'unittest',
+        'PySide2', 'PySide6', 'PyQt5', 'pytest',
+        # Optional server-side database drivers (config.py imports them lazily
+        # inside try/except ImportError - the desktop edition uses SQLite).
+        'psycopg2', 'psycopg2-binary', 'pymysql',
     ],
     noarchive=False,
 )

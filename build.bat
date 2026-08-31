@@ -119,6 +119,19 @@ if not exist "%DIST_DIR%\%APP_NAME%.exe" (
 )
 echo   - built: %DIST_DIR%\%APP_NAME%.exe
 
+REM The application resolves its paths next to the exe (flat onedir layout).
+REM If PyInstaller ever falls back to the "_internal" layout, stop right here.
+if not exist "%DIST_DIR%\templates" (
+    echo   [ERROR] templates\ is missing from the dist folder.
+    echo           Check "contents_directory='.'" in %SPEC_FILE%.
+    goto :fail
+)
+if not exist "%DIST_DIR%\static" (
+    echo   [ERROR] static\ is missing from the dist folder.
+    goto :fail
+)
+echo   - layout verified: templates\ and static\ next to the exe
+
 REM ---------------------------------------------------------------------------
 REM  Step 3/4 - Compile the installer
 REM ---------------------------------------------------------------------------
