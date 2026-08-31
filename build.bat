@@ -46,6 +46,15 @@ if errorlevel 1 (
 )
 for /f "delims=" %%v in ('python -m PyInstaller --version 2^>^&1') do echo   - PyInstaller %%v
 
+REM PyQt6 must be importable, otherwise the bundled exe starts and dies silently
+python -c "import PyQt6, PyQt6.QtWebEngineWidgets" >nul 2>&1
+if errorlevel 1 (
+    echo   [ERROR] PyQt6 / PyQt6-WebEngine is not installed.
+    echo           Run: pip install -r requirements-build.txt
+    goto :fail
+)
+echo   - PyQt6 + WebEngine found
+
 REM Locate the Inno Setup command line compiler (ISCC.exe)
 set "ISCC="
 where ISCC.exe >nul 2>&1 && set "ISCC=ISCC.exe"
