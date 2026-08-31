@@ -26,6 +26,13 @@ installer/
 *.iss
 build/
 dist/
+installer_output/
+# ...except the maintained build chain (app.spec + setup.iss + build.bat)
+!app.spec
+!setup.iss
+
+# Installer answers (contains the initial admin password until first launch)
+config.ini
 
 # OS files
 .DS_Store
@@ -42,3 +49,7 @@ cookies.txt
 *.swp
 *.swo
 *~
+
+# License / update artifacts (device-bound, never in VCS)
+restart.bat
+.update_backup/

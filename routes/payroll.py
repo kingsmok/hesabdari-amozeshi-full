@@ -8,6 +8,7 @@
 from datetime import datetime, date, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date
 
@@ -18,7 +19,9 @@ payroll_bp = Blueprint('payroll', __name__)
 #  داشبورد حقوق و دستمزد
 # ═══════════════════════════════════════════
 @payroll_bp.route('/payroll')
+@license_required
 @login_required
+@licensed_section('payroll')
 def dashboard():
     from models.teacher import Teacher
     from models.finance import Payslip, SalaryContract

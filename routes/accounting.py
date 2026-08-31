@@ -1,6 +1,7 @@
 """Accounting routes"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date
 from models.accounting import (
@@ -14,7 +15,9 @@ accounting_bp = Blueprint('accounting', __name__)
 
 
 @accounting_bp.route('/')
+@license_required
 @login_required
+@licensed_section('accounting')
 def index():
     return redirect(url_for('accounting.journal'))
 

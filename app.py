@@ -56,8 +56,13 @@ def create_app():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['BACKUP_FOLDER'], exist_ok=True)
     
+    # ══ سامانه لایسنس — پیش از ثبت Blueprintها ══
+    from license_client import init_license
+    init_license(app)
+    
     # Register blueprints
     from routes.auth import auth_bp
+    from routes.license import license_bp
     from routes.dashboard import dashboard_bp
     from routes.students import students_bp
     from routes.teachers import teachers_bp
@@ -84,8 +89,10 @@ def create_app():
     from routes.permissions import perms_bp
     from routes.teacher_portal import teacher_bp
     from routes.bot_panel import bot_panel_bp
+    from routes.backup_center import backup_center_bp
     
     app.register_blueprint(auth_bp)
+    app.register_blueprint(license_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(students_bp, url_prefix='/students')
     app.register_blueprint(teachers_bp, url_prefix='/teachers')
@@ -117,25 +124,30 @@ def create_app():
     app.register_blueprint(perms_bp, url_prefix='/perms')
     app.register_blueprint(teacher_bp)
     app.register_blueprint(bot_panel_bp)
+    app.register_blueprint(backup_center_bp)
     
     # ══ پشتیبان‌گیری خودکار (Backup Scheduler) ══
+    # هر ساعت بررسی می‌شود؛ خودِ سرویس بر اساس تنظیمات سیستم
+    # (auto_backup / backup_interval_hours / max_backups) تصمیم می‌گیرد.
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
-        from routes.features import perform_backup
-        
+
         def _scheduled_backup():
             try:
                 with app.app_context():
-                    from routes.features import perform_backup
-                    result = perform_backup()
-                    print('[BACKUP] Auto-backup completed:', result)
+                    from license_client import has_feature
+                    if not has_feature('backup'):
+                        # تسک زمان‌بندی‌شده‌ی یک بخش قفل‌شده اجرا نمی‌شود
+                        print('[BACKUP] Skipped — بخش پشتیبان‌گیری در لایسنس فعال نیست')
+                        return
+                    from utils.backup_service import run_scheduled_backup
+                    print('[BACKUP]', run_scheduled_backup())
             except Exception as exc:
                 print('[BACKUP] Auto-backup error:', exc)
-        
+
         scheduler = BackgroundScheduler()
-        # اجرای اولیه بعد از ۱ دقیقه (برای تست) و سپس هر ۲۴ ساعت پیش‌فرض
-        # کاربر می‌تواند از /settings/backup بازه را تغییر دهد
-        scheduler.add_job(_scheduled_backup, 'interval', hours=24, id='auto_backup', replace_existing=True)
+        scheduler.add_job(_scheduled_backup, 'interval', hours=1,
+                          id='auto_backup', replace_existing=True)
         scheduler.start()
         print('[SCHEDULER] Auto-backup scheduler started.')
     except Exception as exc:
@@ -338,7 +350,14 @@ def create_app():
             db.create_all()
             from utils.attendance_service import ensure_attendance_indexes
             ensure_attendance_indexes()
+            from utils.database_tools import ensure_settings_columns
+            ensure_settings_columns()
             create_default_data()
+            # اعمال تنظیمات نصب‌کننده (config.ini): ساخت حساب مدیر و آدرس هاست.
+            from utils.installer_config import apply_installer_config
+            installer_note = apply_installer_config()
+            if installer_note:
+                app.logger.info('installer config: %s', installer_note)
             # اصلاح خودکار تاریخ‌های شمسی که در نسخه‌های قدیمی به‌اشتباه
             # مستقیماً در ستون میلادی ذخیره شده بودند (عملیات idempotent است).
             from utils.database_tools import repair_legacy_jalali_dates
@@ -348,8 +367,21 @@ def create_app():
             app._db_initialized = True
 
         # ربات بله در حالت Long Polling کار می‌کند و به دامنه عمومی/وب‌هوک نیاز ندارد.
-        from utils.bot_services import start_bale_polling_if_configured
-        start_bale_polling_if_configured(app)
+        # فقط زمانی راه می‌افتد که لایسنس بخش «اتصالات» را باز کرده باشد.
+        def _start_bale_when_licensed():
+            try:
+                from license_client import get_state
+                if not get_state().has_feature('integrations'):
+                    return
+                with app.app_context():
+                    from utils.bot_services import start_bale_polling_if_configured
+                    start_bale_polling_if_configured(app)
+            except Exception as exc:
+                app.logger.info('bale polling not started: %s', exc)
+
+        import threading as _threading
+        _threading.Thread(target=_start_bale_when_licensed,
+                          name='bale-polling-boot', daemon=True).start()
     
     return app
 
