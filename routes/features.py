@@ -9,6 +9,7 @@ import os, shutil, hashlib, json, uuid, io, base64
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, abort
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 
@@ -35,6 +36,11 @@ def perform_backup():
     import glob, zipfile
     from utils.database_tools import sqlite_backup
     from models.system import SystemSettings
+    
+    # نقطه‌ی کنترل مستقل: پشتیبان‌گیری در عمق سرویس هم بررسی می‌شود،
+    # نه فقط روی مسیرهای HTTP.
+    from license_client import assert_feature
+    assert_feature('backup')
     
     backup_dir = current_app.config['BACKUP_FOLDER']
     os.makedirs(backup_dir, exist_ok=True)
@@ -625,7 +631,9 @@ def staff_ranking():
 
 
 @features_bp.route('/export/students/csv')
+@license_required
 @login_required
+@licensed_section('export_data')
 def export_students_csv():
     import csv, io
     from flask import make_response
@@ -642,7 +650,9 @@ def export_students_csv():
 
 
 @features_bp.route('/export/payments/csv')
+@license_required
 @login_required
+@licensed_section('export_data')
 def export_payments_csv():
     import csv, io
     from flask import make_response

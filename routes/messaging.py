@@ -1,6 +1,7 @@
 """Messaging routes"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from models.system import Message, MessageTemplate, InternalMessage, Notification
@@ -12,7 +13,9 @@ messaging_bp = Blueprint('messaging', __name__)
 
 
 @messaging_bp.route('/sms')
+@license_required
 @login_required
+@licensed_section('messaging')
 def sms():
     page = request.args.get('page', 1, type=int)
     messages = Message.query.order_by(Message.created_at.desc()).paginate(page=page, per_page=30)

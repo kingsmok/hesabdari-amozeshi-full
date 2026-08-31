@@ -5,6 +5,7 @@ import os, json, requests
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 
 settings_panel_bp = Blueprint('settings_panel', __name__)
@@ -56,7 +57,9 @@ def control_panel():
 # ═══════════════════════════════════════════════════════════════
 
 @settings_panel_bp.route('/telegram', methods=['GET', 'POST'])
+@license_required
 @login_required
+@licensed_section('integrations')
 def telegram_config():
     """تنظیمات کامل ربات تلگرام"""
     from models.system import SystemSettings

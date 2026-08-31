@@ -1,0 +1,120 @@
+{% extends "base/layout.html" %}
+{% block title %}وضعیت لایسنس{% endblock %}
+{% block breadcrumb %}
+<li class="active">وضعیت لایسنس</li>
+{% endblock %}
+
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-shield-check"></i> وضعیت لایسنس</h1></div>
+
+    <div class="card" style="max-width: 900px;">
+        <div class="card-body-padded">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="stat-box">
+                        <div class="stat-label">وضعیت</div>
+                        <span class="badge-status badge-{{ 'active' if state.valid else 'pending' }}">
+                            {{ 'معتبر' if state.valid else 'نامعتبر' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stat-box">
+                        <div class="stat-label">نام مشتری</div>
+                        <div>{{ state.client_name or '—' }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stat-box">
+                        <div class="stat-label">تاریخ انقضا</div>
+                        <div>{{ state.expires_at or 'مادام‌العمر' }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stat-box">
+                        <div class="stat-label">دستگاه‌های فعال</div>
+                        <div>
+                            {% if state.max_activations %}
+                                {{ state.current_activations or 1 }} از {{ state.max_activations }}
+                            {% else %}—{% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stat-box">
+                        <div class="stat-label">نسخه نرم‌افزار</div>
+                        <div>{{ version }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stat-box">
+                        <div class="stat-label">آخرین اعتبارسنجی</div>
+                        <div>{{ 'آنلاین' if state.source == 'online' else ('کش محلی' if state.source == 'cache' else '—') }}</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if state.message %}
+            <div class="alert alert-{{ 'info' if state.valid else 'danger' }} mt-3" style="font-size: 12.5px;">
+                {{ state.message }}
+            </div>
+            {% endif %}
+
+            <h2 style="font-size: 14px; font-weight: 700; margin: 24px 0 10px;">
+                <i class="bi bi-grid-3x3-gap"></i> بخش‌های نرم‌افزار
+            </h2>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                        <tr><th>بخش</th><th style="width: 120px;">وضعیت</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for item in available_features %}
+                        <tr>
+                            <td>{{ state.feature_labels.get(item.key, item.label) }}</td>
+                            <td>
+                                {% if state.has_feature(item.key) %}
+                                <span class="badge-status badge-active">فعال</span>
+                                {% else %}
+                                <span class="badge-status badge-pending">غیرفعال</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top: 18px; padding-top: 14px; border-top: 1px dashed #e0e4e8; font-size: 11px; color: #90a4ae;">
+                شناسه دستگاه: <code style="direction: ltr;">{{ device_identifier }}</code><br>
+                نام دستگاه: {{ device_label }}
+            </div>
+
+            <div style="margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <form method="POST" action="{{ url_for('license.refresh') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-arrow-clockwise me-1"></i> اعتبارسنجی مجدد
+                    </button>
+                </form>
+                {% if is_admin() %}
+                <form method="POST" action="{{ url_for('license.check_update') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-cloud-arrow-down me-1"></i> بررسی به‌روزرسانی
+                    </button>
+                </form>
+                <form method="POST" action="{{ url_for('license.deactivate') }}"
+                      onsubmit="return confirm('لایسنس این دستگاه آزاد شود؟ برای ادامه کار باید دوباره فعال‌سازی کنید.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">
+                        <i class="bi bi-box-arrow-left me-1"></i> آزادسازی این دستگاه
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,6 +1,7 @@
 """Reports routes"""
 from flask import Blueprint, render_template, request
 from flask_login import login_required
+from license_client import license_required, licensed_section
 from extensions import db
 from models.student import Student
 from models.teacher import Teacher
@@ -14,7 +15,9 @@ reports_bp = Blueprint('reports', __name__)
 
 
 @reports_bp.route('/')
+@license_required
 @login_required
+@licensed_section('reports')
 def index():
     return render_template('reports/index.html')
 

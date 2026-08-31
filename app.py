@@ -56,8 +56,13 @@ def create_app():
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['BACKUP_FOLDER'], exist_ok=True)
     
+    # ══ سامانه لایسنس — پیش از ثبت Blueprintها ══
+    from license_client import init_license
+    init_license(app)
+    
     # Register blueprints
     from routes.auth import auth_bp
+    from routes.license import license_bp
     from routes.dashboard import dashboard_bp
     from routes.students import students_bp
     from routes.teachers import teachers_bp
@@ -86,6 +91,7 @@ def create_app():
     from routes.bot_panel import bot_panel_bp
     
     app.register_blueprint(auth_bp)
+    app.register_blueprint(license_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(students_bp, url_prefix='/students')
     app.register_blueprint(teachers_bp, url_prefix='/teachers')
@@ -126,6 +132,11 @@ def create_app():
         def _scheduled_backup():
             try:
                 with app.app_context():
+                    from license_client import has_feature
+                    if not has_feature('backup'):
+                        # تسک زمان‌بندی‌شده‌ی یک بخش قفل‌شده اجرا نمی‌شود
+                        print('[BACKUP] Skipped — بخش پشتیبان‌گیری در لایسنس فعال نیست')
+                        return
                     from routes.features import perform_backup
                     result = perform_backup()
                     print('[BACKUP] Auto-backup completed:', result)
@@ -348,8 +359,21 @@ def create_app():
             app._db_initialized = True
 
         # ربات بله در حالت Long Polling کار می‌کند و به دامنه عمومی/وب‌هوک نیاز ندارد.
-        from utils.bot_services import start_bale_polling_if_configured
-        start_bale_polling_if_configured(app)
+        # فقط زمانی راه می‌افتد که لایسنس بخش «اتصالات» را باز کرده باشد.
+        def _start_bale_when_licensed():
+            try:
+                from license_client import get_state
+                if not get_state().has_feature('integrations'):
+                    return
+                with app.app_context():
+                    from utils.bot_services import start_bale_polling_if_configured
+                    start_bale_polling_if_configured(app)
+            except Exception as exc:
+                app.logger.info('bale polling not started: %s', exc)
+
+        import threading as _threading
+        _threading.Thread(target=_start_bale_when_licensed,
+                          name='bale-polling-boot', daemon=True).start()
     
     return app
 

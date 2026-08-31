@@ -122,6 +122,12 @@ def send_farazsms(
 def send_configured_sms(phone: str, message: str, **kwargs) -> dict:
     from models.system import SystemSettings
 
+    # نقطه‌ی کنترل مستقل: ارسال پیامک حتی از مسیرهای داخلی و
+    # تسک‌های زمان‌بندی‌شده هم بدون لایسنسِ بخش پیام‌رسانی انجام نمی‌شود.
+    from license_client import LOCK_MESSAGE, has_feature
+    if not has_feature('messaging'):
+        return {'ok': False, 'error': LOCK_MESSAGE}
+
     return send_farazsms(SystemSettings.query.first(), phone, message, **kwargs)
 
 

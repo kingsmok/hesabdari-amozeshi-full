@@ -1,6 +1,7 @@
 """Registration routes"""
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
+from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from utils.jalali import current_jalali_year
@@ -16,7 +17,9 @@ registration_bp = Blueprint('registration', __name__)
 
 
 @registration_bp.route('/')
+@license_required
 @login_required
+@licensed_section('registration')
 def index():
     page = request.args.get('page', 1, type=int)
     status = request.args.get('status', '')

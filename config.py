@@ -44,6 +44,14 @@ def load_config():
             'name': 'آموزشگاه نمونه',
             'version': '1.0.0',
             'page_size': 25,  # تعداد ردیف در هر صفحه
+        },
+        'license': {
+            # سرور لایسنس و به‌روزرسانی — کلید لایسنس اینجا ذخیره نمی‌شود؛
+            # کلید را کاربر در صفحه فعال‌سازی وارد می‌کند و رمزنگاری‌شده
+            # در %LOCALAPPDATA% ذخیره می‌شود.
+            'server_url': 'https://ls.ariapadideh.ir',
+            'channel': 'stable',
+            'auto_update': True,
         }
     }
     
