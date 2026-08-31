@@ -36,8 +36,25 @@ build.bat
 2. `Admin password` (ماسک‌شده با `*`، حداقل ۶ کاراکتر)
 3. `cPanel host URL / IP` (اگر `http(s)://` نداشته باشد، خودکار اضافه می‌شود)
 
-در `ssPostInstall` این مقادیر با `SetIniString` در `{app}\config.ini` نوشته
-می‌شوند و دسترسی فایل با `icacls` فقط به Administrators/SYSTEM محدود می‌شود.
+در `ssPostInstall` این مقادیر با `SetIniString` در `{app}\config.ini` نوشته می‌شوند.
+
+نکته‌های عملیاتی که در اسکریپت رعایت شده‌اند:
+
+- **نام کاربری فقط ASCII** (حروف/رقم/`. _ -`)؛ چون `SetIniString` مقادیر را با
+  کدپیج سیستم می‌نویسد و حروف فارسی ممکن است خراب شوند.
+- **نصب مجدد/ارتقا**: اگر `config.ini` از قبل وجود داشته باشد، `ShouldSkipPage`
+  صفحه را رد می‌کند و بخش `[Admin]`/`[Platform]` هرگز بازنویسی نمی‌شود؛
+  فقط `[Install]` (نسخه و تاریخ) تازه می‌شود.
+- **نصب بی‌صدا**:
+  `setup.exe /VERYSILENT /AdminUser=admin /AdminPass=Secret123 /Host=panel.example.com`
+- **دسترسی‌ها**: پوشه‌های `instance`, `backups`, `logs`, `static\uploads` با
+  `Permissions: users-modify` ساخته می‌شوند (برنامه در Program Files نصب می‌شود
+  و کاربر معمولی باید بتواند در دیتابیس بنویسد). روی `config.ini` هم با `icacls`
+  دسترسی به Administrators/SYSTEM (کامل) و Users (تغییر) محدود می‌شود تا برنامه‌ی
+  غیر‌ادمین بتواند رمز یک‌بارمصرف را پاک کند.
+- **حذف نصب**: داده‌ها فقط با تأیید صریح کاربر پاک می‌شوند و در حالت بی‌صدا هرگز.
+- فایل `setup.iss` با **UTF-8 + BOM** ذخیره شده (لازمه‌ی Inno Setup پیش از ۶٫۳
+  برای رشته‌های فارسی).
 
 ## ساختار config.ini
 
@@ -94,5 +111,15 @@ installer_note = apply_installer_config()
 ## آزمون‌ها
 
 ```bash
-pytest tests/test_installer_config.py -q      # ۸ آزمون
+pytest tests/test_installer_config.py -q      # ۱۰ آزمون
 ```
+
+## نکته‌های مهم `app.spec`
+
+- `contents_directory='.'` تنظیم شده تا PyInstaller ۶ خروجی را در پوشه‌ی
+  `_internal` نریزد؛ کل برنامه مسیرها را از کنار فایل اجرایی می‌خواند.
+- `settings.json` بسته‌بندی نمی‌شود (مخصوص هر نصب).
+- درایورهای `psycopg2`/`pymysql` در `excludes` هستند (نسخه‌ی دسکتاپ SQLite است و
+  `config.py` آن‌ها را داخل `try/except ImportError` وارد می‌کند).
+- برای ساخت به `PyQt6` و `PyQt6-WebEngine` نیاز است:
+  `pip install -r requirements-build.txt` (خود `build.bat` هم بررسی می‌کند).

@@ -41,6 +41,27 @@ def _as_bool(value, default=False) -> bool:
     return str(value).strip().lower() in TRUE_WORDS
 
 
+def _load_parser(path):
+    """
+    خواندن فایل با کدگذاری‌های محتمل.
+    ویندوز مقادیر غیرانگلیسی را با کدپیج سیستم (مثلاً cp1256) می‌نویسد،
+    در حالی که خود برنامه UTF-8 می‌نویسد؛ هر دو باید خوانده شوند.
+    """
+    for encoding in ('utf-8-sig', 'utf-16', 'cp1256', 'latin-1'):
+        parser = configparser.ConfigParser()
+        try:
+            with open(path, 'r', encoding=encoding) as handle:
+                parser.read_file(handle)
+            return parser
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+        except (configparser.Error, OSError) as exc:
+            logger.warning('config.ini خوانده نشد: %s', exc)
+            return None
+    logger.warning('کدگذاری config.ini شناسایی نشد')
+    return None
+
+
 def read_installer_config() -> dict:
     """
     محتوای config.ini را به شکل dict برمی‌گرداند.
@@ -50,12 +71,8 @@ def read_installer_config() -> dict:
     if not os.path.isfile(path):
         return {}
 
-    parser = configparser.ConfigParser()
-    try:
-        # نصب‌کننده فایل را با UTF-8 (گاهی همراه BOM) می‌نویسد
-        parser.read(path, encoding='utf-8-sig')
-    except (configparser.Error, OSError) as exc:
-        logger.warning('config.ini خوانده نشد: %s', exc)
+    parser = _load_parser(path)
+    if parser is None:
         return {}
 
     def get(section, option, fallback=''):
@@ -92,14 +109,17 @@ def _write_option(section: str, option: str, value: str) -> bool:
     path = ini_path()
     if not os.path.isfile(path):
         return False
-    parser = configparser.ConfigParser()
+    parser = _load_parser(path)
+    if parser is None:
+        return False
     try:
-        parser.read(path, encoding='utf-8-sig')
         if not parser.has_section(section):
             parser.add_section(section)
         parser.set(section, option, value)
         with open(path, 'w', encoding='utf-8') as handle:
-            parser.write(handle)
+            # بدون فاصله دور «=» تا Windows INI API (GetPrivateProfileString)
+            # و SetIniString نصب‌کننده هم دقیقاً همین کلیدها را بخوانند
+            parser.write(handle, space_around_delimiters=False)
         return True
     except (configparser.Error, OSError) as exc:
         logger.warning('config.ini به‌روزرسانی نشد: %s', exc)

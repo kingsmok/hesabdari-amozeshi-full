@@ -95,6 +95,23 @@ class TestParsing:
         monkeypatch.setattr(installer_config, 'base_dir', lambda: str(tmp_path))
         assert installer_config.read_installer_config() == {}
 
+    def test_windows_ansi_encoding_is_read(self, tmp_path, monkeypatch):
+        """نصب‌کننده روی ویندوز فارسی مقادیر را با cp1256 می‌نویسد."""
+        # «ی» فارسی در cp1256 وجود ندارد؛ «ي» عربی نماینده‌ی رفتار واقعی ویندوز است
+        content = SAMPLE_INI.replace('username=modir', 'username=مدير')
+        (tmp_path / 'config.ini').write_bytes(content.encode('cp1256'))
+        monkeypatch.setattr(installer_config, 'base_dir', lambda: str(tmp_path))
+        data = installer_config.read_installer_config()
+        assert data['admin']['username'] == 'مدير'
+        assert data['platform']['host_url'] == 'https://panel.example.com'
+
+    def test_written_file_has_no_spaces_around_equals(self, ini_dir):
+        installer_config.consume_admin_password()
+        text = (ini_dir / 'config.ini').read_text(encoding='utf-8')
+        assert 'password_consumed=true' in text
+        assert ' = ' not in text                     # سازگار با Windows INI API
+        assert '[Platform]' in text and '[Install]' in text
+
     def test_consume_password_clears_value(self, ini_dir):
         assert installer_config.consume_admin_password() is True
         data = installer_config.read_installer_config()
