@@ -825,6 +825,21 @@ def _state_from_data(data, envelope, device_id):
         return LicenseState(status=status, message=message or 'لایسنس معتبر است.',
                             data=data, valid=True, source='online')
 
+    # ── ۸٫۵٫۳٫۱ مهلت نرمش: منقضی شده ولی سرور اجازه‌ی کار داده است ──
+    if status == 'EXPIRED' and data.get('in_grace'):
+        remaining = data.get('grace_days_remaining')
+        try:
+            expired_grace = remaining is not None and int(remaining) <= 0
+        except (TypeError, ValueError):
+            expired_grace = False
+        if not expired_grace:
+            save_cache(envelope, device_id, server_time=data.get('server_time'))
+            logger.info('license: در مهلت نرمش (%s روز باقی‌مانده)', remaining)
+            return LicenseState(
+                status='SUCCESS',
+                message=message or 'اعتبار لایسنس تمام شده و در مهلت نرمش هستید.',
+                data=data, valid=True, source='online')
+
     if status in REJECT_STATUSES:
         # ابطال از سمت سرور → کش کهنه نباید برنامه را زنده نگه دارد
         clear_cache()
