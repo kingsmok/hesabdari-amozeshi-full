@@ -19,6 +19,7 @@
 پوشانده می‌شود.
 """
 import argparse
+import base64
 import hashlib
 import json
 import sys
@@ -54,12 +55,19 @@ def mask(key):
 
 
 def fingerprint_of(pem_text):
-    """اثر انگشت = sha256 بدنه‌ی base64 کلید عمومی (بدون سطرهای BEGIN/END)."""
+    """
+    اثر انگشت = sha256 بایت‌های DER (SubjectPublicKeyInfo) کلید عمومی.
+
+    این همان قراردادی است که سرور در فیلد key_fingerprint گزارش می‌دهد و
+    با ثابت KEY_FINGERPRINT برنامه یکی است. (هشِ رشته‌ی base64 نتیجه‌ی
+    متفاوتی می‌دهد و در گذشته باعث گزارش اشتباه «کلیدها یکی نیستند» می‌شد.)
+    """
     body = ''.join(
         line.strip() for line in pem_text.splitlines()
         if line.strip() and not line.strip().startswith('-----')
     )
-    return hashlib.sha256(body.encode('ascii')).hexdigest()
+    der = base64.b64decode(body)
+    return hashlib.sha256(der).hexdigest()
 
 
 def check_public_key(server):
