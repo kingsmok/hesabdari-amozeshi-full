@@ -4,8 +4,9 @@
 # ⚠ مهم: SQLAlchemy باید ۲.۰.۳۱ یا بالاتر باشد؛
 #   نسخه‌های قدیمی‌تر با پایتون ۳.۱۳ و ۳.۱۴ ناسازگارند و هنگام اجرا با خطای
 #   «TypingOnly ... __firstlineno__ __static_attributes__» کرش می‌کنند.
-#   اگر قبلاً برنامه را نصب کرده‌اید و این خطا را می‌بینید:
-#       pip install --upgrade "SQLAlchemy>=2.0.31"
+#   startup_checks.py این وضعیت را بدون کرش تشخیص می‌دهد و در صورت امکان
+#   خودکار به‌روز می‌کند. در غیر این صورت:
+#       python -m pip install --upgrade "SQLAlchemy>=2.0.31"
 
 Flask==3.1.3
 Flask-SQLAlchemy==3.1.1
