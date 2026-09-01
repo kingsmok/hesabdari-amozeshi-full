@@ -66,6 +66,9 @@ TAMPER_LOCK_DELAY_SECONDS = 150           # قفل با تأخیر، نه بلا
 LOCK_MESSAGE = 'لایسنس شما معتبر نیست'
 CONTACT_MESSAGE = 'برای پیگیری با پشتیبانی تماس بگیرید.'
 
+# اثر انگشت = sha256 بایت‌های DER (SubjectPublicKeyInfo) کلید عمومی پایین —
+# همان قراردادی که سرور در فیلد key_fingerprint گزارش می‌دهد. این مقدار فقط
+# یک برچسب تشخیصی است؛ مرز امنیتی، تایید امضای RSA است (verify_signature).
 KEY_FINGERPRINT = '2eb31f539dbbb363b60ccee481fb4dcd0d935bf405f011e7a5f4a566ddbb7b8d'
 
 PUBLIC_KEY_PEM = b"""-----BEGIN PUBLIC KEY-----
@@ -373,10 +376,16 @@ def verify_signature(envelope):
     signature = envelope.get('signature')
     if not isinstance(data, dict) or not signature:
         return False
+
+    # اثر انگشتِ کلید فقط یک برچسب تشخیصی است، نه یک مرز امنیتی.
+    # مرز واقعی، تایید امضای RSA با کلید عمومیِ هاردکد است: هر که بتواند
+    # امضا را جعل کند، برچسب اثر انگشت را هم می‌تواند جعل کند. بنابراین
+    # یک برچسب ناهماهنگ (مثلاً محاسبه‌شده با قالب هش متفاوت در سمت سرور)
+    # نباید پاسخِ امضاشده‌ی معتبر را رد کند — فقط هشدار ثبت می‌کنیم.
     fingerprint = envelope.get('key_fingerprint')
     if fingerprint and fingerprint != KEY_FINGERPRINT:
-        logger.warning('license: key fingerprint mismatch')
-        return False
+        logger.warning('license: key fingerprint label mismatch (non-authoritative): %s',
+                       fingerprint)
     try:
         key = _load_public_key()
         key.verify(
