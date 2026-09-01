@@ -24,9 +24,16 @@
 
 ۱. روی پوشه academy_manager کلیک راست کنید
 ۲. "Open in Terminal" یا "Open PowerShell here" را بزنید
-۳. این دستور را تایپ کنید:
+۳. این دستور را تایپ کنید (نسخه‌های دقیق و سازگار را نصب می‌کند):
 
-   pip install Flask Flask-SQLAlchemy Flask-Login Flask-WTF Flask-Migrate jdatetime requests reportlab PyQt6 PyQt6-WebEngine
+   pip install -r requirements.txt --upgrade
+   pip install PyQt6 PyQt6-WebEngine
+
+   ⚠ نکته: نسخه SQLAlchemy باید ۲.۰.۳۱ به بالا باشد (در requirements.txt قفل شده است).
+   اگر قبلاً برنامه را نصب کرده‌اید و هنگام اجرا خطای «TypingOnly» دیدید،
+   فقط همین دستور کافی است:
+
+   pip install --upgrade "SQLAlchemy>=2.0.31"
 
 ۴. Enter بزنید و صبر کنید تا نصب شود
 
