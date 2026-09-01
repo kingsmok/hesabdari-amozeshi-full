@@ -34,6 +34,9 @@ REQUIRED_FILES = [
     "requirements.txt",
     "LICENSE.txt",
     "README.md",
+    "HOST_DEPLOY.md",
+    # app.py این را قبل از Flask وارد می‌کند — بدون آن هاست با ModuleNotFoundError می‌خوابد
+    "startup_checks.py",
     # راه‌اندازی اولیه و داده‌های پایه (first_run این دو را import می‌کند)
     "first_run.py",
     "import_rahs_data.py",
@@ -197,6 +200,9 @@ def main():
     for f in ("app.py", "requirements.txt", "passenger_wsgi.py", "wsgi.py", ".htaccess"):
         if not os.path.exists(os.path.join(STAGE, f)):
             problems.append(f)
+    for needed in ("startup_checks.py", "passenger_wsgi.py", "wsgi.py"):
+        if not os.path.exists(os.path.join(STAGE, needed)):
+            problems.append(f"{needed} (برای هاست Python 3.11 لازم است)")
     for banned in ("academy.db", "cookies.txt", "config.ini", "app_desktop.py"):
         if os.path.exists(os.path.join(STAGE, banned)):
             problems.append(f"{banned} (نمی‌بایست در خروجی باشد!)")

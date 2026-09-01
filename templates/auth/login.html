@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>ورود — سیستم مدیریت آموزشگاه</title>
     <link rel="stylesheet" href="/static/fonts/Vazirmatn-font-face.css">
     <link rel="stylesheet" href="/static/css/bootstrap.rtl.min.css">
@@ -10,9 +10,10 @@
     <style>
         * { font-family: Vazirmatn, Tahoma, sans-serif; box-sizing: border-box; }
         body {
-            min-height: 100vh; display: flex;
+            min-height: 100vh; min-height: 100dvh; display: flex;
             background: #0a1628;
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         /* سمت راست - فرم */
@@ -184,7 +185,19 @@
         @media (max-width: 992px) {
             body { flex-direction: column; }
             .login-left { display: none; }
-            .login-right { width: 100%; }
+            .login-right {
+                width: 100%;
+                min-height: 100dvh;
+                padding: 24px 20px;
+                padding-bottom: calc(24px + env(safe-area-inset-bottom));
+            }
+            .login-form { max-width: 100%; }
+            .form-floating .form-control { font-size: 16px; }
+        }
+        @media (max-width: 480px) {
+            .login-logo { margin-bottom: 24px; }
+            .login-logo .icon-wrap { width: 64px; height: 64px; font-size: 28px; border-radius: 18px; }
+            .login-logo h1 { font-size: 16px; }
         }
     </style>
 </head>
