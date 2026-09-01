@@ -18,8 +18,10 @@ if errorlevel 1 (
 )
 echo [OK] Python found
 echo.
-echo [2/3] Install packages...
-pip install Flask Flask-SQLAlchemy Flask-Login Flask-WTF Flask-Migrate jdatetime requests reportlab
+echo [2/3] Install packages (pinned versions from requirements.txt)...
+python -m pip install --upgrade pip
+pip install -r requirements.txt --upgrade
+pip install PyQt6 PyQt6-WebEngine
 echo.
 echo [3/3] Setup (download fonts + create database)...
 python setup.py
