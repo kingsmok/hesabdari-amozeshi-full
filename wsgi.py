@@ -1,4 +1,7 @@
-"""WSGI entry point for deployment on Linux/shared hosts (Apache/mod_wsgi, Gunicorn, Passenger)."""
+"""WSGI entry point for Linux/shared hosts (Apache/mod_wsgi, Gunicorn, Passenger).
+
+هدف هاست: Python 3.11 — بدون pip خودکار و بدون input().
+"""
 import os
 import sys
 

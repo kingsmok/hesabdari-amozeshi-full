@@ -39,6 +39,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // ═══ ۱۲) ساعت زنده ═══
     initLiveClock();
+
+    // ═══ ۱۳) تجربه موبایل / شبکه ═══
+    initMobileUX();
     
     console.log('✅ Academy Manager Pro — JS loaded');
 });
@@ -150,16 +153,41 @@ function initSidebar() {
             sidebar.style.width = 'var(--sidebar-w)';
         }
     }
-    // بستن سایدبار با کلیک روی اورلی
+    // بستن سایدبار با کلیک روی اورلی / لینک / Escape
     window.addEventListener('resize', function() {
         if (window.innerWidth > 992) {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
             if (overlay) overlay.classList.remove('visible');
             document.body.style.overflow = '';
-            if (sidebar) sidebar.classList.remove('open');
+            if (sidebar) {
+                sidebar.classList.remove('open');
+                sidebar.style.width = '';
+            }
+            const mainWrap = document.getElementById('mainWrap');
+            if (mainWrap) mainWrap.style.marginRight = '';
         }
     });
+
+    document.querySelectorAll('.sidebar a.nav-link-item').forEach(function(link) {
+        link.addEventListener('click', function() {
+            if (window.innerWidth <= 992) {
+                closeMobileSidebar();
+            }
+        });
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeMobileSidebar();
+    });
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('mobileOverlay');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('visible');
+    document.body.style.overflow = '';
 }
 
 function toggleSidebar() {
@@ -474,6 +502,47 @@ function gregorianToJalali(gy, gm, gd) {
         jd = 1 + ((days - 186) % 30);
     }
     return [jy, jm, jd];
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ۱۳) موبایل: جداول اسکرول‌پذیر، منوی کاربر با لمس
+   ═══════════════════════════════════════════════════════════════ */
+function initMobileUX() {
+    wrapTablesForMobile();
+    initUserMenuTouch();
+}
+
+function wrapTablesForMobile() {
+    document.querySelectorAll('table').forEach(function(table) {
+        if (table.closest('.table-responsive')) return;
+        if (table.closest('.jalali-picker, .ss-dropdown')) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'table-responsive';
+        table.parentNode.insertBefore(wrap, table);
+        wrap.appendChild(table);
+    });
+}
+
+function initUserMenuTouch() {
+    var chip = document.getElementById('userChip') || document.querySelector('.user-chip');
+    if (!chip) return;
+
+    chip.addEventListener('click', function(e) {
+        if (e.target.closest('.user-dropdown a')) return;
+        if (window.matchMedia('(hover: hover) and (pointer: fine)').matches && window.innerWidth > 992) {
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        chip.classList.toggle('show-menu');
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.user-chip')) {
+            chip.classList.remove('show-menu');
+        }
+    });
 }
 
 

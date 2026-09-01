@@ -1,0 +1,360 @@
+/* ═══════════════════════════════════════════════════════════════
+   ریسپانسیو موبایل / تبلت — Academy Manager Pro
+   دسترسی از شبکه با گوشی (RTL)
+   ═══════════════════════════════════════════════════════════════ */
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+
+.sidebar {
+    height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+.top-bar {
+    padding-top: env(safe-area-inset-top);
+}
+
+/* لمس: حداقل هدف ۴۴px و بدون زوم iOS روی فوکوس */
+@media (max-width: 768px) {
+    .form-control, .form-select, input[type="text"], input[type="password"],
+    input[type="search"], input[type="number"], input[type="tel"],
+    input[type="email"], textarea, select {
+        font-size: 16px !important;
+        min-height: 44px;
+    }
+
+    .btn, .btn-sm, .btn-sm-custom, .quick-btn, .top-icon-btn, .btn-toggle-sidebar {
+        min-height: 40px;
+        min-width: 40px;
+    }
+
+    .nav-link-item {
+        min-height: 44px;
+        padding-top: 12px;
+        padding-bottom: 12px;
+    }
+}
+
+/* روی لمسی، هاور دسکتاپ را غیرفعال کن تا کارت‌ها نپرند */
+@media (hover: none) {
+    .stat-box:hover,
+    .card:hover,
+    .btn:hover,
+    .btn-primary:hover,
+    .btn-success:hover {
+        transform: none !important;
+        box-shadow: var(--shadow-sm) !important;
+    }
+
+    .nav-link-item:hover {
+        transform: none;
+    }
+
+    .table tbody tr:hover {
+        transform: none;
+    }
+}
+
+/* هدر و عنوان صفحات — هر دو نام کلاس در قالب‌ها استفاده شده */
+.page-header,
+.page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.page-header h1,
+.page-head h1 {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1a237e;
+    margin: 0;
+}
+
+.page-header h1 small,
+.page-head h1 small {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    color: #90a4ae;
+    margin-top: 2px;
+}
+
+/* جداول پهن همیشه اسکرول افقی بگیرند */
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.table-responsive .table {
+    margin-bottom: 0;
+}
+
+img, canvas, svg, video, iframe {
+    max-width: 100%;
+    height: auto;
+}
+
+canvas {
+    max-height: 280px;
+}
+
+/* مودال تمام‌عرض روی گوشی */
+@media (max-width: 576px) {
+    .modal-dialog {
+        margin: 8px;
+        max-width: calc(100% - 16px);
+    }
+}
+
+/* ─── تبلت و کوچکتر: سایدبار کشویی ─── */
+@media (max-width: 992px) {
+    .btn-mobile-close {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+    }
+
+    .sidebar {
+        transform: translateX(100%);
+        width: min(var(--sidebar-w), 86vw);
+        max-width: 320px;
+        box-shadow: none;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+        box-shadow: -8px 0 32px rgba(0, 0, 0, .35);
+    }
+
+    .main-wrap {
+        margin-right: 0 !important;
+    }
+
+    .top-bar {
+        padding: 8px 12px;
+        height: auto;
+        min-height: var(--header-h);
+        gap: 8px;
+        align-items: center;
+    }
+
+    .top-bar-right {
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .breadcrumb-nav {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 55vw;
+    }
+
+    .top-bar-left {
+        gap: 6px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    .live-datetime {
+        display: none !important;
+    }
+
+    .user-meta {
+        display: none;
+    }
+
+    .user-chip {
+        padding: 2px 6px;
+    }
+
+    .search-wrap {
+        position: relative;
+        width: 100%;
+        order: 10;
+        flex: 1 1 100%;
+    }
+
+    .search-wrap #globalSearch,
+    #globalSearch {
+        width: 100% !important;
+        max-width: 100%;
+    }
+
+    #searchResults {
+        position: fixed !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        top: calc(var(--header-h) + env(safe-area-inset-top, 0px) + 52px) !important;
+        max-height: 50vh;
+    }
+
+    .page-wrap {
+        padding: 14px 12px 28px;
+    }
+
+    .page-header,
+    .page-head {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .page-header .btn,
+    .page-head .btn,
+    .page-header > a.btn,
+    .page-head > a.btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .card-head,
+    .card-header-custom {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 12px 14px;
+    }
+
+    .welcome-banner {
+        padding: 16px !important;
+    }
+
+    .welcome-banner h2 {
+        font-size: 16px !important;
+    }
+
+    .welcome-banner .d-flex {
+        gap: 10px !important;
+    }
+
+    .quick-btn {
+        flex: 1 1 calc(50% - 8px);
+        justify-content: center;
+        text-align: center;
+    }
+
+    .user-dropdown {
+        left: auto;
+        right: 0;
+        min-width: 220px;
+    }
+
+    .user-chip.open .user-dropdown,
+    .user-chip.show-menu .user-dropdown {
+        display: block;
+    }
+}
+
+/* ─── موبایل باریک ─── */
+@media (max-width: 768px) {
+    .page-wrap {
+        padding: 10px 10px 80px;
+    }
+
+    .stat-box {
+        padding: 14px;
+    }
+
+    .stat-val {
+        font-size: 18px !important;
+        word-break: break-word;
+    }
+
+    .table {
+        font-size: 12px;
+    }
+
+    .table thead th,
+    .table tbody td {
+        padding: 8px 10px;
+        white-space: nowrap;
+    }
+
+    .btn-group,
+    .d-flex.gap-1,
+    .d-flex.gap-2 {
+        flex-wrap: wrap;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    /* فیلترهای فرم در لیست‌ها تمام‌عرض */
+    form.row > [class*="col-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .alert {
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+
+    /* نمودارها ارتفاع کمتری بگیرند */
+    .card canvas {
+        max-height: 220px !important;
+    }
+}
+
+@media (max-width: 576px) {
+    :root {
+        --sidebar-w: 280px;
+    }
+
+    .top-icon-btn:nth-of-type(n+3) {
+        /* نگه داشتن زنگ و پیام؛ فشرده‌سازی فاصله */
+    }
+
+    .breadcrumb-nav li:not(.active):not(:first-child) {
+        display: none;
+    }
+
+    .welcome-banner p span:last-child {
+        display: none;
+    }
+
+    .quick-btn {
+        flex: 1 1 100%;
+    }
+}
+
+/* جلوگیری از اسکرول افقی کل صفحه؛ اسکرول جدول داخل .table-responsive می‌ماند */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.main-wrap,
+.page-wrap {
+    max-width: 100%;
+}
+
+/* چاپ بدون سایدبار */
+@media print {
+    .sidebar, .top-bar, .mobile-overlay, .no-print {
+        display: none !important;
+    }
+    .main-wrap {
+        margin: 0 !important;
+    }
+}
