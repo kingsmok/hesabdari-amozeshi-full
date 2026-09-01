@@ -8,7 +8,9 @@
 ═══════════════════
 
 ۱. به سایت https://python.org بروید
-۲. آخرین نسخه Python 3.11+ را دانلود کنید
+۲. Python 3.11 یا 3.12 را دانلود کنید
+   (توصیه: از ۳.۱۴ استفاده نکنید مگر SQLAlchemy ۲.۰.۳۱ به بالا نصب باشد.
+    پایتون ۳.۱۳/۳.۱۴ با SQLAlchemy قدیمی خطای TypingOnly می‌دهد.)
 ۳. هنگام نصب حتماً تیک "Add Python to PATH" را بزنید
 ۴. نصب را کامل کنید
 
@@ -30,10 +32,13 @@
    pip install PyQt6 PyQt6-WebEngine
 
    ⚠ نکته: نسخه SQLAlchemy باید ۲.۰.۳۱ به بالا باشد (در requirements.txt قفل شده است).
-   اگر قبلاً برنامه را نصب کرده‌اید و هنگام اجرا خطای «TypingOnly» دیدید،
-   فقط همین دستور کافی است:
+   اگر قبلاً برنامه را نصب کرده‌اید و هنگام اجرا خطای «TypingOnly» یا
+   «__firstlineno__ / __static_attributes__» دیدید (معمول روی پایتون ۳.۱۳ و ۳.۱۴)،
+   برنامه سعی می‌کند خودش SQLAlchemy را به‌روز کند. در غیر این صورت:
 
-   pip install --upgrade "SQLAlchemy>=2.0.31"
+   python -m pip install --upgrade "SQLAlchemy>=2.0.31"
+
+   سپس start_desktop.bat را دوباره اجرا کنید.
 
 ۴. Enter بزنید و صبر کنید تا نصب شود
 

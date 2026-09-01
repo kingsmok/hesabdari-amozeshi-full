@@ -2,7 +2,9 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>{{ app_name }} | {% block title %}{% endblock %}</title>
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <meta name="theme-color" content="#0d47a1">
@@ -30,6 +32,9 @@
     
     <!-- انتخاب جستجوپذیر -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/searchable-select.css') }}">
+
+    <!-- ریسپانسیو موبایل / تبلت -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 
     <style>
         /* ===== متغیرهای رنگ ===== */
@@ -254,6 +259,7 @@
             z-index: 1060; overflow: hidden;
         }
         .user-chip:hover .user-dropdown,
+        .user-chip.show-menu .user-dropdown,
         .user-chip .user-dropdown:hover { display: block; }
 
         .user-dropdown a {
@@ -626,7 +632,7 @@
 
         <div class="top-bar-left">
             <!-- تاریخ و ساعت زنده -->
-            <div style="display: flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #e3f2fd, #f3e5f5); padding: 6px 14px; border-radius: 20px; font-size: 11.5px; font-weight: 600; color: #1a237e;">
+            <div class="live-datetime" style="display: flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #e3f2fd, #f3e5f5); padding: 6px 14px; border-radius: 20px; font-size: 11.5px; font-weight: 600; color: #1a237e;">
                 <i class="bi bi-calendar-event" style="color: #1565c0; font-size: 14px;"></i>
                 <span id="liveJalaliDate" style="min-width: 90px;"></span>
                 <span style="color: #b0bec5;">|</span>
@@ -638,8 +644,8 @@
             <button class="top-icon-btn" onclick="toggleDarkMode()" title="حالت تاریک/روشن"><i class="bi bi-moon"></i></button>
 
             <!-- جستجوی سراسری -->
-            <div style="position: relative;">
-                <input type="text" id="globalSearch" class="form-control" placeholder="جستجوی سراسری... (Ctrl+K)" style="width: 240px; height: 38px; font-size: 12px; border-radius: var(--radius-sm); padding-right: 36px;" onkeyup="globalSearch(this.value)">
+            <div class="search-wrap" style="position: relative;">
+                <input type="text" id="globalSearch" class="form-control" placeholder="جستجو..." inputmode="search" autocomplete="off" style="width: 240px; height: 38px; font-size: 12px; border-radius: var(--radius-sm); padding-right: 36px;" onkeyup="globalSearch(this.value)">
                 <i class="bi bi-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #b0bec5; font-size: 14px;"></i>
                 <div id="searchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); border: 1px solid var(--clr-border); z-index: 1060; max-height: 300px; overflow-y: auto;"></div>
             </div>
@@ -653,7 +659,7 @@
                     <i class="bi bi-envelope"></i>
                 </button>
 
-                <div class="user-chip">
+                <div class="user-chip" id="userChip" tabindex="0">
                     <div class="user-avatar">{{ current_user.full_name[0] if current_user.is_authenticated else 'U' }}</div>
                     <div class="user-meta">
                         <div class="name">{{ current_user.full_name if current_user.is_authenticated else 'کاربر' }}</div>
