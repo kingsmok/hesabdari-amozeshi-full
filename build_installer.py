@@ -16,13 +16,22 @@ Academy Manager Pro - build the Windows installer
 
 import glob
 import os
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
+import urllib.request
 
 MIN_PYTHON = (3, 9)
 ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# صفحه‌ای که بیشترین لینک دانلود مستقیم Inno Setup 6 در آن آمده است
+INNO_SETUP_PAGE = "https://jrsoftware.org/isdl.php"
+# نقطه‌ی شروع بررسی نسخه‌ی جدید (اگر دانلود صفحه‌ی رسمی نشد)
+INNO_SETUP_BASE_URL = "https://github.com/jrsoftware/issrc/releases/download"
+INNO_INSTALL_TIMEOUT = 300  # ثانیه
 
 # package‌هایی که در requirements.txt نیستند (GUI + ابزار بیلد)
 EXTRA_PACKAGES = ["PyQt6", "PyQt6-WebEngine", "pyinstaller"]
@@ -145,6 +154,13 @@ def find_iscc():
         r"C:\Program Files (x86)\Inno Setup 7\ISCC.exe",
         r"C:\Program Files\Inno Setup 7\ISCC.exe",
     ]
+    local = os.environ.get("LOCALAPPDATA", "")
+    if local:
+        # نصب‌های per-user (e.g. winget بدون حقوق مدیر یا نصب with /CURRENTUSER)
+        candidates.extend([
+            os.path.join(local, "Programs", "Inno Setup 6", "ISCC.exe"),
+            os.path.join(local, "Programs", "Inno Setup 7", "ISCC.exe"),
+        ])
     for cand in candidates:
         if os.path.exists(cand):
             return cand
@@ -166,6 +182,144 @@ def find_iscc():
                 if os.path.exists(cand):
                     return cand
     return None
+
+
+# ─────────────────────────── Inno install ────────────────────────
+
+def _inno_version_from_url(url):
+    """استخراج (major, minor, patch) از آدرس innosetup-x.y.z.exe."""
+    m = re.search(r"innosetup-(\d+)\.(\d+)\.(\d+)\.exe", url or "")
+    if not m:
+        return (0, 0, 0)
+    return tuple(int(x) for x in m.groups())
+
+
+def latest_inno6_url():
+    """خواندن صفحه‌ی رسمی و پیدا کردن آخرین لینک مستقیم Inno Setup 6.
+
+    اگر اینترنت یا صفحه در دسترس نباشد به آخرین نسخه‌ی شناخته‌شده
+    برمی‌گردد تا اسکریپت همچنان بتواند ادامه بدهد.
+    """
+    try:
+        req = urllib.request.Request(
+            INNO_SETUP_PAGE,
+            headers={"User-Agent": "AcademyManager-Build/1.0"},
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            html = resp.read().decode("utf-8", "replace")
+        urls = set(re.findall(
+            r"https://github\.com/jrsoftware/issrc/releases/download/"
+            r"is-6_[^/]*/innosetup-6\.\d+\.\d+\.exe",
+            html,
+        ))
+        if urls:
+            return max(urls, key=_inno_version_from_url)
+    except Exception:
+        pass
+    return (
+        INNO_SETUP_BASE_URL
+        + "/is-6_7_3/innosetup-6.7.3.exe"
+    )
+
+
+def _run_quiet_timeout(cmd, timeout):
+    try:
+        return subprocess.run(
+            cmd,
+            cwd=ROOT,
+            env=child_env(),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=timeout,
+        ).returncode
+    except subprocess.TimeoutExpired:
+        return -1
+
+
+def win_install_inno_with_winget():
+    """تلاش برای نصب با winget (در ویندوز 10/11 معمولاً سریع)."""
+    if shutil.which("winget") is None:
+        print("      winget در PATH پیدا نشد")
+        return False
+    print("      نصب Inno Setup با winget ...")
+    rc = _run_quiet_timeout(
+        [
+            "winget", "install", "--id", "JRSoftware.InnoSetup", "-e",
+            "--silent",
+            "--accept-package-agreements", "--accept-source-agreements",
+        ],
+        timeout=INNO_INSTALL_TIMEOUT,
+    )
+    if rc == 0:
+        print("      نصب با winget انجام شد")
+        return True
+    print(f"      نصب با winget ناموفق بود (کد {rc})")
+    return False
+
+
+def win_install_inno_direct():
+    """دانلود مستقیم و نصب بی‌صدا (fallback وقتی winget نیست)."""
+    url = latest_inno6_url()
+    fname = os.path.basename(url)
+    dest = os.path.join(tempfile.gettempdir(), fname)
+    print(f"      دانلود Inno Setup 6 ...")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "AcademyManager-Build/1.0"})
+        with urllib.request.urlopen(req, timeout=60) as resp, open(dest, "wb") as fh:
+            shutil.copyfileobj(resp, fh)
+    except Exception as exc:
+        print(f"      دانلود ممکن نبود: {exc}")
+        return False
+
+    print("      نصب بی‌صدا (CURRENTUSER) ...")
+    rc = _run_quiet_timeout(
+        [
+            dest,
+            "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
+            "/CURRENTUSER",
+            f"/LOG={dest}.log",
+        ],
+        timeout=INNO_INSTALL_TIMEOUT,
+    )
+    if rc == 0:
+        print("      نصب مستقیم انجام شد")
+        return True
+    print(f"      نصب مستقیم ناموفق بود (کد {rc}).")
+    print("      اگر پنجره‌ی کنترل حساب کاربری (UAC) ظاهر شد، آن را تأیید کنید.")
+    return False
+
+
+def install_inno_interactive():
+    """پرسیدن از کاربر و تلاش برای نصب Inno Setup.
+
+    در حالت غیر تعاملی (مثلاً پایپ) یا وقتی کاربر جواب «No» بدهد
+    None برمی‌گرداند تا اسکریپت با راهنمای دستی متوقف شود.
+    """
+    print()
+    print("  ! Inno Setup نصب نیست.")
+    print("    این ابزار برای ساخت فایل نصب‌کننده‌ی ویندوزی (EXE) لازم است.")
+
+    # اجرای خودکار بدون پرسش
+    auto = os.environ.get("AUTO_INSTALL_INNO", "").strip().lower()
+    if auto in ("1", "true", "yes", "y"):
+        answer = "y"
+    else:
+        try:
+            answer = input("    آیا همین حالا نصبش کنم؟ [Y/n] ").strip().lower()
+        except EOFError:
+            answer = "n"
+
+    if answer not in ("", "y", "yes"):
+        return None
+    if os.name != "nt":
+        print("      نصب خودکار فقط روی ویندوز امکان‌پذیر است.")
+        return None
+
+    installed = win_install_inno_with_winget() or win_install_inno_direct()
+    if not installed:
+        print("      نصب خودکار ناموفق بود.")
+        return None
+    return find_iscc()
 
 
 # ─────────────────────────────── main ────────────────────────────
@@ -210,12 +364,15 @@ def main():
     if iscc:
         print(f"      Inno Setup: {iscc}")
     else:
-        die(
-            "Inno Setup نصب نیست!\n"
-            "  1) Inno Setup 6 را دانلود کنید:  https://jrsoftware.org/isinfo.php\n"
-            "  2) نصبش کنید و این فایل را دوباره اجرا کنید.\n"
-            "  (بدون Inno Setup نمی‌شود فایل نصب‌کننده ساخت)"
-        )
+        iscc = install_inno_interactive()
+        if not iscc:
+            die(
+                "Inno Setup نصب نیست!\n"
+                "  1) دوباره همین فایل را اجرا کنید و Yes بدهید تا نصب خودکار انجام شود.\n"
+                "  2) یا Inno Setup 6 را دستی نصب کنید:  https://jrsoftware.org/isdl.php\n"
+                "  3) اگر خودتان نصب کردید، همین پنجره را ببندید و دوباره اجرا کنید."
+            )
+        print(f"      Inno Setup: {iscc}")
     print("      OK")
 
     # ── [2/7] پکیج‌ها ──
