@@ -4,6 +4,13 @@
 """
 import os
 import sys
+
+# بررسی سازگاری نسخه‌ها — باید پیش از هر import دیگری انجام شود
+# (نسخه‌های قدیمی SQLAlchemy با پایتون ۳.۱۳/۳.۱۴ همان اول import کرش می‌کنند)
+from startup_checks import ensure_compatible
+
+ensure_compatible()
+
 from flask import Flask
 from extensions import db, login_manager, migrate, csrf
 from utils.jalali import parse_jalali_date, gregorian_to_jalali
