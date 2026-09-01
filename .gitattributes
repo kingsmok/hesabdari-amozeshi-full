@@ -1,0 +1,4 @@
+# cmd.exe parses batch files much more reliably with Windows line endings;
+# keep .bat/.cmd files CRLF in every checkout.
+*.bat text eol=crlf
+*.cmd text eol=crlf
