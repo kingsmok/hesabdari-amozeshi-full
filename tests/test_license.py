@@ -317,6 +317,25 @@ def main():
               not fingerprint_label_blocked)
         del SERVER_BEHAVIOUR['key_fingerprint']
 
+        # ۸٫۵٫۵ — فقط دستکاری واقعی قفل می‌کند؛ هشدار ساعت این‌طور نیست
+        license_client._clear_tamper_flag()
+        license_client._record_integrity_event('clock_drift', 'اختلاف ساعت: 400 ثانیه')
+        check('اختلاف ساعت معمولی پرچم دستکاری را فعال نمی‌کند',
+              license_client._tamper_detected_at is None)
+        license_client._store_state(None)
+        license_client.refresh_state()               # وضعیت معتبر آنلاین
+        license_client._record_integrity_event('signature', 'امضای نامعتبر (آزمون)')
+        check('دستکاری واقعی پرچم قفل را فعال می‌کند',
+              license_client._tamper_detected_at is not None)
+        license_client._tamper_detected_at = time.monotonic() - 1000
+        state = license_client.get_state()
+        check('دستکاری واقعی با تأخیر برنامه را قفل می‌کند',
+              not state.valid and state.status == 'INTEGRITY_ERROR', state.status)
+        license_client._store_state(None)
+        license_client.refresh_state()
+        check('پاسخ معتبر تازه پرچم دستکاری را پاک می‌کند',
+              license_client._tamper_detected_at is None)
+
         print('\n۸) مدیریت وضعیت‌های سرور')
         for status, expect_cache_cleared in [
             ('INVALID_KEY', True), ('INACTIVE', True), ('EXPIRED', True),
