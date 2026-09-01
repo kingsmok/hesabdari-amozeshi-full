@@ -1,20 +1,30 @@
-Flask==3.0.0
+# Academy Manager Pro — وابستگی‌های اصلی
+# نصب:  pip install -r requirements.txt
+#
+# ⚠ مهم: SQLAlchemy باید ۲.۰.۳۱ یا بالاتر باشد؛
+#   نسخه‌های قدیمی‌تر با پایتون ۳.۱۳ و ۳.۱۴ ناسازگارند و هنگام اجرا با خطای
+#   «TypingOnly ... __firstlineno__ __static_attributes__» کرش می‌کنند.
+#   اگر قبلاً برنامه را نصب کرده‌اید و این خطا را می‌بینید:
+#       pip install --upgrade "SQLAlchemy>=2.0.31"
+
+Flask==3.1.3
 Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.52
 Flask-Login==0.6.3
 Flask-WTF==1.2.1
 Flask-Migrate==4.0.5
 Flask-Babel==4.0.0
 WTForms==3.1.1
-Werkzeug==3.0.1
+Werkzeug==3.1.8
 python-dateutil==2.8.2
 jdatetime==5.0.0
 requests==2.32.4
 chardet==5.2.0
 arabic-reshaper==3.0.0
 python-bidi==0.6.6
-Pillow==10.1.0
+Pillow==11.3.0
 reportlab==4.0.8
 openpyxl==3.1.2
 qrcode==7.4.2
 APScheduler==3.10.4
-cryptography==43.0.1
+cryptography==46.0.7

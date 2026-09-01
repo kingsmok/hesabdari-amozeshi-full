@@ -18,6 +18,11 @@ else:
 os.chdir(BASE_DIR)
 sys.path.insert(0, BASE_DIR)
 
+# بررسی سازگاری نسخه‌ها — پیش از شروع سرور
+from startup_checks import ensure_compatible
+
+ensure_compatible()
+
 PORT = 5000
 
 
