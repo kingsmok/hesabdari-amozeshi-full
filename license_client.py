@@ -66,6 +66,9 @@ TAMPER_LOCK_DELAY_SECONDS = 150           # قفل با تأخیر، نه بلا
 LOCK_MESSAGE = 'لایسنس شما معتبر نیست'
 CONTACT_MESSAGE = 'برای پیگیری با پشتیبانی تماس بگیرید.'
 
+# اثر انگشت = sha256 بایت‌های DER (SubjectPublicKeyInfo) کلید عمومی پایین —
+# همان قراردادی که سرور در فیلد key_fingerprint گزارش می‌دهد. این مقدار فقط
+# یک برچسب تشخیصی است؛ مرز امنیتی، تایید امضای RSA است (verify_signature).
 KEY_FINGERPRINT = '2eb31f539dbbb363b60ccee481fb4dcd0d935bf405f011e7a5f4a566ddbb7b8d'
 
 PUBLIC_KEY_PEM = b"""-----BEGIN PUBLIC KEY-----
@@ -373,10 +376,16 @@ def verify_signature(envelope):
     signature = envelope.get('signature')
     if not isinstance(data, dict) or not signature:
         return False
+
+    # اثر انگشتِ کلید فقط یک برچسب تشخیصی است، نه یک مرز امنیتی.
+    # مرز واقعی، تایید امضای RSA با کلید عمومیِ هاردکد است: هر که بتواند
+    # امضا را جعل کند، برچسب اثر انگشت را هم می‌تواند جعل کند. بنابراین
+    # یک برچسب ناهماهنگ (مثلاً محاسبه‌شده با قالب هش متفاوت در سمت سرور)
+    # نباید پاسخِ امضاشده‌ی معتبر را رد کند — فقط هشدار ثبت می‌کنیم.
     fingerprint = envelope.get('key_fingerprint')
     if fingerprint and fingerprint != KEY_FINGERPRINT:
-        logger.warning('license: key fingerprint mismatch')
-        return False
+        logger.warning('license: key fingerprint label mismatch (non-authoritative): %s',
+                       fingerprint)
     try:
         key = _load_public_key()
         key.verify(
@@ -537,14 +546,27 @@ _integrity_events = []
 _integrity_lock = threading.Lock()
 _tamper_detected_at = None
 
+# فقط این رویدادها نشانه‌ی «دستکاری واقعی» هستند و قفل بی‌صدا را فعال می‌کنند.
+# بقیه‌ی رویدادها (مثل اختلاف ساعت معمولی) فقط هشدارند و نباید برنامه را قفل کنند.
+TAMPER_KINDS = frozenset({
+    'signature',        # امضای پاسخ سرور نامعتبر بود
+    'replay',           # nonce برنگشته — حمله‌ی احتمالی بازپخش
+    'cache_signature',  # کش محلی امضای نامعتبر داشت
+    'cache_hmac',       # مهر HMAC کش محلی شکسته بود
+    'cache_decrypt',    # کش محلی قابل بازگشایی نبود
+    'cache_device',     # کش متعلق به دستگاه دیگری بود
+    'clock_rollback',   # ساعت سیستم عقب کشیده شده بود
+    'key_store',        # کلید ذخیره‌شده قابل بازگشایی نبود
+})
+
 
 def _record_integrity_event(kind, detail):
-    """رویداد دستکاری فقط لاگ و صف می‌شود؛ به کاربر چیزی گفته نمی‌شود."""
+    """رویداد فقط لاگ و صف می‌شود؛ به کاربر چیزی گفته نمی‌شود."""
     global _tamper_detected_at
     with _integrity_lock:
         _integrity_events.append({'kind': kind, 'detail': detail, 'at': int(time.time())})
         del _integrity_events[:-20]
-        if _tamper_detected_at is None:
+        if kind in TAMPER_KINDS and _tamper_detected_at is None:
             _tamper_detected_at = time.monotonic()
     logger.warning('license integrity event: %s — %s', kind, detail)
 
@@ -557,6 +579,13 @@ def _pending_integrity_events():
 def _flush_integrity_events():
     with _integrity_lock:
         _integrity_events.clear()
+
+
+def _clear_tamper_flag():
+    """یک پاسخ امضاشده‌ی تازه و معتبر اعتماد را بازمی‌گرداند → پرچم دستکاری پاک می‌شود."""
+    global _tamper_detected_at
+    with _integrity_lock:
+        _tamper_detected_at = None
 
 
 def _tamper_locked():
@@ -629,6 +658,9 @@ def _call(path, payload, timeout=REQUEST_TIMEOUT, attempts=3):
                     raise SignatureError('پاسخ تازه نیست — احتمال حمله‌ی بازپخش')
                 _check_server_clock(data)
                 _flush_integrity_events()
+                # پاسخ تازه و امضاشده‌ی معتبر یعنی کانال فعلاً قابل اعتماد است؛
+                # رویدادهای دستکاریِ قبلی قبلاً به سرور گزارش شده‌اند.
+                _clear_tamper_flag()
                 return envelope
 
             last_error = f'پاسخ نامعتبر سرور (HTTP {response.status_code})'

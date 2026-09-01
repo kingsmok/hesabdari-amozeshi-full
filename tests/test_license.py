@@ -120,7 +120,8 @@ class _Handler(BaseHTTPRequestHandler):
             'data': data,
             'signature': _sign(data),
             'signature_algorithm': 'RSA-SHA256',
-            'key_fingerprint': license_client.KEY_FINGERPRINT,
+            'key_fingerprint': SERVER_BEHAVIOUR.get('key_fingerprint')
+                              or license_client.KEY_FINGERPRINT,
         }
         if SERVER_BEHAVIOUR['break_signature']:
             envelope['signature'] = base64.b64encode(b'0' * 256).decode('ascii')
@@ -303,6 +304,37 @@ def main():
         check('وضعیت پس از امضای نامعتبر، قفل کامل است',
               not state.valid and state.status == 'SIGNATURE_ERROR', state.status)
         SERVER_BEHAVIOUR['break_signature'] = False
+
+        # برچسب اثر انگشت ناهماهنگ (مثلاً هش با قالب دیگر در سمت سرور)
+        # نباید پاسخِ امضاشده‌ی معتبر را رد کند؛ امضا مرجع نهایی است.
+        SERVER_BEHAVIOUR['key_fingerprint'] = '9e70953c1ca7cbbfa59eff441adf76bc7808acef348784022d667cf4ecd474d0'
+        try:
+            license_client.call_verify('TEST-KEY-0001')
+            fingerprint_label_blocked = False
+        except license_client.SignatureError:
+            fingerprint_label_blocked = True
+        check('برچسب اثر انگشت ناهماهنگ با امضای معتبر رد نمی‌شود',
+              not fingerprint_label_blocked)
+        del SERVER_BEHAVIOUR['key_fingerprint']
+
+        # ۸٫۵٫۵ — فقط دستکاری واقعی قفل می‌کند؛ هشدار ساعت این‌طور نیست
+        license_client._clear_tamper_flag()
+        license_client._record_integrity_event('clock_drift', 'اختلاف ساعت: 400 ثانیه')
+        check('اختلاف ساعت معمولی پرچم دستکاری را فعال نمی‌کند',
+              license_client._tamper_detected_at is None)
+        license_client._store_state(None)
+        license_client.refresh_state()               # وضعیت معتبر آنلاین
+        license_client._record_integrity_event('signature', 'امضای نامعتبر (آزمون)')
+        check('دستکاری واقعی پرچم قفل را فعال می‌کند',
+              license_client._tamper_detected_at is not None)
+        license_client._tamper_detected_at = time.monotonic() - 1000
+        state = license_client.get_state()
+        check('دستکاری واقعی با تأخیر برنامه را قفل می‌کند',
+              not state.valid and state.status == 'INTEGRITY_ERROR', state.status)
+        license_client._store_state(None)
+        license_client.refresh_state()
+        check('پاسخ معتبر تازه پرچم دستکاری را پاک می‌کند',
+              license_client._tamper_detected_at is None)
 
         print('\n۸) مدیریت وضعیت‌های سرور')
         for status, expect_cache_cleared in [
