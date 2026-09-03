@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date
+from utils.access_control import require_permission
 from utils.jalali import current_jalali_year
 from models.student import Student, StudentDocument, WaitingList
 from models.registration import Registration
@@ -119,9 +120,18 @@ def add():
 
 @students_bp.route('/<int:id>')
 @login_required
+@require_permission('students', 'view')
 def view(id):
-    student = Student.query.get_or_404(id)
-    registrations = Registration.query.filter_by(student_id=id).order_by(Registration.created_at.desc()).all()
+    query = Student.query.filter_by(id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        query = query.filter(Student.branch_id == current_user.branch_id)
+    student = query.first_or_404()
+    registrations_query = Registration.query.filter_by(student_id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        registrations_query = registrations_query.filter(
+            Registration.branch_id == current_user.branch_id
+        )
+    registrations = registrations_query.order_by(Registration.created_at.desc()).all()
     documents = StudentDocument.query.filter_by(student_id=id).all()
     
     return render_template('students/view.html', 

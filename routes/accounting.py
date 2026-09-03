@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date
+from utils.access_control import require_permission
 from models.accounting import (
     AccountGroup, Account, SubAccount, DetailAccount,
     FiscalPeriod, JournalEntry, JournalItem
@@ -142,8 +143,12 @@ def add_entry():
 
 @accounting_bp.route('/journal/<int:id>')
 @login_required
+@require_permission('accounting', 'view')
 def view_entry(id):
-    entry = JournalEntry.query.get_or_404(id)
+    query = JournalEntry.query.filter_by(id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        query = query.filter(JournalEntry.branch_id == current_user.branch_id)
+    entry = query.first_or_404()
     return render_template('accounting/view_entry.html', entry=entry)
 
 
@@ -192,11 +197,15 @@ def ledger():
 
 @accounting_bp.route('/ledger/<int:account_id>')
 @login_required
+@require_permission('accounting', 'view')
 def account_ledger(account_id):
     account = Account.query.get_or_404(account_id)
-    items = JournalItem.query.filter_by(account_id=account_id).join(JournalEntry).filter(
+    items_query = JournalItem.query.filter_by(account_id=account_id).join(JournalEntry).filter(
         JournalEntry.status.in_(['confirmed', 'approved'])
-    ).order_by(JournalItem.id).all()
+    )
+    if not current_user.is_admin and current_user.branch_id:
+        items_query = items_query.filter(JournalEntry.branch_id == current_user.branch_id)
+    items = items_query.order_by(JournalItem.id).all()
     
     return render_template('accounting/account_ledger.html', account=account, items=items)
 

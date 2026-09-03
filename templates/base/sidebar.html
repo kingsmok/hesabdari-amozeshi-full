@@ -1,14 +1,14 @@
 {# سایدبار ساده و کاربرپسند #}
 {% set user_menu = get_user_menu_items() %}
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar" id="sidebar" aria-label="منوی اصلی">
     <div class="sidebar-header" style="position:relative;">
         <div class="sidebar-logo"><i class="bi bi-mortarboard-fill"></i></div>
         <div class="sidebar-brand">
             {{ app_name }}
             <small>{{ current_user.role.name if current_user.role else 'کاربر' }}</small>
         </div>
-        <button onclick="toggleSidebar()" aria-label="بستن منو" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#cfd8dc; font-size:22px; cursor:pointer; display:none; z-index:10;" class="btn-mobile-close"><i class="bi bi-x-lg"></i></button>
+        <button type="button" onclick="toggleSidebar()" aria-label="بستن منو" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:#cfd8dc; font-size:22px; cursor:pointer; display:none; z-index:10;" class="btn-mobile-close"><i class="bi bi-x-lg"></i></button>
     </div>
 
     <nav class="sidebar-nav">
@@ -152,10 +152,20 @@
         {# ═══ ابزارها ═══ #}
         <div class="nav-section-title">ابزارها</div>
 
-        {% if 'reports' in user_menu %}
-        <a href="{{ url_for('reports.index') }}" class="nav-link-item">
+        {% if 'reports' in user_menu and license_state and license_state.has_feature('reports') %}
+        <div class="nav-link-item {{ 'active open' if request.blueprint == 'reports' }}" onclick="toggleNav(this)">
             <i class="bi bi-file-earmark-bar-graph"></i> گزارش‌ها
-        </a>
+            <i class="bi bi-chevron-left arrow"></i>
+        </div>
+        <div class="nav-sub {{ 'show' if request.blueprint == 'reports' }}">
+            <a href="{{ url_for('reports.index') }}" class="nav-link-item"><i class="bi bi-grid-3x3-gap"></i> مرکز جامع گزارش‌ها</a>
+            <a href="{{ url_for('reports.view', report_key='executive-dashboard') }}" class="nav-link-item"><i class="bi bi-speedometer2"></i> نمای مدیریتی</a>
+            {% if 'accounting' in user_menu and license_state.has_feature('accounting') %}<a href="{{ url_for('reports.view', report_key='trial-balance-6') }}" class="nav-link-item"><i class="bi bi-columns-gap"></i> تراز آزمایشی</a>
+            <a href="{{ url_for('reports.view', report_key='profit-loss') }}" class="nav-link-item"><i class="bi bi-graph-up-arrow"></i> سود و زیان</a>{% endif %}
+            {% if 'finance' in user_menu and 'registration' in user_menu and 'students' in user_menu and 'courses' in user_menu and license_state.has_feature('finance') and license_state.has_feature('registration') and license_state.has_feature('students') and license_state.has_feature('courses') and license_state.has_feature('installments') %}<a href="{{ url_for('reports.view', report_key='receivables-aging') }}" class="nav-link-item"><i class="bi bi-hourglass-bottom"></i> سنی مطالبات</a>{% endif %}
+            <a href="{{ url_for('reports.builder') }}" class="nav-link-item"><i class="bi bi-wrench-adjustable"></i> گزارش‌ساز سفارشی</a>
+            <a href="{{ url_for('reports.schedules') }}" class="nav-link-item"><i class="bi bi-clock-history"></i> زمان‌بندی گزارش‌ها</a>
+        </div>
         {% endif %}
 
         {% if 'messaging' in user_menu %}

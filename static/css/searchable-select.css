@@ -1,4 +1,15 @@
 /* استایل انتخاب جستجوپذیر */
+.ss-native-select {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden !important;
+}
+
 .ss-container {
     position: relative;
     width: 100%;
@@ -21,6 +32,7 @@
 }
 
 .ss-display:hover { border-color: #b0bec5; }
+.ss-container.disabled .ss-display { cursor:not-allowed;opacity:.65;background:#f5f5f5; }
 
 .ss-display:focus-visible,
 .ss-container.open .ss-display {
@@ -91,16 +103,21 @@
     margin: 2px 0;
 }
 
-.ss-option:hover { background: #f5f5f5; }
+.ss-option:hover,
+.ss-option.active { background: #f5f5f5; }
+.ss-option.disabled,
+.ss-option[aria-disabled="true"] { cursor: not-allowed; opacity: .5; }
+.ss-option.disabled:hover { background: transparent; }
 .ss-option.selected { background: #e3f2fd; color: #0d47a1; font-weight: 700; }
+.ss-option.active { outline:2px solid rgba(13,71,161,.28);outline-offset:-2px; }
 
 .ss-empty {
-    display: none;
     padding: 20px 16px;
     text-align: center;
     color: #90a4ae;
     font-size: 12px;
 }
+.ss-empty[hidden] { display: none; }
 
 body.dark-mode .ss-display,
 body.dark-mode .ss-dropdown,
@@ -110,7 +127,9 @@ body.dark-mode .ss-search {
     color: #eee;
 }
 
-body.dark-mode .ss-option:hover { background: #333; }
+body.dark-mode .ss-container.disabled .ss-display { background:#1f1f1f; }
+body.dark-mode .ss-option:hover,
+body.dark-mode .ss-option.active { background: #333; }
 body.dark-mode .ss-option.selected { background: #17385d; color: #90caf9; }
 
 /* در موبایل به شکل bottom-sheet نمایش داده می‌شود. */
@@ -121,4 +140,9 @@ body.dark-mode .ss-option.selected { background: #17385d; color: #90caf9; }
 
 .ss-dropdown.ss-mobile .ss-options {
     max-height: calc(55vh - 48px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ss-dropdown { animation: none; }
+    .ss-display, .ss-option { transition: none; }
 }

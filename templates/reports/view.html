@@ -1,0 +1,137 @@
+{% extends "base/layout.html" %}
+{% block title %}{{ meta.title }}{% endblock %}
+{% set can_export = license_state and license_state.has_feature('export_data') and (current_user.is_admin or current_user.has_permission('reports', 'export')) %}
+{% set can_print = current_user.is_admin or current_user.has_permission('reports', 'print') %}
+{% block breadcrumb %}<li><a href="{{ url_for('reports.index') }}">گزارش‌ها</a></li><li class="active">{{ meta.title }}</li>{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}"><style media="print">@page{size:A4 {{ 'landscape' if print_landscape else 'portrait' }};margin:10mm}</style>{% endblock %}
+
+{% macro metric_value(item) -%}
+    {% if item.type == 'money' %}{{ item.value|currency }} <small>تومان</small>
+    {% elif item.type == 'percent' %}{{ '%.1f'|format(item.value|float) }}٪
+    {% elif item.type == 'number' %}{{ item.value|currency }}
+    {% else %}{{ item.value }}{% endif %}
+{%- endmacro %}
+{% macro status_class(value) -%}{% if value in ['فعال','تأییدشده','تصویب‌شده','پرداخت‌شده','وصول‌شده','تکمیل‌شده','فارغ‌التحصیل','حاضر','صدور مجدد','مطلوب','دارد','بسته','رفع‌شده','ارسال شده'] %}success{% elif value in ['لغوشده','انصرافی','برگشتی','مردود','هشدار','نیازمند پیگیری','غیرفعال'] %}danger{% elif value in ['در انتظار','پیش‌نویس','پرداخت ناقص','سررسیدگذشته','تعلیق','تعلیق ثبت‌نام','باز','نیازمند توجه','کنترل شود','ارسال نشده'] %}warning{% else %}info{% endif %}{%- endmacro %}
+
+{% block content %}
+<div class="report-shell animate-in {{ 'report-print-mode' if print_mode }}" data-report-view data-report-key="{{ meta.key }}">
+    <section class="report-hero">
+        <div class="report-hero-content">
+            <div>
+                <h1><i class="bi bi-{{ meta.icon }}"></i> {{ meta.title }}</h1>
+                <p>{{ meta.description }} · تولید در {{ report.generated_at|to_jalali }} ساعت {{ report.generated_at.strftime('%H:%M') }}</p>
+            </div>
+            <div class="report-hero-actions no-print">
+                <a class="btn-glass" href="{{ url_for('reports.index') }}"><i class="bi bi-grid"></i> مرکز گزارش‌ها</a>
+                <button class="btn-glass" type="button" data-toggle-favorite="{{ meta.key }}" aria-pressed="{{ 'true' if is_favorite else 'false' }}"><i class="bi bi-star{{ '-fill' if is_favorite }}"></i> <span>{{ 'نشان‌شده' if is_favorite else 'نشان کردن' }}</span></button>
+            </div>
+        </div>
+    </section>
+
+    <form class="report-toolbar no-print" id="reportFilterForm" method="get">
+        <input type="hidden" name="sort" id="reportSort" value="{{ filters.sort }}">
+        <input type="hidden" name="direction" id="reportDirection" value="{{ filters.direction }}">
+        <div class="report-filter-head"><strong><i class="bi bi-funnel"></i> فیلترهای گزارش</strong><button type="button" class="btn btn-sm btn-link" data-filter-collapse aria-expanded="true" aria-controls="reportFilterFields reportFilterActions" aria-label="باز و بسته کردن فیلترها"><i class="bi bi-chevron-up"></i></button></div>
+        <div class="report-filter-grid" id="reportFilterFields" data-filter-body>
+            {% if 'date' in meta.filters %}
+            {% if meta.date_mode == 'as_of' %}
+            <div><label class="form-label" for="reportDateTo">تاریخ مبنای مانده</label><input class="form-control jalali-date" id="reportDateTo" name="date_to" value="{{ filters.date_to|to_jalali if filters.date_to else '' }}" placeholder="۱۴۰۵/۰۶/۱۱" autocomplete="off" required><div class="form-text">تمام بدهی‌های باز ایجادشده تا این تاریخ محاسبه می‌شوند.</div></div>
+            {% else %}
+            <div><label class="form-label" for="reportDateFrom">از تاریخ شمسی</label><input class="form-control jalali-date" id="reportDateFrom" name="date_from" value="{{ filters.date_from|to_jalali if filters.date_from else '' }}" placeholder="۱۴۰۵/۰۱/۰۱" autocomplete="off"></div>
+            <div><label class="form-label" for="reportDateTo">تا تاریخ شمسی</label><input class="form-control jalali-date" id="reportDateTo" name="date_to" value="{{ filters.date_to|to_jalali if filters.date_to else '' }}" placeholder="۱۴۰۵/۱۲/۲۹" autocomplete="off"></div>
+            {% endif %}
+            {% endif %}
+            {% if 'fiscal' in meta.filters %}<div><label class="form-label" for="reportFiscal">دوره مالی</label><select class="form-select searchable" id="reportFiscal" name="fiscal_id" data-fiscal-period><option value="">همه دوره‌ها</option>{% for item in options.fiscal_periods or [] %}<option value="{{ item.id }}" data-start="{{ item.start_date|to_jalali }}" data-end="{{ item.end_date|to_jalali }}" {{ 'selected' if filters.fiscal_id == item.id }}>{{ item.name }}</option>{% endfor %}</select></div>{% endif %}
+            {% if 'branch' in meta.filters %}<div><label class="form-label" for="reportBranch">شعبه</label><select class="form-select searchable" id="reportBranch" name="branch_id" {{ 'disabled' if filters.forced_branch_id }}><option value="">همه شعب</option>{% for item in options.branches or [] %}<option value="{{ item.id }}" {{ 'selected' if filters.branch_id == item.id }}>{{ item.name }}{{ ' — غیرفعال' if not item.is_active }}</option>{% endfor %}</select>{% if filters.forced_branch_id %}<input type="hidden" name="branch_id" value="{{ filters.forced_branch_id }}">{% endif %}</div>{% endif %}
+            {% if 'status' in meta.filters %}<div><label class="form-label" for="reportStatus">وضعیت</label><select class="form-select" id="reportStatus" name="status"><option value="">همه وضعیت‌ها</option>{% for value,label in options.statuses %}<option value="{{ value }}" {{ 'selected' if filters.status == value }}>{{ label }}</option>{% endfor %}</select></div>{% endif %}
+            {% if 'course' in meta.filters %}<div><label class="form-label" for="reportCourse">دوره</label><select class="form-select searchable" id="reportCourse" name="course_id" data-placeholder="جستجوی دوره"><option value="">همه دوره‌ها</option>{% for item in options.courses or [] %}<option value="{{ item.id }}" {{ 'selected' if filters.course_id == item.id }}>{{ item.code }} — {{ item.title }}{{ ' — غیرفعال' if not item.is_active }}</option>{% endfor %}</select></div>{% endif %}
+            {% if 'class' in meta.filters %}<div><label class="form-label" for="reportClass">کلاس</label><select class="form-select searchable" id="reportClass" name="class_id" data-placeholder="جستجوی کلاس"><option value="">همه کلاس‌ها</option>{% for item in options.classes or [] %}<option value="{{ item.id }}" {{ 'selected' if filters.class_id == item.id }}>{{ item.class_code }} — {{ item.name }}</option>{% endfor %}</select></div>{% endif %}
+            {% if 'teacher' in meta.filters %}<div><label class="form-label" for="reportTeacher">مدرس</label><select class="form-select searchable" id="reportTeacher" name="teacher_id" data-placeholder="جستجوی مدرس"><option value="">همه مدرسین</option>{% for item in options.teachers or [] %}<option value="{{ item.id }}" {{ 'selected' if filters.teacher_id == item.id }}>{{ item.teacher_code }} — {{ item.full_name }}{{ ' — غیرفعال' if not item.is_active }}</option>{% endfor %}</select></div>{% endif %}
+            {% if 'student' in meta.filters %}<div><label class="form-label" for="reportStudent">هنرجو</label><select class="form-select searchable" id="reportStudent" name="student_id" data-placeholder="نام، کد یا موبایل"><option value="">همه هنرجویان</option>{% for item in options.students or [] %}<option value="{{ item.id }}" {{ 'selected' if filters.student_id == item.id }}>{{ item.student_code }} — {{ item.full_name }}</option>{% endfor %}</select></div>{% endif %}
+            {% if 'account' in meta.filters %}<div><label class="form-label" for="reportAccount">حساب کل</label><select class="form-select searchable" id="reportAccount" name="account_id" data-placeholder="کد یا عنوان حساب"><option value="">همه حساب‌ها</option>{% for item in options.accounts or [] %}<option value="{{ item.id }}" {{ 'selected' if filters.account_id == item.id }}>{{ item.code }} — {{ item.name }}{{ ' — غیرفعال' if not item.is_active }}</option>{% endfor %}</select></div>{% endif %}
+            {% if 'q' in meta.filters %}<div class="wide"><label class="form-label" for="reportQuery">جستجو در همه ستون‌ها</label><div class="search-box"><i class="bi bi-search"></i><input class="form-control" id="reportQuery" type="search" name="q" value="{{ filters.q }}" maxlength="200" placeholder="نام، کد، مبلغ، شماره سند، موبایل..."></div></div>{% endif %}
+            <div><label class="form-label" for="reportPageSize">تعداد ردیف در صفحه</label><select class="form-select" id="reportPageSize" name="per_page">{% for size in [10,25,50,100,200] %}<option value="{{ size }}" {{ 'selected' if filters.per_page == size }}>{{ size }} ردیف</option>{% endfor %}</select></div>
+            {% if 'date' in meta.filters %}<div><label class="form-label" for="reportCompare">مقایسه دوره</label><select class="form-select" id="reportCompare" name="compare"><option value="">بدون مقایسه</option><option value="previous" {{ 'selected' if filters.compare == 'previous' }}>{{ 'ماه قبل' if meta.date_mode == 'as_of' else 'دوره قبل' }}</option><option value="year" {{ 'selected' if filters.compare == 'year' }}>سال قبل</option></select></div>{% endif %}
+        </div>
+        <div class="report-filter-actions" id="reportFilterActions" data-filter-body>
+            <div class="report-date-presets">
+                {% if 'date' in meta.filters %}<button type="button" data-date-preset="today" data-start="{{ today }}" data-end="{{ today }}">امروز</button>{% if meta.date_mode != 'as_of' %}<button type="button" data-date-preset="month" data-start="{{ today[:8] }}01" data-end="{{ today }}">ماه جاری</button><button type="button" data-date-preset="year" data-start="{{ start_of_year }}" data-end="{{ today }}">سال جاری</button><button type="button" data-date-preset="clear">همه تاریخ‌ها</button>{% endif %}{% endif %}
+            </div>
+            <div class="d-flex gap-2"><a href="{{ url_for('reports.view', report_key=meta.key) }}" class="btn btn-light"><i class="bi bi-arrow-counterclockwise"></i> پاک‌کردن</a><button class="btn btn-primary" type="submit"><i class="bi bi-funnel-fill"></i> اعمال فیلتر</button></div>
+        </div>
+    </form>
+
+    <div class="report-actions no-print">
+        {% if can_export %}<div class="dropdown"><button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown"><i class="bi bi-download"></i> خروجی</button><ul class="dropdown-menu">
+            <li><a class="dropdown-item report-export-link" data-format="xlsx" href="{{ url_for('reports.export', report_key=meta.key, export_format='xlsx') }}?{{ query_without_page }}"><i class="bi bi-file-earmark-excel text-success"></i> Excel حرفه‌ای</a></li>
+            <li><a class="dropdown-item report-export-link" data-format="pdf" href="{{ url_for('reports.export', report_key=meta.key, export_format='pdf') }}?{{ query_without_page }}"><i class="bi bi-file-earmark-pdf text-danger"></i> PDF فارسی</a></li>
+            <li><a class="dropdown-item report-export-link" data-format="csv" href="{{ url_for('reports.export', report_key=meta.key, export_format='csv') }}?{{ query_without_page }}"><i class="bi bi-filetype-csv text-primary"></i> CSV</a></li>
+            <li><a class="dropdown-item report-export-link" data-format="json" href="{{ url_for('reports.export', report_key=meta.key, export_format='json') }}?{{ query_without_page }}"><i class="bi bi-braces"></i> JSON / API</a></li>
+        </ul></div>{% endif %}
+        {% if can_print %}<a class="btn btn-outline-primary report-export-link" href="{{ url_for('reports.view', report_key=meta.key) }}?{{ query_without_page }}&print=1" target="_blank" rel="noopener"><i class="bi bi-printer"></i> چاپ همه نتایج</a>{% endif %}
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#columnsModal"><i class="bi bi-layout-three-columns"></i> ستون‌ها</button>
+        {% if report.chart %}<button class="btn btn-outline-primary" type="button" data-toggle-chart aria-expanded="true" aria-controls="reportChartPanel"><i class="bi bi-bar-chart"></i> نمودار</button>{% endif %}
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#saveViewModal"><i class="bi bi-bookmark-plus"></i> ذخیره نما</button>
+        <button class="btn btn-outline-secondary" type="button" data-save-snapshot><i class="bi bi-camera"></i> ثبت تصویر</button>
+        {% if can_export %}<button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#scheduleModal"><i class="bi bi-clock-history"></i> زمان‌بندی</button>{% endif %}
+        <span class="ms-auto text-muted small">{{ report.total_rows|currency }} نتیجه</span>
+    </div>
+
+    {% if active_filter_chips %}
+    <div class="mb-2 no-print"><span class="text-muted small me-2">فیلترهای فعال:</span>{% for label,value in active_filter_chips %}<span class="report-active-filter">{% if label == 'جستجو' %}<i class="bi bi-search"></i>{% endif %}{{ label }}: {{ value }}</span>{% endfor %}</div>
+    {% endif %}
+
+    <div class="report-summary-grid">
+        {% for item in report.kpis %}<article class="report-kpi"><div class="report-kpi-icon {{ item.color }}"><i class="bi bi-{{ item.icon }}"></i></div><div><div class="report-kpi-label">{{ item.label }}</div><div class="report-kpi-value">{{ metric_value(item) }}</div>{% if item.comparison is defined %}<div class="report-kpi-change {{ 'up' if item.comparison >= 0 else 'down' }}"><i class="bi bi-arrow-{{ 'up' if item.comparison >= 0 else 'down' }}"></i> {{ '%.1f'|format(item.comparison|abs) }}٪ نسبت به دوره مقایسه</div>{% endif %}</div></article>{% endfor %}
+    </div>
+
+    {% for warning in report.warnings %}<div class="report-warning"><i class="bi bi-exclamation-triangle-fill"></i><span>{{ warning }}</span></div>{% endfor %}
+
+    {% if report.chart %}<section class="report-panel" id="reportChartPanel"><div class="report-panel-head"><h2><i class="bi bi-bar-chart-line"></i> نمودار تحلیلی</h2><button class="btn btn-sm btn-link no-print" type="button" data-toggle-chart aria-expanded="true" aria-controls="reportChartPanel" aria-label="باز و بسته کردن نمودار"><i class="bi bi-chevron-up"></i></button></div><div class="report-panel-body"><div class="report-chart-container"><canvas id="reportChart" role="img" aria-label="نمودار تحلیلی {{ meta.title }}"></canvas></div></div></section>{% endif %}
+
+    <section class="report-panel">
+        <div class="report-panel-head"><h2><i class="bi bi-table"></i> جزئیات گزارش</h2><span class="text-muted small">{% if print_mode %}{{ report.rows|length|currency }} ردیف{% else %}صفحه {{ report.page }} از {{ report.pages }}{% endif %}</span></div>
+        <div class="report-panel-body flush">
+            {% if report.rows %}
+            <div class="report-table-wrap">
+                <table class="report-table" id="reportDataTable"{% if print_mode %} data-no-auto-search="true"{% endif %}>
+                    <thead><tr>{% for col in report.columns %}<th data-column="{{ col.key }}" class="sortable" aria-sort="{{ ('ascending' if filters.direction == 'asc' else 'descending') if filters.sort == col.key else 'none' }}"><button class="report-sort-button" type="button" data-sort-key="{{ col.key }}" aria-label="مرتب‌سازی بر اساس {{ col.label }}">{{ col.label }} {% if filters.sort == col.key %}<i class="bi bi-sort-{{ 'up' if filters.direction == 'asc' else 'down' }}"></i>{% else %}<i class="bi bi-arrow-down-up opacity-25"></i>{% endif %}</button></th>{% endfor %}</tr></thead>
+                    <tbody>{% for row in report.rows %}<tr>{% for col in report.columns %}{% set value = row.get(col.key) %}<td data-column="{{ col.key }}" class="{{ 'money-cell ' ~ ('negative' if value|float < 0 else 'positive') if col.type == 'money' else '' }}">
+                        {% if row.get(col.key ~ '_url') %}<a class="cell-link" href="{{ row.get(col.key ~ '_url') }}">{{ value }}</a>
+                        {% elif col.type == 'money' %}{{ value|currency }}
+                        {% elif col.type == 'percent' %}{{ '%.1f'|format(value|float) }}٪
+                        {% elif col.type == 'number' %}{{ value|currency }}
+                        {% elif col.type == 'date' %}{{ value|to_jalali if value else '-' }}
+                        {% elif col.type == 'datetime' %}{{ value|to_jalali if value else '-' }}{% if value and value.strftime is defined %} {{ value.strftime('%H:%M') }}{% endif %}
+                        {% elif col.type == 'status' %}<span class="report-status {{ status_class(value) }}">{{ value }}</span>
+                        {% elif col.type == 'smart' %}{{ value|currency }}
+                        {% else %}{{ value if value not in [None, ''] else '-' }}{% endif %}
+                    </td>{% endfor %}</tr>{% endfor %}</tbody>
+                    {% if report.footers %}<tfoot><tr>{% for col in report.columns %}<td data-column="{{ col.key }}">{% if loop.first %}جمع{% elif col.key in report.footers %}{% if col.type == 'money' %}{{ report.footers[col.key]|currency }}{% elif col.type == 'percent' %}{{ '%.1f'|format(report.footers[col.key]|float) }}٪{% else %}{{ report.footers[col.key]|currency }}{% endif %}{% endif %}</td>{% endfor %}</tr></tfoot>{% endif %}
+                </table>
+            </div>
+            {% else %}<div class="report-empty"><i class="bi bi-inbox"></i><strong>داده‌ای مطابق فیلترها وجود ندارد</strong><span>بازه یا فیلترهای گزارش را تغییر دهید.</span></div>{% endif %}
+            <div class="report-pagination no-print">
+                <span>نمایش {{ ((report.page-1)*report.per_page+1) if report.total_rows else 0 }} تا {{ [report.page*report.per_page, report.total_rows]|min }} از {{ report.total_rows|currency }} ردیف</span>
+                {% if report.pages > 1 %}<div class="pages">{% if report.page > 1 %}<a href="?{{ query_without_page }}&page={{ report.page-1 }}" aria-label="صفحه قبل"><i class="bi bi-chevron-right"></i></a>{% endif %}{% for page in range([1,report.page-2]|max, [report.pages,report.page+2]|min + 1) %}{% if page == report.page %}<span class="page active" aria-current="page">{{ page }}</span>{% else %}<a href="?{{ query_without_page }}&page={{ page }}">{{ page }}</a>{% endif %}{% endfor %}{% if report.page < report.pages %}<a href="?{{ query_without_page }}&page={{ report.page+1 }}" aria-label="صفحه بعد"><i class="bi bi-chevron-left"></i></a>{% endif %}</div>{% endif %}
+            </div>
+        </div>
+    </section>
+
+    {% if presets %}<section class="report-panel no-print"><div class="report-panel-head"><h2><i class="bi bi-bookmarks"></i> نماهای ذخیره‌شده این گزارش</h2></div><div class="report-panel-body d-flex gap-2 flex-wrap">{% for item in presets %}<div class="btn-group"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('reports.apply_preset', preset_id=item.id) }}"><i class="bi bi-play"></i>{{ item.name }}</a><button class="btn btn-sm btn-outline-danger" type="button" data-delete-preset="{{ item.id }}" aria-label="حذف نمای {{ item.name }}" title="حذف نما"><i class="bi bi-x"></i></button></div>{% endfor %}</div></section>{% endif %}
+</div>
+
+<div class="modal fade" id="columnsModal" tabindex="-1" aria-labelledby="columnsModalTitle"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="columnsModalTitle">انتخاب ستون‌های قابل نمایش</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="بستن"></button></div><div class="modal-body"><div class="column-picker-list">{% for col in report.columns %}<label class="column-picker-item"><input class="form-check-input" type="checkbox" value="{{ col.key }}" data-column-toggle checked> {{ col.label }}</label>{% endfor %}</div></div><div class="modal-footer"><button class="btn btn-light" type="button" data-columns-all>انتخاب همه</button><button class="btn btn-primary" type="button" data-apply-columns data-bs-dismiss="modal">اعمال</button></div></div></div></div>
+
+<div class="modal fade" id="saveViewModal" tabindex="-1" aria-labelledby="saveViewModalTitle"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="saveViewModalTitle"><i class="bi bi-bookmark-plus me-2"></i>ذخیره نمای گزارش</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="بستن"></button></div><div class="modal-body"><label class="form-label" for="presetName">نام نما</label><input class="form-control" id="presetName" maxlength="120" placeholder="مثلاً: بدهکاران شعبه مرکزی"><div class="form-text mt-2">فیلترها و ستون‌های فعلی برای استفاده بعدی ذخیره می‌شوند.</div></div><div class="modal-footer"><button class="btn btn-light" type="button" data-bs-dismiss="modal">انصراف</button><button class="btn btn-primary" type="button" data-save-view><i class="bi bi-check2"></i> ذخیره</button></div></div></div></div>
+
+{% if can_export %}<div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalTitle"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" method="post" action="{{ url_for('reports.schedules') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="report_key" value="{{ meta.key }}"><input type="hidden" name="filters" id="scheduleFilters"><div class="modal-header"><h5 class="modal-title" id="scheduleModalTitle"><i class="bi bi-clock-history me-2"></i>زمان‌بندی گزارش</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="بستن"></button></div><div class="modal-body"><div class="row g-3"><div class="col-12"><label class="form-label" for="scheduleName">عنوان</label><input class="form-control" id="scheduleName" name="name" maxlength="120" required value="{{ meta.title }} دوره‌ای"></div><div class="col-6"><label class="form-label" for="scheduleFrequency">تناوب</label><select class="form-select" id="scheduleFrequency" name="frequency"><option value="daily">روزانه</option><option value="weekly">هفتگی</option><option value="monthly" selected>ماهانه شمسی</option></select></div><div class="col-6"><label class="form-label" for="scheduleFormat">فرمت</label><select class="form-select" id="scheduleFormat" name="export_format"><option value="xlsx">Excel</option><option value="csv">CSV</option><option value="json">JSON</option></select></div><div class="col-6"><label class="form-label" for="scheduleDate">اولین اجرا</label><input class="form-control jalali-date" id="scheduleDate" name="run_date" value="{{ today }}" required></div><div class="col-6"><label class="form-label" for="scheduleTime">ساعت</label><input class="form-control" id="scheduleTime" type="time" name="run_time" value="08:00" required></div><div class="col-12"><label class="form-label" for="scheduleDelivery">روش تحویل</label><select class="form-select" id="scheduleDelivery" name="delivery_method" data-delivery-select><option value="internal">اعلان داخلی و بایگانی</option><option value="bale">ربات بله</option><option value="telegram">تلگرام</option><option value="email">ایمیل</option></select></div><div class="col-12"><label class="form-label" for="scheduleRecipient">گیرنده</label><input class="form-control" id="scheduleRecipient" name="recipient" maxlength="250" placeholder="شناسه گفت‌وگو یا ایمیل؛ برای اعلان داخلی خالی بگذارید"></div></div></div><div class="modal-footer"><button class="btn btn-light" type="button" data-bs-dismiss="modal">انصراف</button><button class="btn btn-primary" type="submit">ثبت زمان‌بندی</button></div></form></div></div>{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+<script>
+window.reportPageConfig = {home:false,key:{{ meta.key|tojson }},csrf:{{ csrf_token()|tojson }},chart:{{ report.chart|tojson }},filters:{{ filters.serialisable()|tojson }},printMode:{{ print_mode|tojson }}};
+document.addEventListener('DOMContentLoaded',function(){if(window.ReportCentre)ReportCentre.initView(window.reportPageConfig);if(window.reportPageConfig.printMode)setTimeout(()=>window.print(),450);});
+</script>
+{% endblock %}

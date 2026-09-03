@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.access_control import require_permission
 from utils.jalali import current_jalali_year
 from models.registration import Registration, Installment
 from models.student import Student
@@ -195,9 +196,16 @@ def add():
 
 @registration_bp.route('/<int:id>')
 @login_required
+@require_permission('registration', 'view')
 def view(id):
-    reg = Registration.query.get_or_404(id)
-    payments = Payment.query.filter_by(registration_id=id).order_by(Payment.payment_date.desc()).all()
+    query = Registration.query.filter_by(id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        query = query.filter(Registration.branch_id == current_user.branch_id)
+    reg = query.first_or_404()
+    payments_query = Payment.query.filter_by(registration_id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        payments_query = payments_query.filter(Payment.branch_id == current_user.branch_id)
+    payments = payments_query.order_by(Payment.payment_date.desc()).all()
     installments = Installment.query.filter_by(registration_id=id).order_by(Installment.installment_number).all()
     
     return render_template('registration/view.html', reg=reg, payments=payments, installments=installments)

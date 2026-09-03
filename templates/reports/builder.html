@@ -1,0 +1,129 @@
+{% extends "base/layout.html" %}
+{% block title %}گزارش‌ساز سفارشی{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('reports.index') }}">گزارش‌ها</a></li><li class="active">گزارش‌ساز</li>{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+{% block content %}
+<div class="report-shell animate-in">
+<section class="report-hero"><div class="report-hero-content"><div><h1><i class="bi bi-wrench-adjustable-circle"></i> گزارش‌ساز بدون برنامه‌نویسی</h1><p>منبع داده، بازه، شعبه و ستون‌های دلخواه را انتخاب و پیش‌نمایش را همان لحظه مشاهده کنید</p></div><div class="report-hero-actions"><a class="btn-glass" href="{{ url_for('reports.index') }}"><i class="bi bi-arrow-right"></i> مرکز گزارش‌ها</a></div></div></section>
+<div class="row g-3"><div class="col-lg-4"><div class="report-panel sticky-lg-top" style="top:74px"><div class="report-panel-head"><h2><i class="bi bi-sliders"></i> تنظیم گزارش</h2></div><div class="report-panel-body"><form id="reportBuilderForm"><div class="mb-3"><label class="form-label" for="builderReport">منبع گزارش</label><select class="form-select searchable" id="builderReport" required><option value="">انتخاب کنید...</option>{% for category_key,category_label in categories.items() %}<optgroup label="{{ category_label }}">{% for key,item in catalog.items() if item.category == category_key %}<option value="{{ key }}">{{ item.title }}</option>{% endfor %}</optgroup>{% endfor %}</select></div><div class="row g-2"><div class="col-6"><label class="form-label" for="builderFrom">از تاریخ</label><input class="form-control jalali-date" id="builderFrom" value="{{ start_of_year }}"></div><div class="col-6"><label class="form-label" for="builderTo">تا تاریخ</label><input class="form-control jalali-date" id="builderTo" value="{{ today }}"></div></div><div class="mt-3"><label class="form-label" for="builderBranch">شعبه</label><select class="form-select" id="builderBranch" {{ 'disabled' if not current_user.is_admin and current_user.branch_id }}>{% if current_user.is_admin or not current_user.branch_id %}<option value="">همه شعب</option>{% endif %}{% for item in branches %}<option value="{{ item.id }}" {{ 'selected' if not current_user.is_admin and current_user.branch_id == item.id }}>{{ item.name }}{{ ' — غیرفعال' if not item.is_active }}</option>{% endfor %}</select></div><div class="mt-3"><label class="form-label" for="builderQuery">جستجو در داده</label><input type="search" class="form-control" id="builderQuery" maxlength="200" placeholder="عبارت دلخواه"></div><div class="mt-3"><div class="form-label" id="builderColumnsLabel">ستون‌های خروجی</div><div id="builderColumns" class="column-picker-list" role="group" aria-labelledby="builderColumnsLabel"><div class="text-muted small">پس از انتخاب منبع، ستون‌ها نمایش داده می‌شوند.</div></div></div><button type="submit" class="btn btn-primary w-100 mt-3"><i class="bi bi-play-fill"></i> ساخت پیش‌نمایش</button></form></div></div></div><div class="col-lg-8"><div class="report-panel"><div class="report-panel-head"><h2><i class="bi bi-eye"></i> پیش‌نمایش</h2><div class="d-flex gap-2"><button class="btn btn-sm btn-outline-primary d-none" id="builderOpen" type="button"><i class="bi bi-arrows-fullscreen"></i> بازکردن گزارش کامل</button></div></div><div class="report-panel-body flush" id="builderPreview" aria-live="polite"><div class="report-empty"><i class="bi bi-layout-text-window"></i><strong>یک منبع گزارش انتخاب کنید</strong><span>۱۰ ردیف اول برای کنترل نتیجه نمایش داده می‌شود.</span></div></div></div></div></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const select = document.getElementById('builderReport');
+    const form = document.getElementById('reportBuilderForm');
+    const columns = document.getElementById('builderColumns');
+    const preview = document.getElementById('builderPreview');
+    const openButton = document.getElementById('builderOpen');
+    let latest = null;
+    let loadedKey = '';
+    let requestController = null;
+    const escapeHtml = value => String(value == null ? '' : value).replace(/[&<>"']/g, character => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[character]));
+
+    function parameters() {
+        const params = new URLSearchParams({per_page: '10'});
+        params.set('date_from', document.getElementById('builderFrom').value);
+        params.set('date_to', document.getElementById('builderTo').value);
+        const branch = document.getElementById('builderBranch').value;
+        const query = document.getElementById('builderQuery').value;
+        if (branch) params.set('branch_id', branch);
+        if (query) params.set('q', query);
+        return params;
+    }
+
+    function displayValue(column, value) {
+        if (value == null || value === '') return '-';
+        if ((column.type === 'date' || column.type === 'datetime') && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+            const parts = value.slice(0, 10).split('-').map(Number);
+            const jalali = window.gregorianToJalali?.(parts[0], parts[1], parts[2]);
+            if (jalali) {
+                const date = `${jalali[0]}/${String(jalali[1]).padStart(2, '0')}/${String(jalali[2]).padStart(2, '0')}`;
+                return column.type === 'datetime' && value.length >= 16 ? `${date} ${value.slice(11, 16)}` : date;
+            }
+        }
+        if (['money', 'number'].includes(column.type) && !Number.isNaN(Number(value))) {
+            return new Intl.NumberFormat('fa-IR', {maximumFractionDigits: 2}).format(Number(value));
+        }
+        if (column.type === 'percent' && !Number.isNaN(Number(value))) {
+            return `${new Intl.NumberFormat('fa-IR', {maximumFractionDigits: 1}).format(Number(value))}٪`;
+        }
+        return String(value);
+    }
+
+    function selectedColumns() {
+        return Array.from(columns.querySelectorAll('input:checked')).map(input => input.value);
+    }
+
+    function render(data) {
+        const selected = selectedColumns();
+        const visibleColumns = data.columns.filter(column => selected.includes(column.key));
+        if (!data.rows.length) {
+            preview.innerHTML = '<div class="report-empty"><i class="bi bi-inbox"></i><strong>داده‌ای پیدا نشد</strong></div>';
+            return;
+        }
+        preview.innerHTML = `<div class="report-table-wrap"><table class="report-table"><thead><tr>${visibleColumns.map(column => `<th>${escapeHtml(column.label)}</th>`).join('')}</tr></thead><tbody>${data.rows.map(row => `<tr>${visibleColumns.map(column => `<td>${escapeHtml(displayValue(column, row[column.key]))}</td>`).join('')}</tr>`).join('')}</tbody></table></div><div class="p-3 text-muted small">${new Intl.NumberFormat('fa-IR').format(data.total_rows)} نتیجه در گزارش کامل</div>`;
+    }
+
+    async function loadPreview() {
+        const reportKey = select.value;
+        if (!reportKey) {
+            if (requestController) requestController.abort();
+            requestController = null;
+            latest = null;
+            loadedKey = '';
+            columns.innerHTML = '<div class="text-muted small">پس از انتخاب منبع، ستون‌ها نمایش داده می‌شوند.</div>';
+            preview.removeAttribute('aria-busy');
+            preview.innerHTML = '<div class="report-empty"><i class="bi bi-layout-text-window"></i><strong>یک منبع گزارش انتخاب کنید</strong><span>۱۰ ردیف اول برای کنترل نتیجه نمایش داده می‌شود.</span></div>';
+            openButton.classList.add('d-none');
+            return;
+        }
+        if (requestController) requestController.abort();
+        const controller = new AbortController();
+        requestController = controller;
+        openButton.classList.add('d-none');
+        preview.setAttribute('aria-busy', 'true');
+        preview.innerHTML = '<div class="global-search-loading"><span class="spinner-border text-primary" role="status"></span><span class="visually-hidden">در حال ساخت پیش‌نمایش</span></div>';
+        try {
+            const response = await fetch(`/reports/api/run/${encodeURIComponent(reportKey)}?${parameters()}`, {
+                signal: controller.signal,
+                headers: {'Accept': 'application/json'}
+            });
+            if (!response.ok) throw new Error('ساخت گزارش ناموفق بود');
+            const data = await response.json();
+            if (requestController !== controller || select.value !== reportKey) return;
+            latest = data;
+            if (loadedKey !== reportKey) {
+                columns.innerHTML = data.columns.map(column => `<label class="column-picker-item"><input class="form-check-input" type="checkbox" value="${escapeHtml(column.key)}" checked> ${escapeHtml(column.label)}</label>`).join('');
+                loadedKey = reportKey;
+            }
+            render(data);
+            openButton.classList.remove('d-none');
+        } catch (error) {
+            if (requestController !== controller) return;
+            if (error.name !== 'AbortError') {
+                preview.innerHTML = `<div class="report-empty text-danger"><i class="bi bi-exclamation-triangle"></i><strong>${escapeHtml(error.message)}</strong><span>دوباره تلاش کنید.</span></div>`;
+                openButton.classList.add('d-none');
+            }
+        } finally {
+            if (requestController === controller) preview.setAttribute('aria-busy', 'false');
+        }
+    }
+
+    select.addEventListener('change', loadPreview);
+    form.addEventListener('submit', event => { event.preventDefault(); loadPreview(); });
+    columns.addEventListener('change', event => {
+        if (!columns.querySelector('input:checked')) event.target.checked = true;
+        if (latest) render(latest);
+    });
+    openButton.addEventListener('click', () => {
+        const params = parameters();
+        const selected = selectedColumns();
+        if (selected.length) params.set('columns', selected.join(','));
+        location.href = `/reports/view/${encodeURIComponent(select.value)}?${params}`;
+    });
+});
+</script>
+{% endblock %}

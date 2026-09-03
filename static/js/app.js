@@ -52,6 +52,13 @@ document.addEventListener('DOMContentLoaded', function() {
    ═══════════════════════════════════════════════════════════════ */
 function initScrollReveal() {
     const elements = document.querySelectorAll('.stat-box, .card, .table');
+    if (!('IntersectionObserver' in window) ||
+            window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        elements.forEach(el => { el.style.opacity = '1'; });
+        return;
+    }
+    const revealAllForPrint = () => elements.forEach(el => { el.style.opacity = '1'; });
+    window.addEventListener('beforeprint', revealAllForPrint);
     
     const observer = new IntersectionObserver((entries) => {
         entries.forEach((entry, index) => {
@@ -76,6 +83,7 @@ function initScrollReveal() {
    ۲) شمارش اعداد (Count Up Animation)
    ═══════════════════════════════════════════════════════════════ */
 function initCountUp() {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const counters = document.querySelectorAll('.stat-val');
     
     counters.forEach(counter => {
@@ -117,9 +125,50 @@ function animateCounter(element, target, originalText) {
 /* ═══════════════════════════════════════════════════════════════
    ۳) مدیریت سایدبار
    ═══════════════════════════════════════════════════════════════ */
+function setSidebarAccessibility(sidebar, expanded) {
+    if (!sidebar) return;
+    if (!expanded && sidebar.contains(document.activeElement)) {
+        const toggle = document.querySelector('.btn-toggle-sidebar');
+        if (toggle) toggle.focus({ preventScroll: true });
+    }
+    sidebar.setAttribute('aria-hidden', String(!expanded));
+    if (expanded) sidebar.removeAttribute('inert');
+    else sidebar.setAttribute('inert', '');
+}
+
+function readStoredValue(key, fallback = null) {
+    try { return localStorage.getItem(key) ?? fallback; }
+    catch (_) { return fallback; }
+}
+
+function writeStoredValue(key, value) {
+    try { localStorage.setItem(key, value); }
+    catch (_) {}
+}
+
+function removeStoredValue(key) {
+    try { localStorage.removeItem(key); }
+    catch (_) {}
+}
+
 function initSidebar() {
     // باز/بسته زیرمنوها با انیمیشن
     document.querySelectorAll('.nav-link-item[onclick]').forEach(item => {
+        item.setAttribute('role', 'button');
+        item.setAttribute('tabindex', '0');
+        item.setAttribute('aria-expanded', String(item.classList.contains('open')));
+        const submenu = item.nextElementSibling;
+        if (submenu && submenu.classList.contains('nav-sub')) {
+            submenu.id = submenu.id || `sidebar-submenu-${Array.from(document.querySelectorAll('.nav-sub')).indexOf(submenu) + 1}`;
+            item.setAttribute('aria-controls', submenu.id);
+            submenu.setAttribute('aria-hidden', String(!submenu.classList.contains('show')));
+        }
+        item.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                this.click();
+            }
+        });
         item.addEventListener('click', function() {
             const sub = this.nextElementSibling;
             if (sub && sub.classList.contains('nav-sub')) {
@@ -127,7 +176,9 @@ function initSidebar() {
                 document.querySelectorAll('.nav-sub.show').forEach(openSub => {
                     if (openSub !== sub) {
                         openSub.classList.remove('show');
+                        openSub.setAttribute('aria-hidden', 'true');
                         openSub.previousElementSibling.classList.remove('open');
+                        openSub.previousElementSibling.setAttribute('aria-expanded', 'false');
                     }
                 });
             }
@@ -139,7 +190,7 @@ function initSidebar() {
     if (sidebar) {
         const isMobile = window.innerWidth <= 992;
         if (!isMobile) {
-            const savedState = localStorage.getItem('sidebar_collapsed');
+            const savedState = readStoredValue('sidebar_collapsed', 'false');
             if (savedState === 'true') {
                 sidebar.style.width = '0';
                 document.getElementById('mainWrap').style.marginRight = '0';
@@ -152,20 +203,49 @@ function initSidebar() {
             sidebar.classList.remove('open');
             sidebar.style.width = 'var(--sidebar-w)';
         }
+        const toggle = document.querySelector('.btn-toggle-sidebar');
+        if (toggle) {
+            const expanded = isMobile ? sidebar.classList.contains('open') : sidebar.style.width !== '0px' && sidebar.style.width !== '0';
+            toggle.setAttribute('aria-expanded', String(expanded));
+        }
+        const expanded = isMobile ? sidebar.classList.contains('open') : sidebar.style.width !== '0px' && sidebar.style.width !== '0';
+        setSidebarAccessibility(sidebar, expanded);
     }
     // بستن سایدبار با کلیک روی اورلی / لینک / Escape
+    let sidebarWasMobile = window.innerWidth <= 992;
     window.addEventListener('resize', function() {
-        if (window.innerWidth > 992) {
+        const isMobile = window.innerWidth <= 992;
+        if (isMobile === sidebarWasMobile) return;
+        sidebarWasMobile = isMobile;
+        if (!isMobile) {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('mobileOverlay');
+            const mainWrap = document.getElementById('mainWrap');
+            const collapsed = readStoredValue('sidebar_collapsed', 'false') === 'true';
             if (overlay) overlay.classList.remove('visible');
             document.body.style.overflow = '';
             if (sidebar) {
                 sidebar.classList.remove('open');
-                sidebar.style.width = '';
+                sidebar.style.width = collapsed ? '0' : 'var(--sidebar-w)';
+                setSidebarAccessibility(sidebar, !collapsed);
             }
+            if (mainWrap) mainWrap.style.marginRight = collapsed ? '0' : 'var(--sidebar-w)';
+            const toggle = document.querySelector('.btn-toggle-sidebar');
+            if (toggle) toggle.setAttribute('aria-expanded', String(!collapsed));
+        } else {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
             const mainWrap = document.getElementById('mainWrap');
-            if (mainWrap) mainWrap.style.marginRight = '';
+            if (sidebar) {
+                sidebar.classList.remove('open');
+                sidebar.style.width = 'var(--sidebar-w)';
+                setSidebarAccessibility(sidebar, false);
+            }
+            if (overlay) overlay.classList.remove('visible');
+            if (mainWrap) mainWrap.style.marginRight = '0';
+            document.body.style.overflow = '';
+            const toggle = document.querySelector('.btn-toggle-sidebar');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
         }
     });
 
@@ -188,6 +268,11 @@ function closeMobileSidebar() {
     if (sidebar) sidebar.classList.remove('open');
     if (overlay) overlay.classList.remove('visible');
     document.body.style.overflow = '';
+    if (window.innerWidth <= 992) {
+        setSidebarAccessibility(sidebar, false);
+        const toggle = document.querySelector('.btn-toggle-sidebar');
+        if (toggle) toggle.setAttribute('aria-expanded', 'false');
+    }
 }
 
 function toggleSidebar() {
@@ -195,6 +280,7 @@ function toggleSidebar() {
     const mainWrap = document.getElementById('mainWrap');
     const overlay = document.getElementById('mobileOverlay');
     const isMobile = window.innerWidth <= 992;
+    if (!sidebar || !mainWrap) return;
 
     if (isMobile) {
         const isOpen = sidebar.classList.contains('open');
@@ -208,93 +294,189 @@ function toggleSidebar() {
             document.body.style.overflow = 'hidden';
         }
     } else {
-        const collapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+        const collapsed = readStoredValue('sidebar_collapsed', 'false') === 'true';
         const currentlyCollapsed = sidebar.style.width === '0px' || sidebar.style.width === '0';
         if (collapsed || currentlyCollapsed) {
             sidebar.style.width = 'var(--sidebar-w)';
             mainWrap.style.marginRight = 'var(--sidebar-w)';
-            localStorage.setItem('sidebar_collapsed', 'false');
+            writeStoredValue('sidebar_collapsed', 'false');
         } else {
             sidebar.style.width = '0';
             mainWrap.style.marginRight = '0';
-            localStorage.setItem('sidebar_collapsed', 'true');
+            writeStoredValue('sidebar_collapsed', 'true');
         }
+    }
+    const toggle = document.querySelector('.btn-toggle-sidebar');
+    if (toggle) {
+        const expanded = isMobile ? sidebar.classList.contains('open') : sidebar.style.width !== '0px' && sidebar.style.width !== '0';
+        toggle.setAttribute('aria-expanded', String(expanded));
+        setSidebarAccessibility(sidebar, expanded);
     }
 }
 
 function toggleNav(el) {
     el.classList.toggle('open');
+    el.setAttribute('aria-expanded', String(el.classList.contains('open')));
     const sub = el.nextElementSibling;
     if (sub && sub.classList.contains('nav-sub')) {
         sub.classList.toggle('show');
+        sub.setAttribute('aria-hidden', String(!sub.classList.contains('show')));
     }
 }
 
 
 /* ═══════════════════════════════════════════════════════════════
-   ۴) جستجوی سراسری
+   ۴) جستجوی سراسری همه بخش‌ها
    ═══════════════════════════════════════════════════════════════ */
 let searchTimer;
+let globalSearchRequest;
+let globalSearchSequence = 0;
+let globalSearchActiveIndex = -1;
 
 function initGlobalSearch() {
     const input = document.getElementById('globalSearch');
-    if (!input) return;
-    
-    input.addEventListener('input', function() {
-        globalSearch(this.value);
+    const box = document.getElementById('searchResults');
+    if (!input || !box) return;
+
+    input.addEventListener('input', function() { globalSearch(this.value); });
+    input.addEventListener('focus', function() {
+        if (this.value.trim().length >= 2) globalSearch(this.value);
     });
-    
-    // بستن نتایج با کلیک بیرون
-    document.addEventListener('click', e => {
-        const results = document.getElementById('searchResults');
-        if (results && !e.target.closest('#globalSearch') && !e.target.closest('#searchResults')) {
-            results.style.display = 'none';
-        }
-    });
-    
-    // بستن با Escape
     input.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            document.getElementById('searchResults').style.display = 'none';
-            this.blur();
+        const items = Array.from(box.querySelectorAll('.global-search-item'));
+        if (e.key === 'ArrowDown' && items.length) {
+            e.preventDefault();
+            globalSearchActiveIndex = (globalSearchActiveIndex + 1) % items.length;
+            setGlobalSearchActive(items);
+        } else if (e.key === 'ArrowUp' && items.length) {
+            e.preventDefault();
+            globalSearchActiveIndex = (globalSearchActiveIndex - 1 + items.length) % items.length;
+            setGlobalSearchActive(items);
+        } else if ((e.key === 'Home' || e.key === 'End') && items.length) {
+            e.preventDefault();
+            globalSearchActiveIndex = e.key === 'Home' ? 0 : items.length - 1;
+            setGlobalSearchActive(items);
+        } else if (e.key === 'Enter' && globalSearchActiveIndex >= 0 && items[globalSearchActiveIndex]) {
+            e.preventDefault(); items[globalSearchActiveIndex].click();
+        } else if (e.key === 'Escape') {
+            hideGlobalSearch(); this.blur();
         }
     });
+
+    const wrap = input.closest('.global-search-wrap');
+    if (wrap) {
+        wrap.addEventListener('focusout', () => window.setTimeout(() => {
+            if (!wrap.contains(document.activeElement)) hideGlobalSearch();
+        }, 0));
+    }
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.global-search-wrap')) hideGlobalSearch();
+    });
+}
+
+function setGlobalSearchActive(items) {
+    items.forEach((item, index) => {
+        const active = index === globalSearchActiveIndex;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-selected', String(active));
+    });
+    const active = items[globalSearchActiveIndex];
+    const input = document.getElementById('globalSearch');
+    if (active) {
+        active.scrollIntoView({block: 'nearest'});
+        if (input) input.setAttribute('aria-activedescendant', active.id);
+    }
+}
+
+function hideGlobalSearch() {
+    clearTimeout(searchTimer);
+    globalSearchSequence += 1;
+    if (globalSearchRequest) { globalSearchRequest.abort(); globalSearchRequest = null; }
+    const box = document.getElementById('searchResults');
+    const input = document.getElementById('globalSearch');
+    if (box) box.style.display = 'none';
+    if (input) {
+        input.setAttribute('aria-expanded', 'false');
+        input.removeAttribute('aria-activedescendant');
+    }
+    globalSearchActiveIndex = -1;
 }
 
 function globalSearch(q) {
     clearTimeout(searchTimer);
+    if (globalSearchRequest) { globalSearchRequest.abort(); globalSearchRequest = null; }
     const box = document.getElementById('searchResults');
-    if (!box) return;
-    
-    if (q.length < 2) { box.style.display = 'none'; return; }
-    
-    // نمایش لودینگ
-    box.innerHTML = '<div style="padding: 16px; text-align: center;"><div class="spinner-border spinner-border-sm text-primary" role="status"></div></div>';
+    const input = document.getElementById('globalSearch');
+    if (!box || !input) return;
+    q = String(q || '').trim();
+    if (q.length < 2) { hideGlobalSearch(); return; }
+    const sequence = ++globalSearchSequence;
+
+    box.innerHTML = '<div class="global-search-loading"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><div class="mt-2 text-muted small">در حال جستجو در همه بخش‌ها...</div></div>';
     box.style.display = 'block';
-    
+    input.setAttribute('aria-expanded', 'true');
+    input.removeAttribute('aria-activedescendant');
+    globalSearchActiveIndex = -1;
+
     searchTimer = setTimeout(() => {
-        fetch('/api/search?q=' + encodeURIComponent(q))
-            .then(r => r.json())
+        const controller = new AbortController();
+        globalSearchRequest = controller;
+        fetch('/api/search?q=' + encodeURIComponent(q), {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' }
+        })
+            .then(r => { if (!r.ok) throw new Error('search failed'); return r.json(); })
             .then(data => {
-                if (data.results.length === 0) {
-                    box.innerHTML = '<div style="padding: 16px; text-align: center; color: #b0bec5; font-size: 12px;">نتیجه‌ای یافت نشد</div>';
-                } else {
-                    box.innerHTML = data.results.map((r, i) =>
-                        `<a href="${escapeHtml(r.url || '#')}" style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; text-decoration: none; color: #37474f; border-bottom: 1px solid #f5f5f5; animation: fadeInUp 0.3s ease-out ${i * 0.05}s both;">
-                            <span style="background: ${escapeHtml(r.color || '#e3f2fd')}; padding: 2px 8px; border-radius: 4px; font-size: 10px; color: #fff;">${escapeHtml(r.type || '')}</span>
-                            <span style="font-weight: 600; font-size: 12px;">${escapeHtml(r.name || '')}</span>
-                            <span style="font-size: 10px; color: #b0bec5;">${escapeHtml(r.detail || '')}</span>
-                        </a>`
-                    ).join('');
+                if (sequence === globalSearchSequence && input.value.trim() === q) {
+                    renderGlobalSearchResults(data, q);
                 }
-                box.style.display = 'block';
             })
-            .catch(() => {
-                box.innerHTML = '<div style="padding: 16px; text-align: center; color: #c62828; font-size: 12px;">خطا در جستجو</div>';
+            .catch(error => {
+                if (error.name === 'AbortError' || sequence !== globalSearchSequence) return;
+                box.innerHTML = '<div class="global-search-empty"><i class="bi bi-wifi-off"></i>خطا در دریافت نتیجه؛ دوباره تلاش کنید</div>';
+            })
+            .finally(() => {
+                if (globalSearchRequest === controller) globalSearchRequest = null;
             });
-    }, 300);
+    }, 260);
 }
 
+function renderGlobalSearchResults(data, query) {
+    const box = document.getElementById('searchResults');
+    if (!box) return;
+    const results = data && Array.isArray(data.results) ? data.results : [];
+    if (!results.length) {
+        box.innerHTML = '<div class="global-search-empty"><i class="bi bi-search"></i><strong>نتیجه‌ای پیدا نشد</strong><br>نام، کد، شماره سند، مبلغ یا موبایل را بررسی کنید</div>';
+        box.style.display = 'block';
+        return;
+    }
+    const groupLabels = {
+        reports:'گزارش‌ها', students:'هنرجویان', registrations:'ثبت‌نام‌ها',
+        finance:'مالی، اقساط و چک', accounting:'حسابداری', courses:'دوره‌ها و رشته‌ها',
+        classes:'کلاس‌ها و اتاق‌ها', teachers:'مدرسین', exams:'آزمون و سؤال',
+        certificates:'گواهینامه‌ها', payroll:'حقوق و دستمزد',
+        messages:'پیام‌ها', users:'کاربران', support:'پشتیبانی'
+    };
+    let lastGroup = null;
+    let html = `<div class="global-search-head"><span><i class="bi bi-search me-1"></i>نتایج «${escapeHtml(query)}»</span><strong>${new Intl.NumberFormat('fa-IR').format(data.count || results.length)} مورد</strong></div>`;
+    results.forEach((result, index) => {
+        if (result.group !== lastGroup) {
+            lastGroup = result.group;
+            html += `<div class="global-search-group-title">${escapeHtml(groupLabels[lastGroup] || result.type || lastGroup)}</div>`;
+        }
+        const href = safeInternalUrl(result.url);
+        const color = /^#[0-9a-f]{6}$/i.test(String(result.color || '')) ? result.color : '#64748b';
+        const icon = /^[a-z0-9-]+$/i.test(String(result.icon || '')) ? result.icon : 'search';
+        html += `<a class="global-search-item" id="global-search-option-${index}" role="option" aria-selected="false" href="${escapeHtml(href)}">
+            <span class="global-search-item-icon" style="background:${color}"><i class="bi bi-${icon}"></i></span>
+            <span class="global-search-item-main"><span class="global-search-item-name">${escapeHtml(result.name || '')}</span><span class="global-search-item-detail">${escapeHtml(result.detail || '')}</span></span>
+            <span class="global-search-item-type">${escapeHtml(result.type || '')}</span>
+        </a>`;
+    });
+    html += '<div class="global-search-footer"><span>↑↓ انتخاب · Enter بازکردن</span><span>Esc بستن</span></div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+}
 
 /* ═══════════════════════════════════════════════════════════════
    ۵) Dark Mode
@@ -306,19 +488,27 @@ function initDarkMode() {
     }
 }
 
+let darkModeRequestInFlight = false;
 function toggleDarkMode() {
+    if (darkModeRequestInFlight) return;
+    darkModeRequestInFlight = true;
     fetch('/api/dark-mode', {
         method: 'POST',
         headers: { 'X-CSRFToken': getCSRFToken() }
     })
-    .then(r => r.json())
+    .then(r => {
+        if (!r.ok) throw new Error('ذخیره حالت نمایش ناموفق بود');
+        return r.json();
+    })
     .then(data => {
         if (data.dark_mode === 'on') {
             document.body.classList.add('dark-mode');
         } else {
             document.body.classList.remove('dark-mode');
         }
-    });
+    })
+    .catch(error => showToast(error.message, 'error'))
+    .finally(() => { darkModeRequestInFlight = false; });
 }
 
 
@@ -326,32 +516,36 @@ function toggleDarkMode() {
    ۶) میانبرهای صفحه‌کلید
    ═══════════════════════════════════════════════════════════════ */
 function initKeyboardShortcuts() {
+    const config = document.getElementById('keyboardShortcutConfig');
+    const destinations = config ? {
+        Digit1: config.dataset.dashboardUrl,
+        Digit2: config.dataset.studentUrl,
+        Digit3: config.dataset.registrationUrl,
+        Digit4: config.dataset.paymentUrl,
+        Digit0: config.dataset.helpUrl
+    } : {};
+
     document.addEventListener('keydown', function(e) {
-        // Ctrl+K = جستجو
-        if (e.ctrlKey && e.key === 'k') {
-            e.preventDefault();
+        // Ctrl/Cmd+K is the conventional in-app command palette shortcut.
+        if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
             const search = document.getElementById('globalSearch');
-            if (search) search.focus();
+            if (search) {
+                e.preventDefault();
+                search.focus();
+            }
         }
-        
-        // Ctrl+N = هنرجو جدید
-        if (e.ctrlKey && e.key === 'n') {
-            e.preventDefault();
-            window.location.href = '/students/add';
+
+        // Use a three-key chord so browser New/Reload/Print/Bookmark shortcuts
+        // are never replaced.  Missing destinations are omitted server-side
+        // when the user lacks create permission.
+        if ((e.ctrlKey || e.metaKey) && e.altKey && !e.shiftKey && !e.repeat) {
+            const destination = safeInternalUrl(destinations[e.code]);
+            if (destination !== '#') {
+                e.preventDefault();
+                window.location.assign(destination);
+            }
         }
-        
-        // Ctrl+D = داشبورد
-        if (e.ctrlKey && e.key === 'd') {
-            e.preventDefault();
-            window.location.href = '/';
-        }
-        
-        // Ctrl+R = ثبت‌نام
-        if (e.ctrlKey && e.key === 'r') {
-            e.preventDefault();
-            window.location.href = '/registration/add';
-        }
-        
+
         // Escape = بستن مودال
         if (e.key === 'Escape') {
             document.querySelectorAll('.modal.show').forEach(modal => {
@@ -394,7 +588,7 @@ function initAutoSave() {
         const key = form.getAttribute('data-autosave');
         
         // بازیابی داده‌های ذخیره شده
-        const saved = localStorage.getItem('autosave_' + key);
+        const saved = readStoredValue('autosave_' + key);
         if (saved) {
             try {
                 const data = JSON.parse(saved);
@@ -411,12 +605,12 @@ function initAutoSave() {
             new FormData(form).forEach((value, name) => {
                 data[name] = value;
             });
-            localStorage.setItem('autosave_' + key, JSON.stringify(data));
+            writeStoredValue('autosave_' + key, JSON.stringify(data));
         }, 500));
         
         // پاک کردن بعد از ارسال
         form.addEventListener('submit', () => {
-            localStorage.removeItem('autosave_' + key);
+            removeStoredValue('autosave_' + key);
         });
     });
 }
@@ -428,10 +622,9 @@ function initAutoSave() {
 function initChartAnimations() {
     // تنظیمات پیش‌فرض Chart.js
     if (typeof Chart !== 'undefined') {
-        Chart.defaults.animation = {
-            duration: 1500,
-            easing: 'easeOutQuart'
-        };
+        Chart.defaults.animation = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? false
+            : { duration: 1500, easing: 'easeOutQuart' };
         Chart.defaults.font.family = 'Vazirmatn, Tahoma, sans-serif';
         Chart.defaults.plugins.legend.labels.usePointStyle = true;
     }
@@ -527,21 +720,58 @@ function wrapTablesForMobile() {
 function initUserMenuTouch() {
     var chip = document.getElementById('userChip') || document.querySelector('.user-chip');
     if (!chip) return;
+    var links = Array.from(chip.querySelectorAll('.user-dropdown a'));
+    function setOpen(open) {
+        chip.classList.toggle('show-menu', open);
+        chip.setAttribute('aria-expanded', String(open));
+    }
 
+    const usesHover = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches && window.innerWidth > 992;
+    chip.addEventListener('mouseenter', function() {
+        if (usesHover()) setOpen(true);
+    });
+    chip.addEventListener('mouseleave', function() {
+        if (usesHover() && !chip.contains(document.activeElement)) setOpen(false);
+    });
     chip.addEventListener('click', function(e) {
         if (e.target.closest('.user-dropdown a')) return;
-        if (window.matchMedia('(hover: hover) and (pointer: fine)').matches && window.innerWidth > 992) {
-            return;
-        }
+        if (usesHover()) return;
         e.preventDefault();
         e.stopPropagation();
-        chip.classList.toggle('show-menu');
+        setOpen(!chip.classList.contains('show-menu'));
+    });
+    chip.addEventListener('keydown', function(e) {
+        const focusedLink = e.target.closest('.user-dropdown a');
+        if (focusedLink) {
+            const index = links.indexOf(focusedLink);
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                const step = e.key === 'ArrowDown' ? 1 : -1;
+                links[(index + step + links.length) % links.length]?.focus();
+            } else if (e.key === 'Home' || e.key === 'End') {
+                e.preventDefault();
+                links[e.key === 'Home' ? 0 : links.length - 1]?.focus();
+            } else if (e.key === 'Escape') {
+                e.preventDefault(); setOpen(false); chip.focus();
+            }
+            return;
+        }
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            setOpen(true);
+            if (links[0]) links[0].focus();
+        } else if (e.key === 'Escape') {
+            setOpen(false);
+        }
     });
 
+    chip.addEventListener('focusout', function() {
+        window.setTimeout(function() {
+            if (!chip.contains(document.activeElement)) setOpen(false);
+        }, 0);
+    });
     document.addEventListener('click', function(e) {
-        if (!e.target.closest('.user-chip')) {
-            chip.classList.remove('show-menu');
-        }
+        if (!e.target.closest('.user-chip')) setOpen(false);
     });
 }
 
@@ -561,6 +791,18 @@ function fmtCurrency(n) {
         style: 'decimal', 
         maximumFractionDigits: 0 
     }).format(n) + ' تومان';
+}
+
+function safeInternalUrl(value) {
+    const raw = String(value || '');
+    if (!raw.startsWith('/') || raw.startsWith('//')) return '#';
+    try {
+        const parsed = new URL(raw, window.location.origin);
+        if (parsed.origin !== window.location.origin) return '#';
+        return parsed.pathname + parsed.search + parsed.hash;
+    } catch (_) {
+        return '#';
+    }
 }
 
 function escapeHtml(value) {
@@ -629,6 +871,7 @@ function showToast(message, type = 'success') {
     };
     
     const toast = document.createElement('div');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     toast.style.cssText = `
         background: ${colors[type] || colors.info};
         color: white;
@@ -641,14 +884,23 @@ function showToast(message, type = 'success') {
         align-items: center;
         gap: 8px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        animation: fadeInLeft 0.3s ease-out;
+        animation: ${reduceMotion ? 'none' : 'fadeInLeft 0.3s ease-out'};
         direction: rtl;
     `;
-    toast.innerHTML = `<i class="bi bi-${icons[type]}"></i> ${message}`;
+    const toastIcon = document.createElement('i');
+    toastIcon.className = `bi bi-${icons[type] || icons.info}`;
+    toastIcon.setAttribute('aria-hidden', 'true');
+    toast.appendChild(toastIcon);
+    toast.appendChild(document.createTextNode(String(message == null ? '' : message)));
+    toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
     
     document.getElementById('toastContainer').appendChild(toast);
     
     setTimeout(() => {
+        if (reduceMotion) {
+            toast.remove();
+            return;
+        }
         toast.style.transition = 'all 0.3s';
         toast.style.opacity = '0';
         toast.style.transform = 'translateX(-20px)';

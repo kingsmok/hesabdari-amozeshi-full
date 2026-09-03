@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.access_control import require_permission
 from utils.jalali import current_jalali_year
 from models.classes import ClassGroup, ClassSession, Holiday
 from models.course import Course, Room
@@ -106,10 +107,17 @@ def add():
 
 @classes_bp.route('/<int:id>')
 @login_required
+@require_permission('classes', 'view')
 def view(id):
-    class_group = ClassGroup.query.get_or_404(id)
+    query = ClassGroup.query.filter_by(id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        query = query.filter(ClassGroup.branch_id == current_user.branch_id)
+    class_group = query.first_or_404()
     sessions = ClassSession.query.filter_by(class_id=id).order_by(ClassSession.session_date).all()
-    students = [r.student for r in class_group.registrations.filter_by(status='active').all()]
+    registrations = class_group.registrations.filter_by(status='active')
+    if not current_user.is_admin and current_user.branch_id:
+        registrations = registrations.filter_by(branch_id=current_user.branch_id)
+    students = [item.student for item in registrations.all()]
     
     return render_template('classes/view.html', 
                          class_group=class_group, 

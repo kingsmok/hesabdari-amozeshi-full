@@ -9,11 +9,12 @@
 """
 import os, json, io, requests
 from datetime import datetime, timedelta, date
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, send_file, make_response, current_app, abort
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db, csrf
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.access_control import require_permission
 
 new_features_bp = Blueprint('new_features', __name__)
 
@@ -112,6 +113,7 @@ def course_add():
 
 @new_features_bp.route('/courses/<int:id>')
 @login_required
+@require_permission('courses', 'view')
 def course_view(id):
     """مشاهده جزئیات دوره"""
     from models.course import Course, Syllabus
@@ -119,11 +121,25 @@ def course_view(id):
     from models.classes import ClassGroup
     
     course = Course.query.get_or_404(id)
+    if (not current_user.is_admin and current_user.branch_id and
+            course.branch_id not in (None, current_user.branch_id)):
+        abort(404)
     syllabus = Syllabus.query.filter_by(course_id=id).order_by(Syllabus.order).all()
-    registrations = Registration.query.filter_by(course_id=id).order_by(Registration.created_at.desc()).limit(20).all()
-    classes = ClassGroup.query.filter_by(course_id=id).all()
-    total_regs = Registration.query.filter_by(course_id=id).count()
-    active_regs = Registration.query.filter_by(course_id=id, status='active').count()
+    registrations_query = Registration.query.filter_by(course_id=id)
+    classes_query = ClassGroup.query.filter_by(course_id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        registrations_query = registrations_query.filter(
+            Registration.branch_id == current_user.branch_id
+        )
+        classes_query = classes_query.filter(
+            ClassGroup.branch_id == current_user.branch_id
+        )
+    registrations = registrations_query.order_by(
+        Registration.created_at.desc()
+    ).limit(20).all()
+    classes = classes_query.all()
+    total_regs = registrations_query.count()
+    active_regs = registrations_query.filter_by(status='active').count()
     
     return render_template('new/course_view.html', 
                          course=course, syllabus=syllabus,

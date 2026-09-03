@@ -152,11 +152,27 @@ def create_app():
             except Exception as exc:
                 print('[BACKUP] Auto-backup error:', exc)
 
+        def _scheduled_reports():
+            try:
+                with app.app_context():
+                    from license_client import has_feature
+                    if not has_feature('reports') or not has_feature('export_data'):
+                        return
+                    from utils.report_scheduler import run_due_report_schedules
+                    result = run_due_report_schedules()
+                    if result['due']:
+                        print('[REPORTS]', result)
+            except Exception as exc:
+                print('[REPORTS] Scheduled report error:', exc)
+
         scheduler = BackgroundScheduler()
         scheduler.add_job(_scheduled_backup, 'interval', hours=1,
                           id='auto_backup', replace_existing=True)
+        scheduler.add_job(_scheduled_reports, 'interval', minutes=15,
+                          id='scheduled_reports', replace_existing=True)
         scheduler.start()
-        print('[SCHEDULER] Auto-backup scheduler started.')
+        app.extensions['background_scheduler'] = scheduler
+        print('[SCHEDULER] Backup and reporting schedulers started.')
     except Exception as exc:
         print('[SCHEDULER] Scheduler not started:', exc)
     
@@ -332,7 +348,7 @@ def create_app():
         for menu_key, module in MENU_MAP.items():
             if module is None:
                 allowed.append(menu_key)
-            elif current_user.has_module_access(module):
+            elif current_user.has_permission(module, 'view'):
                 allowed.append(menu_key)
         
         return allowed
@@ -353,10 +369,13 @@ def create_app():
             import models.exam
             import models.system
             import models.bot
+            import models.reporting
             
             db.create_all()
             from utils.attendance_service import ensure_attendance_indexes
             ensure_attendance_indexes()
+            from utils.report_indexes import ensure_reporting_indexes
+            ensure_reporting_indexes()
             from utils.database_tools import ensure_settings_columns
             ensure_settings_columns()
             create_default_data()
@@ -407,6 +426,7 @@ def create_default_data():
     import models.attendance
     import models.exam
     import models.system
+    import models.reporting
     
     from models.user import User, Role, Permission, RolePermission
     from models.system import SystemSettings, Branch
@@ -438,7 +458,7 @@ def create_default_data():
                 'exams': ['view', 'create', 'edit'],
                 'courses': ['view', 'create', 'edit'],
                 'finance': ['view'],
-                'reports': ['view'],
+                'reports': ['view', 'print', 'export'],
                 'messaging': ['view', 'create'],
                 'certificates': ['view', 'create'],
             },
@@ -451,11 +471,17 @@ def create_default_data():
                 'messaging': ['view', 'create'],
             },
             'حسابدار': {
+                # Related entities are view-only because composite financial,
+                # payroll and tax reports must verify every source module.
+                'students': ['view'],
+                'registration': ['view'],
+                'courses': ['view'],
+                'teachers': ['view'],
                 'finance': ['view', 'create', 'edit', 'delete'],
                 'accounting': ['view', 'create', 'edit', 'delete'],
                 'payroll': ['view', 'create', 'edit'],
                 'tax': ['view', 'create'],
-                'reports': ['view'],
+                'reports': ['view', 'print', 'export'],
             },
             'مدرس': {
                 'attendance': ['view', 'create', 'edit'],

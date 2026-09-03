@@ -192,5 +192,29 @@ def notifications():
             n.is_read = True
             n.read_at = datetime.utcnow()
     db.session.commit()
-    
-    return render_template('messaging/notifications.html', notifications=notifs)
+
+    # A revoked source-module permission must also remove the download action
+    # from old report notifications.  The download endpoint repeats the same
+    # check; this set only keeps the UI from offering a link that will be denied.
+    downloadable_report_exports = set()
+    report_export_ids = [
+        item.reference_id for item in notifs
+        if item.reference_type == 'report_export' and item.reference_id
+    ]
+    if report_export_ids:
+        from models.reporting import ReportExportLog
+        from utils.reporting import REPORT_CATALOG, can_view_report
+        export_logs = ReportExportLog.query.filter(
+            ReportExportLog.user_id == current_user.id,
+            ReportExportLog.id.in_(report_export_ids),
+        ).all()
+        downloadable_report_exports = {
+            item.id for item in export_logs
+            if item.file_name and item.report_key in REPORT_CATALOG
+            and can_view_report(current_user, REPORT_CATALOG[item.report_key])
+        }
+
+    return render_template(
+        'messaging/notifications.html', notifications=notifs,
+        downloadable_report_exports=downloadable_report_exports,
+    )

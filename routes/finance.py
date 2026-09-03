@@ -1,9 +1,10 @@
 """Finance routes - Payments, Cashbox, Bank, Checks, Expenses, Salary"""
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.access_control import require_permission
 from utils.jalali import current_jalali_year
 from models.finance import (
     Payment, Cashbox, CashboxTransaction, BankAccount, BankTransaction,
@@ -16,6 +17,7 @@ from models.user import ActivityLog
 from datetime import datetime
 
 finance_bp = Blueprint('finance', __name__)
+MAX_FINANCIAL_AMOUNT = 10 ** 16
 
 
 # ===== Payments =====
@@ -126,8 +128,12 @@ def add_payment():
 
 @finance_bp.route('/payments/<int:id>')
 @login_required
+@require_permission('finance', 'view')
 def view_payment(id):
-    payment = Payment.query.get_or_404(id)
+    query = Payment.query.filter_by(id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        query = query.filter(Payment.branch_id == current_user.branch_id)
+    payment = query.first_or_404()
     return render_template('finance/view_payment.html', payment=payment)
 
 
@@ -180,55 +186,90 @@ def cashbox_transaction(id):
 # ===== Bank =====
 @finance_bp.route('/bank')
 @login_required
+@licensed_section('finance')
+@require_permission('finance', 'view')
 def bank():
-    accounts = BankAccount.query.filter_by(is_active=True).all()
+    query = BankAccount.query.filter_by(is_active=True)
+    if not current_user.is_admin and current_user.branch_id:
+        query = query.filter(db.or_(BankAccount.branch_id == current_user.branch_id,
+                                    BankAccount.branch_id.is_(None)))
+    accounts = query.order_by(BankAccount.bank_name).all()
     return render_template('finance/bank.html', accounts=accounts)
 
 
 @finance_bp.route('/bank/add', methods=['GET', 'POST'])
 @login_required
+@licensed_section('finance')
+@require_permission('finance', 'create')
 def add_bank_account():
+    from models.system import Branch
+    branches = Branch.query.filter_by(is_active=True).order_by(Branch.name).all()
+    if not current_user.is_admin and current_user.branch_id:
+        branches = [item for item in branches if item.id == current_user.branch_id]
     if request.method == 'POST':
+        branch_id = request.form.get('branch_id', type=int)
+        if not current_user.is_admin and current_user.branch_id:
+            branch_id = current_user.branch_id
+        if branch_id and not any(item.id == branch_id for item in branches):
+            flash('شعبه سازمانی انتخاب‌شده معتبر نیست', 'danger')
+            return render_template('finance/add_bank.html', branches=branches), 400
+        bank_name = str(request.form.get('bank_name') or '').strip()
+        raw_balance = str(request.form.get('balance') or '').strip() or '0'
+        balance = safe_float(raw_balance, None)
+        if not bank_name or balance is None or abs(balance) > MAX_FINANCIAL_AMOUNT:
+            flash('نام بانک و موجودی اولیه معتبر الزامی است', 'danger')
+            return render_template('finance/add_bank.html', branches=branches), 400
         account = BankAccount(
-            bank_name=request.form['bank_name'],
-            account_number=request.form.get('account_number'),
-            card_number=request.form.get('card_number'),
-            sheba=request.form.get('sheba'),
-            branch_name=request.form.get('branch_name'),
-            balance=safe_float(request.form.get('balance')),
-            description=request.form.get('description')
+            bank_name=bank_name[:50],
+            account_number=str(request.form.get('account_number') or '').strip()[:30] or None,
+            card_number=str(request.form.get('card_number') or '').strip()[:20] or None,
+            sheba=str(request.form.get('sheba') or '').strip()[:30] or None,
+            branch_name=str(request.form.get('branch_name') or '').strip()[:100] or None,
+            branch_id=branch_id,
+            balance=balance,
+            description=str(request.form.get('description') or '').strip()[:2000] or None
         )
         db.session.add(account)
         db.session.commit()
         flash('حساب بانکی اضافه شد', 'success')
         return redirect(url_for('finance.bank'))
     
-    return render_template('finance/add_bank.html')
+    return render_template('finance/add_bank.html', branches=branches)
 
 
 @finance_bp.route('/bank/<int:id>/transaction', methods=['POST'])
 @login_required
+@licensed_section('finance')
+@require_permission('finance', 'create')
 def bank_transaction(id):
     account = BankAccount.query.get_or_404(id)
+    if (not current_user.is_admin and current_user.branch_id and
+            account.branch_id not in (None, current_user.branch_id)):
+        abort(403)
     trans_type = request.form.get('trans_type')
     amount = safe_float(request.form.get('amount'))
-    if trans_type not in ('deposit', 'withdrawal') or amount <= 0:
+    if (trans_type not in ('deposit', 'withdrawal') or amount <= 0
+            or amount > MAX_FINANCIAL_AMOUNT):
         flash('نوع تراکنش یا مبلغ معتبر نیست', 'danger')
         return redirect(url_for('finance.bank'))
     
+    current_balance = safe_float(account.balance)
     if trans_type == 'deposit':
-        account.balance = (account.balance or 0) + amount
+        if current_balance + amount > MAX_FINANCIAL_AMOUNT:
+            flash('مانده نهایی حساب خارج از محدوده مجاز است', 'danger')
+            return redirect(url_for('finance.bank'))
+        account.balance = current_balance + amount
     else:
-        if amount > (account.balance or 0):
+        if amount > current_balance:
             flash('موجودی حساب برای این برداشت کافی نیست', 'danger')
             return redirect(url_for('finance.bank'))
-        account.balance = (account.balance or 0) - amount
+        account.balance = current_balance - amount
     
     tx = BankTransaction(
         bank_account_id=id,
         trans_type=trans_type,
         amount=amount,
-        description=request.form.get('description'),
+        description=str(request.form.get('description') or '').strip()[:2000] or None,
         balance_after=account.balance,
         created_by=current_user.id
     )

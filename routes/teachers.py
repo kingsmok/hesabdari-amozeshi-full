@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.access_control import require_permission
 from utils.jalali import current_jalali_year
 from models.teacher import Teacher, TeacherDocument, TeacherEvaluation
 from models.user import ActivityLog
@@ -90,10 +91,24 @@ def add():
 
 @teachers_bp.route('/<int:id>')
 @login_required
+@require_permission('teachers', 'view')
 def view(id):
-    teacher = Teacher.query.get_or_404(id)
-    classes = teacher.active_classes
-    evaluations = TeacherEvaluation.query.filter_by(teacher_id=id).order_by(TeacherEvaluation.created_at.desc()).limit(20).all()
+    query = Teacher.query.filter_by(id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        query = query.filter(Teacher.branch_id == current_user.branch_id)
+    teacher = query.first_or_404()
+    from models.classes import ClassGroup
+    classes_query = ClassGroup.query.filter_by(teacher_id=id, status='active')
+    evaluations_query = TeacherEvaluation.query.filter_by(teacher_id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        classes_query = classes_query.filter(ClassGroup.branch_id == current_user.branch_id)
+        evaluations_query = evaluations_query.join(ClassGroup).filter(
+            ClassGroup.branch_id == current_user.branch_id
+        )
+    classes = classes_query.all()
+    evaluations = evaluations_query.order_by(
+        TeacherEvaluation.created_at.desc()
+    ).limit(20).all()
     documents = TeacherDocument.query.filter_by(teacher_id=id).all()
     
     return render_template('teachers/view.html', teacher=teacher, classes=classes,

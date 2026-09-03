@@ -15,8 +15,9 @@ instance/*.db
 *.sqlite
 *.sqlite3
 
-# Backup files (automatically created by system)
+# Backup and generated report files (automatically created by system)
 backups/
+instance/report_exports/
 *.backup
 
 # Build / installer artifacts

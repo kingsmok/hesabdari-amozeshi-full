@@ -36,6 +36,10 @@
     <!-- ریسپانسیو موبایل / تبلت -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
 
+    <!-- جستجوی سراسری و جستجوی یکپارچه تمام جدول‌ها -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/global-search.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/table-search.css') }}">
+
     <style>
         /* ===== متغیرهای رنگ ===== */
         :root {
@@ -595,7 +599,6 @@
             .table tbody td { padding: 8px; }
             .btn { padding: 6px 12px; font-size: 11px; }
             .breadcrumb-nav { font-size: 11px; }
-            #globalSearch { width: 150px !important; }
         }
         @media (max-width: 576px) {
             :root { --sidebar-w: 240px; }
@@ -604,6 +607,14 @@
             .welcome-banner { padding: 16px; }
             .quick-btn { padding: 5px 10px; font-size: 10px; }
             .table-responsive { font-size: 10px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto !important; }
+            *, *::before, *::after {
+                animation-duration: .01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: .01ms !important;
+            }
         }
     </style>
     {% block extra_css %}{% endblock %}
@@ -621,11 +632,11 @@
         <!-- نوار بالا -->
         <header class="top-bar">
             <div class="top-bar-right">
-                <button class="btn-toggle-sidebar" onclick="toggleSidebar()">
+                <button class="btn-toggle-sidebar" type="button" onclick="toggleSidebar()" aria-label="باز و بسته کردن منوی اصلی" aria-controls="sidebar" aria-expanded="true">
                     <i class="bi bi-list"></i>
                 </button>
                 <ul class="breadcrumb-nav">
-                    <li><a href="{{ url_for('dashboard.index') }}"><i class="bi bi-house-fill"></i></a></li>
+                    <li><a href="{{ url_for('dashboard.index') }}" aria-label="داشبورد"><i class="bi bi-house-fill"></i></a></li>
                     {% block breadcrumb %}<li class="active">داشبورد</li>{% endblock %}
                 </ul>
             </div>
@@ -641,25 +652,26 @@
             </div>
 
             <!-- دکمه Dark Mode -->
-            <button class="top-icon-btn" onclick="toggleDarkMode()" title="حالت تاریک/روشن"><i class="bi bi-moon"></i></button>
+            <button class="top-icon-btn" type="button" onclick="toggleDarkMode()" title="حالت تاریک/روشن" aria-label="تغییر حالت تاریک و روشن"><i class="bi bi-moon"></i></button>
 
-            <!-- جستجوی سراسری -->
-            <div class="search-wrap" style="position: relative;">
-                <input type="text" id="globalSearch" class="form-control" placeholder="جستجو..." inputmode="search" autocomplete="off" style="width: 240px; height: 38px; font-size: 12px; border-radius: var(--radius-sm); padding-right: 36px;" onkeyup="globalSearch(this.value)">
-                <i class="bi bi-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #b0bec5; font-size: 14px;"></i>
-                <div id="searchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); border: 1px solid var(--clr-border); z-index: 1060; max-height: 300px; overflow-y: auto;"></div>
+            <!-- جستجوی سراسری همه بخش‌ها -->
+            <div class="global-search-wrap">
+                <input type="search" id="globalSearch" class="form-control global-search-input" placeholder="جستجوی همه بخش‌ها..." inputmode="search" autocomplete="off" maxlength="120" role="combobox" aria-autocomplete="list" aria-haspopup="listbox" aria-label="جستجوی سراسری" aria-controls="searchResults" aria-expanded="false">
+                <i class="bi bi-search"></i>
+                <kbd class="global-search-shortcut">Ctrl K</kbd>
+                <div id="searchResults" class="global-search-results" role="listbox" aria-label="نتایج جستجو" aria-live="polite"></div>
             </div>
 
-            <button class="top-icon-btn" onclick="location.href='{{ url_for('messaging.notifications') }}'">
+            <button class="top-icon-btn" type="button" aria-label="اعلان‌ها" title="اعلان‌ها" onclick="location.href='{{ url_for('messaging.notifications') }}'">
                     <i class="bi bi-bell"></i>
                     <span class="notif-badge"></span>
                 </button>
 
-                <button class="top-icon-btn" onclick="location.href='{{ url_for('messaging.inbox') }}'">
+                <button class="top-icon-btn" type="button" aria-label="پیام‌های داخلی" title="پیام‌های داخلی" onclick="location.href='{{ url_for('messaging.inbox') }}'">
                     <i class="bi bi-envelope"></i>
                 </button>
 
-                <div class="user-chip" id="userChip" tabindex="0">
+                <div class="user-chip" id="userChip" tabindex="0" role="button" aria-haspopup="menu" aria-expanded="false" aria-label="منوی حساب کاربری">
                     <div class="user-avatar">{{ current_user.full_name[0] if current_user.is_authenticated else 'U' }}</div>
                     <div class="user-meta">
                         <div class="name">{{ current_user.full_name if current_user.is_authenticated else 'کاربر' }}</div>
@@ -667,13 +679,13 @@
                     </div>
                     <i class="bi bi-chevron-down" style="font-size: 10px;"></i>
 
-                    <div class="user-dropdown">
-                        <a href="#"><i class="bi bi-person"></i> پروفایل من</a>
-                        <a href="{{ url_for('settings.general') }}"><i class="bi bi-gear"></i> تنظیمات</a>
-                        <a href="{{ url_for('features.help_center') }}"><i class="bi bi-question-circle"></i> راهنما</a>
-                        <a href="{{ url_for('features.suggestions') }}"><i class="bi bi-lightbulb"></i> پیشنهادات</a>
+                    <div class="user-dropdown" role="menu">
+                        <a href="#" role="menuitem"><i class="bi bi-person"></i> پروفایل من</a>
+                        <a href="{{ url_for('settings.general') }}" role="menuitem"><i class="bi bi-gear"></i> تنظیمات</a>
+                        <a href="{{ url_for('features.help_center') }}" role="menuitem"><i class="bi bi-question-circle"></i> راهنما</a>
+                        <a href="{{ url_for('features.suggestions') }}" role="menuitem"><i class="bi bi-lightbulb"></i> پیشنهادات</a>
                         <hr>
-                        <a href="{{ url_for('auth.logout') }}" class="danger"><i class="bi bi-box-arrow-right"></i> خروج از سیستم</a>
+                        <a href="{{ url_for('auth.logout') }}" class="danger" role="menuitem"><i class="bi bi-box-arrow-right"></i> خروج از سیستم</a>
                     </div>
                 </div>
             </div>
@@ -688,7 +700,7 @@
                         <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show anim-in" role="alert" style="border-radius: var(--radius-sm); font-size: 13px; border: none; box-shadow: var(--shadow-sm);">
                             <i class="bi bi-{% if category == 'success' %}check-circle-fill{% elif category == 'error' or category == 'danger' %}exclamation-triangle-fill{% elif category == 'warning' %}exclamation-circle-fill{% else %}info-circle-fill{% endif %} me-2"></i>
                             {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="بستن پیام"></button>
                         </div>
                     {% endfor %}
                 {% endif %}
@@ -698,11 +710,21 @@
         </div>
     </div>
 
+    <div id="keyboardShortcutConfig" hidden
+         data-dashboard-url="{{ url_for('dashboard.index') }}"
+         data-help-url="{{ url_for('features.help_center') }}"
+         {% if license_state and license_state.has_feature('students') and can_create('students') %}data-student-url="{{ url_for('students.add') }}"{% endif %}
+         {% if license_state and license_state.has_feature('registration') and can_create('registration') %}data-registration-url="{{ url_for('registration.add') }}"{% endif %}
+         {% if license_state and license_state.has_feature('finance') and can_create('finance') %}data-payment-url="{{ url_for('finance.add_payment') }}"{% endif %}></div>
+
     <!-- Bootstrap JS از jsDelivr -->
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 
     <!-- فایل JS اصلی -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+    <!-- جستجوی محلی خودکار برای همه فهرست‌ها و جدول‌ها -->
+    <script src="{{ url_for('static', filename='js/table-search.js') }}"></script>
     
     <!-- تقویم شمسی -->
     <script src="{{ url_for('static', filename='js/jalali-picker.js') }}"></script>

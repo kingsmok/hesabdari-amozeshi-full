@@ -6,7 +6,7 @@ import os, hashlib, json, time, platform, socket
 from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response, session
 from flask_login import login_required, current_user
-from license_client import license_required, licensed_section
+from license_client import has_feature, license_required, licensed_section
 from extensions import db
 
 features2_bp = Blueprint('features2', __name__)
@@ -657,13 +657,24 @@ def change_theme(theme):
 def keyboard_shortcuts():
     """لیست میانبرهای صفحه‌کلید"""
     shortcuts = [
-        {'keys': 'Ctrl + N', 'action': 'هنرجو جدید', 'url': url_for('students.add')},
-        {'keys': 'Ctrl + R', 'action': 'ثبت‌نام جدید', 'url': url_for('registration.add')},
-        {'keys': 'Ctrl + P', 'action': 'ثبت پرداخت', 'url': url_for('finance.add_payment')},
-        {'keys': 'Ctrl + K', 'action': 'جستجوی سراسری', 'url': '#'},
-        {'keys': 'Ctrl + D', 'action': 'داشبورد', 'url': url_for('dashboard.index')},
-        {'keys': 'Ctrl + H', 'action': 'راهنما', 'url': url_for('features.help_center')},
+        {'keys': 'Ctrl + Alt + 1', 'action': 'داشبورد', 'url': url_for('dashboard.index')},
     ]
+    if (has_feature('students') and
+            (current_user.is_admin or current_user.has_permission('students', 'create'))):
+        shortcuts.append({'keys': 'Ctrl + Alt + 2', 'action': 'هنرجو جدید',
+                          'url': url_for('students.add')})
+    if (has_feature('registration') and
+            (current_user.is_admin or current_user.has_permission('registration', 'create'))):
+        shortcuts.append({'keys': 'Ctrl + Alt + 3', 'action': 'ثبت‌نام جدید',
+                          'url': url_for('registration.add')})
+    if (has_feature('finance') and
+            (current_user.is_admin or current_user.has_permission('finance', 'create'))):
+        shortcuts.append({'keys': 'Ctrl + Alt + 4', 'action': 'ثبت پرداخت',
+                          'url': url_for('finance.add_payment')})
+    shortcuts.extend([
+        {'keys': 'Ctrl + Alt + 0', 'action': 'راهنما', 'url': url_for('features.help_center')},
+        {'keys': 'Ctrl / Cmd + K', 'action': 'جستجوی سراسری', 'url': '#'},
+    ])
     return render_template('support/shortcuts.html', shortcuts=shortcuts)
 
 
@@ -975,39 +986,5 @@ def customize_dashboard():
 @features2_bp.route('/reports/custom-builder', methods=['GET', 'POST'])
 @login_required
 def custom_report():
-    """گزارش‌ساز سفارشی"""
-    results = None
-    
-    if request.method == 'POST':
-        table_name = request.form.get('table', '')
-        requested_columns = request.form.getlist('columns')
-        try:
-            limit = max(1, min(int(request.form.get('limit', 50)), 500))
-        except (TypeError, ValueError):
-            limit = 50
-
-        try:
-            table = db.metadata.tables.get(table_name)
-            if table is None:
-                raise ValueError('جدول انتخاب‌شده معتبر نیست')
-
-            allowed_columns = {column.name: column for column in table.columns}
-            selected_names = [name for name in requested_columns if name in allowed_columns]
-            if not selected_names:
-                selected_names = list(allowed_columns.keys())
-            selected_columns = [allowed_columns[name] for name in selected_names]
-
-            statement = db.select(*selected_columns).limit(limit)
-            rows = [tuple(row) for row in db.session.execute(statement).all()]
-            results = {
-                'columns': selected_names,
-                'rows': rows,
-                'query': f'{table_name} — حداکثر {limit} رکورد'
-            }
-        except Exception as e:
-            flash(f'خطا در گزارش‌ساز: {str(e)}', 'error')
-    
-    # لیست جداول
-    tables = list(db.metadata.tables.keys())
-    
-    return render_template('reports/custom_builder.html', tables=tables, results=results)
+    """مسیر قدیمی گزارش‌ساز؛ انتقال به نسخه امن و یکپارچه جدید."""
+    return redirect(url_for('reports.builder'))

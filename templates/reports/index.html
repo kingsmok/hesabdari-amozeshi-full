@@ -1,21 +1,134 @@
 {% extends "base/layout.html" %}
-{% block title %}مرکز گزارش‌ها{% endblock %}
-{% block breadcrumb %}
-<li><a href="{{ url_for('reports.index') }}">گزارش‌ها</a></li>
-<li class="active">مرکز گزارش</li>
-{% endblock %}
+{% block title %}مرکز جامع گزارش‌ها{% endblock %}
+{% set can_export = license_state and license_state.has_feature('export_data') and (current_user.is_admin or current_user.has_permission('reports', 'export')) %}
+{% block breadcrumb %}<li class="active">مرکز گزارش‌ها</li>{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">{% endblock %}
+
+{% macro metric_value(item) -%}
+    {% if item.type == 'money' %}{{ item.value|currency }} <small>تومان</small>
+    {% elif item.type == 'percent' %}{{ '%.1f'|format(item.value|float) }}٪
+    {% elif item.type == 'number' %}{{ item.value|currency }}
+    {% else %}{{ item.value }}{% endif %}
+{%- endmacro %}
 
 {% block content %}
-<div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-file-earmark-bar-graph me-2 text-primary"></i>مرکز گزارش‌ها<small>دسترسی به تمام گزارش‌های سیستم</small></h1></div>
-    <div class="row g-3">
-        <div class="col-md-3"><a href="{{ url_for('reports.student_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-people" style="font-size: 32px; color: #3498db;"></i><div class="stat-label mt-2">گزارش هنرجویان</div></div></a></div>
-        <div class="col-md-3"><a href="{{ url_for('reports.financial_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-cash-stack" style="font-size: 32px; color: #27ae60;"></i><div class="stat-label mt-2">گزارش مالی</div></div></a></div>
-        <div class="col-md-3"><a href="{{ url_for('reports.enrollment_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-graph-up" style="font-size: 32px; color: #e67e22;"></i><div class="stat-label mt-2">گزارش ثبت‌نام</div></div></a></div>
-        <div class="col-md-3"><a href="{{ url_for('reports.attendance_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-clipboard-data" style="font-size: 32px; color: #9b59b6;"></i><div class="stat-label mt-2">گزارش حضور</div></div></a></div>
-        <div class="col-md-3"><a href="{{ url_for('reports.teacher_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-person-lines-fill" style="font-size: 32px; color: #1abc9c;"></i><div class="stat-label mt-2">گزارش مدرسین</div></div></a></div>
-        <div class="col-md-3"><a href="{{ url_for('reports.installment_report') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-calendar-check" style="font-size: 32px; color: #e74c3c;"></i><div class="stat-label mt-2">گزارش اقساط</div></div></a></div>
-        <div class="col-md-3"><a href="{{ url_for('reports.profit_loss') }}" class="text-decoration-none"><div class="stat-card text-center"><i class="bi bi-graph-up-arrow" style="font-size: 32px; color: #2ecc71;"></i><div class="stat-label mt-2">سود و زیان</div></div></a></div>
-    </div>
+<div class="report-shell animate-in" data-report-home>
+    <section class="report-hero">
+        <div class="report-hero-content">
+            <div>
+                <h1><i class="bi bi-file-earmark-bar-graph-fill"></i> مرکز جامع گزارش‌ها</h1>
+                <p>{{ catalog|length }} گزارش حسابداری، مالی، آموزشی و مدیریتی در یک محیط یکپارچه</p>
+            </div>
+            <div class="report-hero-actions no-print">
+                <a class="btn-glass" href="{{ url_for('reports.builder') }}"><i class="bi bi-wrench-adjustable"></i> گزارش‌ساز</a>
+                <a class="btn-glass" href="{{ url_for('reports.schedules') }}"><i class="bi bi-clock-history"></i> زمان‌بندی‌ها</a>
+                {% if license_state and license_state.has_feature('finance') and license_state.has_feature('accounting') and (current_user.is_admin or (current_user.has_permission('finance','view') and current_user.has_permission('accounting','view'))) %}<a class="btn-glass" href="{{ url_for('reports.budgets') }}"><i class="bi bi-bullseye"></i> بودجه</a>{% endif %}
+                {% if license_state and license_state.has_feature('finance') and (current_user.is_admin or current_user.has_permission('finance','view')) %}<a class="btn-glass" href="{{ url_for('reports.reconciliations') }}"><i class="bi bi-check2-square"></i> مغایرت‌گیری</a>{% endif %}
+            </div>
+        </div>
+    </section>
+
+    {% if dashboard.kpis %}<div class="report-summary-grid eight">
+        {% for item in dashboard.kpis %}
+        <article class="report-kpi">
+            <div class="report-kpi-icon {{ item.color }}"><i class="bi bi-{{ item.icon }}"></i></div>
+            <div><div class="report-kpi-label">{{ item.label }}</div><div class="report-kpi-value">{{ metric_value(item) }}</div></div>
+        </article>
+        {% endfor %}
+    </div>{% endif %}
+
+    <nav class="report-tabs no-print" role="tablist" aria-label="بخش‌های مرکز گزارش">
+        <button class="active" type="button" data-report-tab="catalog"><i class="bi bi-grid-3x3-gap me-1"></i> همه گزارش‌ها</button>
+        <button type="button" data-report-tab="overview"><i class="bi bi-speedometer2 me-1"></i> نمای مدیریتی</button>
+        <button type="button" data-report-tab="favorites"><i class="bi bi-star me-1"></i> علاقه‌مندی‌ها <span class="badge text-bg-warning ms-1">{{ favorite_keys|length }}</span></button>
+        <button type="button" data-report-tab="recent"><i class="bi bi-clock-history me-1"></i> گزارش‌های اخیر</button>
+        <button type="button" data-report-tab="saved"><i class="bi bi-bookmark me-1"></i> نماهای ذخیره‌شده</button>
+        <button type="button" data-report-tab="automation"><i class="bi bi-clock-history me-1"></i> خودکارسازی</button>
+        <button type="button" data-report-tab="history"><i class="bi bi-archive me-1"></i> تاریخچه</button>
+    </nav>
+
+    <section class="report-tab-pane active" data-report-pane="catalog">
+        <div class="report-catalog-tools no-print">
+            <div class="report-catalog-search"><i class="bi bi-search"></i><input id="reportCatalogSearch" type="search" autocomplete="off" maxlength="200" aria-label="جستجو در کاتالوگ گزارش‌ها" placeholder="جستجو بین نام و توضیحات گزارش‌ها..."></div>
+            <select id="reportCategoryFilter" class="form-select" style="width:190px" aria-label="فیلتر دسته‌بندی گزارش‌ها">
+                <option value="">همه دسته‌ها</option>
+                {% for key, label in categories.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+            </select>
+            <span class="text-muted small" id="reportCatalogCount" role="status" aria-live="polite">{{ catalog|length }} گزارش</span>
+        </div>
+
+        <div id="reportCatalog">
+            {% for category_key, category_label, reports in grouped_catalog %}
+            {% if reports %}
+            <section class="report-category" data-category="{{ category_key }}">
+                <h2 class="report-category-title"><i class="bi bi-folder2-open"></i> {{ category_label }} <span>{{ reports|length }}</span></h2>
+                <div class="report-card-grid">
+                    {% for report in reports %}
+                    <article class="report-card" data-report-card data-key="{{ report.key }}" data-search="{{ report.title }} {{ report.description }} {{ category_label }}" style="--card-color:{{ report.color }}">
+                        <button class="report-favorite {{ 'active' if report.key in favorite_keys }}" type="button" data-favorite="{{ report.key }}" aria-pressed="{{ 'true' if report.key in favorite_keys else 'false' }}" aria-label="{{ 'حذف از' if report.key in favorite_keys else 'افزودن به' }} علاقه‌مندی"><i class="bi bi-star{{ '-fill' if report.key in favorite_keys }}"></i></button>
+                        <a class="report-card-main" href="{{ url_for('reports.view', report_key=report.key) }}">
+                            <span class="report-card-icon"><i class="bi bi-{{ report.icon }}"></i></span>
+                            <span><span class="report-card-title">{{ report.title }}</span><span class="report-card-description">{{ report.description }}</span></span>
+                        </a>
+                    </article>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+            {% endfor %}
+            <div class="report-empty d-none" id="reportCatalogEmpty"><i class="bi bi-search"></i><strong>گزارشی پیدا نشد</strong><span>عبارت یا دسته‌بندی دیگری را امتحان کنید.</span></div>
+        </div>
+    </section>
+
+    <section class="report-tab-pane" data-report-pane="overview">
+        <div class="row g-3">
+            {% if dashboard.chart %}<div class="col-lg-8"><div class="report-panel h-100"><div class="report-panel-head"><h2><i class="bi bi-graph-up"></i> جریان درآمد و هزینه</h2>{% if license_state and license_state.has_feature('accounting') and (current_user.is_admin or current_user.has_permission('accounting','view')) %}<a href="{{ url_for('reports.view', report_key='cash-flow') }}" class="btn btn-sm btn-outline-primary">جزئیات</a>{% endif %}</div><div class="report-panel-body"><div class="report-chart-container"><canvas id="executiveChart" role="img" aria-label="نمودار جریان درآمد و هزینه"></canvas></div></div></div></div>{% endif %}
+            <div class="{{ 'col-lg-4' if dashboard.chart else 'col-12' }}"><div class="report-panel h-100"><div class="report-panel-head"><h2><i class="bi bi-bell"></i> کنترل‌های فوری</h2></div><div class="report-panel-body flush">{% if dashboard.rows %}<table class="report-mini-list"><tbody>
+                {% for row in dashboard.rows %}<tr><td><strong>{{ row.indicator }}</strong><br><small class="text-muted">{{ row.area }}</small></td><td class="text-end">{% if row.unit == 'تومان' %}{{ row.value|currency }}{% else %}{{ row.value }}{% endif %}<br><span class="report-history-badge">{{ row.status }}</span></td></tr>{% endfor %}
+            </tbody></table>{% else %}<div class="report-empty"><i class="bi bi-shield-lock"></i><strong>شاخصی در دسترس نیست</strong><span>{{ dashboard.warnings|last }}</span></div>{% endif %}</div></div></div>
+        </div>
+    </section>
+
+    <section class="report-tab-pane" data-report-pane="favorites">
+        <div class="report-panel"><div class="report-panel-head"><h2><i class="bi bi-star-fill text-warning"></i> گزارش‌های پرکاربرد من</h2></div><div class="report-panel-body">
+            <div class="report-card-grid" id="favoriteReports">
+            {% for key,report in catalog.items() if key in favorite_keys %}
+                <article class="report-card" style="--card-color:{{ report.color }}"><button class="report-favorite active" type="button" data-favorite="{{ key }}" aria-pressed="true" aria-label="حذف از علاقه‌مندی"><i class="bi bi-star-fill"></i></button><a class="report-card-main" href="{{ url_for('reports.view', report_key=key) }}"><span class="report-card-icon"><i class="bi bi-{{ report.icon }}"></i></span><span><span class="report-card-title">{{ report.title }}</span><span class="report-card-description">{{ report.description }}</span></span></a></article>
+            {% endfor %}
+            </div>
+            {% if not favorite_keys %}<div class="report-empty"><i class="bi bi-star"></i><strong>هنوز گزارشی نشان نشده است</strong><span>روی ستاره هر گزارش بزنید تا اینجا قرار بگیرد.</span></div>{% endif %}
+        </div></div>
+    </section>
+
+    <section class="report-tab-pane" data-report-pane="recent">
+        <div class="report-panel"><div class="report-panel-head"><h2><i class="bi bi-clock-history"></i> گزارش‌های اخیراً دیده‌شده</h2></div><div class="report-panel-body"><div class="report-card-grid" id="recentReports"></div><div class="report-empty" id="recentReportsEmpty"><i class="bi bi-clock"></i><strong>هنوز گزارشی باز نکرده‌اید</strong><span>پس از مشاهده گزارش‌ها، میانبر آن‌ها اینجا نمایش داده می‌شود.</span></div></div></div>
+    </section>
+
+    <section class="report-tab-pane" data-report-pane="saved">
+        <div class="report-panel"><div class="report-panel-head"><h2><i class="bi bi-bookmark-check"></i> نماها و فیلترهای ذخیره‌شده</h2></div><div class="report-panel-body flush">
+            {% if presets %}<table class="table report-mini-list"><thead><tr><th>نام نما</th><th>گزارش</th><th>آخرین تغییر</th><th></th></tr></thead><tbody>{% for preset in presets %}<tr><td><strong>{{ preset.name }}</strong></td><td>{{ catalog.get(preset.report_key, {}).get('title', preset.report_key) }}</td><td>{{ preset.updated_at|to_jalali_full }}</td><td><a href="{{ url_for('reports.apply_preset', preset_id=preset.id) }}" class="btn btn-sm btn-outline-primary">اجرا</a></td></tr>{% endfor %}</tbody></table>{% else %}<div class="report-empty"><i class="bi bi-bookmark"></i><strong>نمای ذخیره‌شده ندارید</strong><span>داخل هر گزارش، فیلتر و ستون‌های دلخواه را ذخیره کنید.</span></div>{% endif %}
+        </div></div>
+    </section>
+
+    <section class="report-tab-pane" data-report-pane="automation">
+        <div class="report-panel"><div class="report-panel-head"><h2><i class="bi bi-clock-history"></i> گزارش‌های زمان‌بندی‌شده</h2><a href="{{ url_for('reports.schedules') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus"></i> مدیریت</a></div><div class="report-panel-body flush">
+            {% if schedules %}<table class="table report-mini-list"><thead><tr><th>عنوان</th><th>گزارش</th><th>تناوب</th><th>تحویل</th><th>اجرای بعدی</th><th>وضعیت</th></tr></thead><tbody>{% for item in schedules %}<tr><td><strong>{{ item.name }}</strong></td><td>{{ catalog.get(item.report_key, {}).get('title', item.report_key) }}</td><td>{{ {'daily':'روزانه','weekly':'هفتگی','monthly':'ماهانه شمسی'}.get(item.frequency,item.frequency) }}</td><td>{{ {'internal':'داخلی','bale':'بله','telegram':'تلگرام','email':'ایمیل'}.get(item.delivery_method,item.delivery_method) }}</td><td>{{ item.next_run_at|to_jalali }} {{ item.next_run_at.strftime('%H:%M') }}</td><td><span class="report-status {{ 'success' if item.is_active else 'danger' }}">{{ 'فعال' if item.is_active else 'متوقف' }}</span></td></tr>{% endfor %}</tbody></table>{% else %}<div class="report-empty"><i class="bi bi-clock"></i><strong>زمان‌بندی ثبت نشده است</strong><span>گزارش‌ها را روزانه، هفتگی یا ماهانه تحویل بگیرید.</span></div>{% endif %}
+        </div></div>
+    </section>
+
+    <section class="report-tab-pane" data-report-pane="history">
+        <div class="row g-3">
+            <div class="col-lg-6"><div class="report-panel"><div class="report-panel-head"><h2><i class="bi bi-camera"></i> تصویرهای ذخیره‌شده</h2></div><div class="report-panel-body flush">{% if snapshots %}<table class="table report-mini-list"><tbody>{% for item in snapshots %}<tr><td><strong>{{ item.title }}</strong><br><small class="text-muted">{{ item.row_count }} ردیف</small>{% set snapshot_metrics = item.metrics_json|from_json %}{% if snapshot_metrics %}<details class="report-snapshot-details"><summary>مشاهده شاخص‌ها</summary><div>{% for metric in snapshot_metrics %}<span><b>{{ metric.label }}:</b> {{ metric_value(metric) }}</span>{% endfor %}</div></details>{% endif %}</td><td class="text-end">{{ item.created_at|to_jalali_full }}<br><a class="btn btn-sm btn-link" href="{{ url_for('reports.apply_snapshot', snapshot_id=item.id) }}">بازگشایی فیلترها</a></td></tr>{% endfor %}</tbody></table>{% else %}<div class="report-empty"><i class="bi bi-camera"></i><strong>تصویری ذخیره نشده</strong></div>{% endif %}</div></div></div>
+            <div class="col-lg-6"><div class="report-panel"><div class="report-panel-head"><h2><i class="bi bi-download"></i> خروجی‌های اخیر</h2></div><div class="report-panel-body flush">{% if exports %}<table class="table report-mini-list"><tbody>{% for item in exports %}<tr><td><strong>{{ catalog.get(item.report_key, {}).get('title', item.report_key) }}</strong><br><small class="text-muted">{{ item.export_format|upper }} · {{ item.row_count }} ردیف</small></td><td class="text-end"><span class="report-status {{ 'success' if item.status == 'completed' else 'danger' }}">{{ 'موفق' if item.status == 'completed' else 'ناموفق' }}</span>{% if can_export and item.file_name %}<a class="btn btn-sm btn-link" href="{{ url_for('reports.download_scheduled_export', export_id=item.id) }}" title="دانلود فایل بایگانی‌شده"><i class="bi bi-download"></i></a>{% endif %}</td></tr>{% endfor %}</tbody></table>{% else %}<div class="report-empty"><i class="bi bi-download"></i><strong>خروجی ثبت نشده</strong></div>{% endif %}</div></div></div>
+        </div>
+    </section>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+<script>
+window.reportPageConfig = {home: true, csrf: {{ csrf_token()|tojson }}, chart: {{ dashboard.chart|tojson }}};
+document.addEventListener('DOMContentLoaded', function(){ if (window.ReportCentre) ReportCentre.initHome(window.reportPageConfig); });
+</script>
 {% endblock %}

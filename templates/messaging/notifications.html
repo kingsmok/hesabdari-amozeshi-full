@@ -14,12 +14,13 @@
             {% for n in notifications %}
             <div class="d-flex align-items-start py-3 {% if not loop.last %}border-bottom{% endif %}">
                 <div style="width: 40px; height: 40px; border-radius: 10px; background: {% if not n.is_read %}#eaf2f8{% else %}#f8f9fa{% endif %}; display: flex; align-items: center; justify-content: center; margin-left: 12px;">
-                    <i class="bi bi-{% if n.notif_type == 'payment' %}cash{% elif n.notif_type == 'registration' %}pencil-square{% elif n.notif_type == 'attendance' %}clipboard-check{% else %}bell{% endif %}" style="color: #3498db;"></i>
+                    <i class="bi bi-{% if n.notif_type == 'payment' %}cash{% elif n.notif_type == 'registration' %}pencil-square{% elif n.notif_type == 'attendance' %}clipboard-check{% elif n.notif_type == 'report' %}file-earmark-arrow-down{% else %}bell{% endif %}" style="color: #3498db;"></i>
                 </div>
                 <div>
                     <div style="font-weight: {{ '700' if not n.is_read else '400' }};">{{ n.title }}</div>
                     <div style="font-size: 12px; color: #888;">{{ n.body or '' }}</div>
                     <div style="font-size: 10px; color: #aaa; margin-top: 4px;">{{ n.created_at|to_jalali }}</div>
+                    {% if n.reference_type == 'report_export' and n.reference_id in downloadable_report_exports and license_state and license_state.has_feature('reports') and license_state.has_feature('export_data') and (current_user.is_admin or (current_user.has_permission('reports', 'view') and current_user.has_permission('reports', 'export'))) %}<a class="btn btn-sm btn-outline-primary mt-2" href="{{ url_for('reports.download_scheduled_export', export_id=n.reference_id) }}"><i class="bi bi-download me-1"></i> دریافت فایل گزارش</a>{% endif %}
                 </div>
             </div>
             {% endfor %}

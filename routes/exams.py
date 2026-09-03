@@ -1,9 +1,10 @@
 """Exams routes"""
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
+from utils.access_control import require_permission
 from utils.jalali import current_jalali_year
 from models.exam import Exam, QuestionBank, ExamResult, Grade
 from models.course import Course
@@ -83,9 +84,20 @@ def add():
 
 @exams_bp.route('/<int:id>')
 @login_required
+@require_permission('exams', 'view')
 def view(id):
     exam = Exam.query.get_or_404(id)
-    results = ExamResult.query.filter_by(exam_id=id).all()
+    if not current_user.is_admin and current_user.branch_id:
+        exam_branch = (exam.class_group.branch_id if exam.class_group else
+                       (exam.course.branch_id if exam.course else None))
+        if exam_branch not in (None, current_user.branch_id):
+            abort(404)
+    results_query = ExamResult.query.filter_by(exam_id=id)
+    if not current_user.is_admin and current_user.branch_id:
+        results_query = results_query.join(Student).filter(
+            Student.branch_id == current_user.branch_id
+        )
+    results = results_query.all()
     return render_template('exams/view.html', exam=exam, results=results)
 
 

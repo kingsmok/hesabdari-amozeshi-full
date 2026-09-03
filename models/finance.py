@@ -124,12 +124,14 @@ class BankAccount(db.Model):
     account_number = db.Column(db.String(30))
     card_number = db.Column(db.String(20))
     sheba = db.Column(db.String(30))
-    branch_name = db.Column(db.String(100))
+    branch_name = db.Column(db.String(100))  # نام شعبه بانک
+    branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))  # شعبه سازمانی
     balance = db.Column(db.Float, default=0)
     is_active = db.Column(db.Boolean, default=True)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    branch = db.relationship('Branch', backref='bank_accounts')
     transactions = db.relationship('BankTransaction', backref='bank_account', lazy='dynamic')
 
 

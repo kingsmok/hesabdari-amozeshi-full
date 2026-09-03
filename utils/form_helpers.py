@@ -1,6 +1,8 @@
 """
 کمک‌کننده فرم‌ها — تبدیل تاریخ شمسی و مقادیر عددی امن
 """
+import math
+
 from utils.jalali import parse_jalali_date
 
 
@@ -23,7 +25,8 @@ def safe_float(value, default=0.0):
     if value is None or value == '':
         return default
     try:
-        return float(value)
+        number = float(value)
+        return number if math.isfinite(number) else default
     except (ValueError, TypeError):
         return default
 
