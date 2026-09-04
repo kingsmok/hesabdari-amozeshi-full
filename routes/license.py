@@ -175,17 +175,19 @@ def upload_package():
     if not file_storage or not file_storage.filename:
         flash('فایل بسته به‌روزرسانی را انتخاب کنید.', 'error')
         return redirect(url_for('license.update_center'))
-    if not file_storage.filename.lower().endswith('.zip'):
-        flash('فقط فایل ZIP پذیرفته می‌شود.', 'error')
-        return redirect(url_for('license.update_center'))
-
     import os
     import tempfile
 
+    from utils.uploads import UnsafeUpload, store_upload
+
     folder = tempfile.mkdtemp(prefix='upload_pkg_')
-    staged = os.path.join(folder, 'package.zip')
     try:
-        file_storage.save(staged)
+        try:
+            # پسوند/حجم/امضا و نام تصادفی (به‌جای `package.zip` ثابت)
+            staged = os.path.join(folder, store_upload(file_storage, folder, kind='package'))
+        except UnsafeUpload as exc:
+            flash(str(exc), 'error')
+            return redirect(url_for('license.update_center'))
         from license_updater import apply_local_package, inspect_local_package
         report = inspect_local_package(staged)
         expected = (request.form.get('sha256') or '').strip()

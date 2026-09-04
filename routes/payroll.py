@@ -907,7 +907,7 @@ def advanced_expenses():
                            date_to=request.args.get('date_to', ''))
 
 
-ALLOWED_EXPENSE_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp'}
+# پسوند/حجم مجاز فاکتور هزینه در `utils/uploads.py` (kind='expense') تعریف است
 
 
 @payroll_bp.route('/expenses/advanced/add', methods=['GET', 'POST'])
@@ -916,7 +916,6 @@ ALLOWED_EXPENSE_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp'}
 def add_advanced_expense():
     """ثبت هزینه پیشرفته — با اعتبارسنجی مبلغ و محدودیت پسوند فایل."""
     import os
-    import uuid
 
     from models.finance import Expense, ExpenseCategory, get_or_create_main_cashbox
 
@@ -950,21 +949,19 @@ def add_advanced_expense():
             created_by=current_user.id,
         )
 
-        # آپلود فاکتور — فقط پسوندهای مجاز، با نام تصادفی
+        # آپلود فاکتور: پسوند/حجم/امضا و نام‌گذاری همه در utils/uploads.py
         attachment_path = None
         file = request.files.get('attachment')
         if file and file.filename:
-            ext = os.path.splitext(file.filename)[1].lower()
-            if ext not in ALLOWED_EXPENSE_EXTENSIONS:
-                flash(f'پسوند فایل مجاز نیست ({ext or "بدون پسوند"}); فقط PDF یا تصویر', 'danger')
+            from utils.uploads import UnsafeUpload, store_upload
+            try:
+                saved = store_upload(file, os.path.join('static', 'uploads', 'expenses'),
+                                     kind='expense', prefix='inv-')
+            except UnsafeUpload as exc:
+                flash(f'فاکتور پذیرفته نشد: {exc}', 'danger')
                 return render_template('payroll/add_expense.html', categories=categories,
                                        form=request.form, today=date.today()), 400
-            filename = f'{uuid.uuid4().hex}{ext}'
-            folder = os.path.join('static', 'uploads', 'expenses')
-            os.makedirs(folder, exist_ok=True)
-            filepath = os.path.join(folder, filename)
-            file.save(filepath)
-            attachment_path = filepath
+            attachment_path = os.path.join('static', 'uploads', 'expenses', saved)
         expense.attachment = attachment_path
 
         db.session.add(expense)

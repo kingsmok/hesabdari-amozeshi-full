@@ -377,14 +377,17 @@ def import_backup(file_storage) -> dict:
     ذخیره‌ی امن یک بسته‌ی پشتیبان آپلودشده در پوشه پشتیبان‌ها.
     فایل پیش از پذیرش اعتبارسنجی می‌شود.
     """
-    filename = os.path.basename(getattr(file_storage, 'filename', '') or '')
-    if not filename.lower().endswith('.zip'):
-        raise BackupError('فقط فایل ZIP پشتیبان پذیرفته می‌شود.')
+    from utils.uploads import UnsafeUpload, store_upload
 
     folder = backup_folder()
-    name = f'{BACKUP_PREFIX}imported_{_timestamp()}.zip'
+    try:
+        # پسوند/حجم/امضا و نام بی‌خطر — همان منطق مشترکِ همهٔ اَپلودها؛
+        # نام uuid می‌گیرد تا دو ورود در یک ثانیه همدیگر را پوشانده نشوند
+        name = store_upload(file_storage, folder, kind='backup',
+                            prefix=f'{BACKUP_PREFIX}imported_{_timestamp()}_')
+    except UnsafeUpload as exc:
+        raise BackupError(str(exc)) from exc
     target = os.path.join(folder, name)
-    file_storage.save(target)
 
     try:
         with zipfile.ZipFile(target) as archive:
