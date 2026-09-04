@@ -35,6 +35,13 @@ class TestRequiredHostFiles:
         """app.py این ماژول را در سطح بالا import می‌کند؛ بدون آن هاست ۵۰۰ می‌دهد."""
         assert "startup_checks.py" in deploy_host.REQUIRED_FILES
 
+    def test_bootstrap_package_is_packed(self):
+        """پکیج bootstrap (جداسازی مسئولیت‌های create_app) باید روی هاست برود."""
+        assert "bootstrap" in deploy_host.DIRS
+        assert os.path.isdir(os.path.join(ROOT, "bootstrap"))
+        assert os.path.isfile(os.path.join(ROOT, "bootstrap", "blueprints.py"))
+        assert os.path.isfile(os.path.join(ROOT, "bootstrap", "schema.py"))
+
     def test_desktop_only_files_are_not_packed(self):
         packed = set(deploy_host.REQUIRED_FILES)
         for name in ("app_desktop.py", "start_desktop.bat", "run.bat"):
@@ -70,7 +77,7 @@ class TestRequiredHostFiles:
                     local.append(alias.name.split(".")[0])
         third_party = {
             "os", "sys", "flask", "json", "secrets", "datetime",
-            "threading", "apscheduler", "jdatetime", "time",
+            "threading", "apscheduler", "jdatetime", "time", "weakref",
         }
         missing = []
         for name in local:
