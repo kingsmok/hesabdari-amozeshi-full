@@ -419,12 +419,22 @@ class TestAccessPolicy:
                      '/license/activate', '/network-info'):
             assert resolve_policy(path, 'GET')[0] == 'admin', path
 
-    def test_module_mapping_for_write_paths(self):
+    def test_module_mapping_for_read_paths(self):
+        """خواندن‌ها فقط لایه ماژول را می‌بینند (رفتار عمدی)"""
         from utils.access_policy import resolve_policy
-        assert resolve_policy('/students/add', 'POST') == ('module', 'students')
-        assert resolve_policy('/payroll/calculate', 'POST') == ('module', 'payroll')
-        assert resolve_policy('/finance/payments/add', 'POST') == ('module', 'finance')
-        assert resolve_policy('/reports/custom-builder', 'POST')[0] == 'admin'
+        assert resolve_policy('/students/', 'GET') == ('module', 'students')
+        assert resolve_policy('/payroll/payslips', 'GET') == ('module', 'payroll')
+        assert resolve_policy('/finance/payments', 'GET') == ('module', 'finance')
+        assert resolve_policy('/reports/custom-builder', 'GET')[0] == 'admin'
+
+    def test_write_paths_are_mapped_to_actions(self):
+        """نوشتن‌ها از وقتی ردیف اکشن‌ها تکمیل شده، به لایه دوم هم می‌رسند."""
+        from utils.access_policy import resolve_policy
+        assert resolve_policy('/students/add', 'POST') == ('action:create', 'students')
+        assert resolve_policy('/payroll/calculate', 'POST') == ('action:edit', 'payroll')
+        assert resolve_policy('/finance/payments/1/cancel', 'POST')[0] == 'delete' \
+            or resolve_policy('/finance/payments/1/cancel', 'POST') == ('action:edit', 'finance')
+        assert resolve_policy('/students/delete/7', 'POST') == ('delete', 'students')
 
     def test_exempt_paths_are_not_blocked(self):
         from utils.access_policy import resolve_policy

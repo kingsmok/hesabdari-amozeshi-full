@@ -481,6 +481,14 @@ def create_app():
                     'payroll schema patched: %s column(s) added, %s duplicate payslip(s) cancelled',
                     payroll_patch['added'], payroll_patch['cancelled_duplicates'])
             create_default_data()
+            # تکمیل ردیف‌های «نقش × ماژول × اکشن» — تا الزام سطح اکشن در نگهبان،
+            # کاربران مجازِ نصب‌های قدیمی را قفل نکند (این کار فقط اضافه می‌کند).
+            from utils.access_policy import action_guard_enabled, backfill_role_actions
+            if action_guard_enabled():
+                added_actions = backfill_role_actions()
+                if added_actions:
+                    app.logger.info('access policy: %d role-action permission row(s) added',
+                                    added_actions)
             # اعمال تنظیمات نصب‌کننده (config.ini): ساخت حساب مدیر و آدرس هاست.
             from utils.installer_config import apply_installer_config
             installer_note = apply_installer_config()

@@ -12,11 +12,11 @@
     • مسیرهای ماژول‌دار → دسترسی به همان ماژول الزامی است
     • مسیرهای حذف/بازیابی → صریحاً «delete» (بقیه عملیات با دسترسی ماژول مجازند)
 
-طرح دو لایه (عمدی):
-    سطح «action» (create/edit/delete) تنها برای عملیات تخریبی اجباری می‌شود، زیرا جدول
-    permissions در نصب‌های موجود این ریزدانه‌سازی را برای همه نقش‌ها ندارد و الزام آن،
-    کاربران مجاز را قفل می‌کرد. با افزودن ردیف‌های اکشن کامل برای نقش‌ها (بخش «کاری که
-    باقی مانده») می‌توان `ENFORCE_ACTION_FOR_WRITES` را True کرد.
+طرح دو لایه:
+    سطح «action» (create/edit/delete) برای همه نوشتن‌ها اجباری است، اما `backfill_role_actions()`
+    در اولین درخواست، ردیف‌های اکشن هر «نقش × ماژول» را کامل می‌کند (فقط اضافه، هرگز حذف
+    نه) ⇒ نصب‌های موجود دقیقاً همان دسترسی دیروز را دارند و از این پس برداشتن یک اکشن در
+    «ویرایش دسترسی نقش» واقعی است. کلید پشتیبانی میدانی: `ACADEMY_DISABLE_ACTION_GUARD=1`.
 
 نکته ایمنی: نگهبان فقط روی کاربر «واردشده» اعمال می‌شود تا مسیرهای بدون نشست
 (تقویم دستگاه حضور و غیاب، webhook ربات، ویزارد setup) نشکنند؛ آن‌ها مکانیزم احراز
@@ -24,13 +24,28 @@
 """
 from __future__ import annotations
 
+import os
 import re
 
 from flask import flash, jsonify, redirect, request, url_for
 from flask_login import current_user
 
-# اگر True شود، برای همه نوشتن‌ها اکشن متناظر (create/edit/delete) هم بررسی می‌شود.
-ENFORCE_ACTION_FOR_WRITES = False
+#: الزام سطح «اکشن» برای نوشتن‌ها (create/edit/delete) — روشن است، چون
+#: `backfill_role_actions()` در بوت، ردیف‌های اکشنِ نقش‌های نصب‌های قدیمی را
+#: کامل می‌کند و لذا رفتار عوض نمی‌شود؛ فقط از این پس برداشتن یک اکشن در
+#: «ویرایش دسترسی نقش» واقعاً اعمال می‌شود.
+#: در صورت نیاز به عیب‌یابی میدانی: `ACADEMY_DISABLE_ACTION_GUARD=1`
+ENFORCE_ACTION_FOR_WRITES = True
+
+#: اکشن‌هایی که برای هر «نقش × ماژول» ساخته/تکمیل می‌شوند
+BACKFILL_ACTIONS = ('view', 'create', 'edit', 'delete')
+
+
+def action_guard_enabled() -> bool:
+    """آیا الزام سطح اکشن فعال است؟ (متغیر محیطی = کلید پشتیبانی)"""
+    if os.environ.get('ACADEMY_DISABLE_ACTION_GUARD') == '1':
+        return False
+    return ENFORCE_ACTION_FOR_WRITES
 
 #: پیشوند مسیر → ماژول دسترسی (نام‌ها همان `permissions.module` است)
 MODULE_BY_PREFIX = {
@@ -146,7 +161,7 @@ def resolve_policy(path: str, method: str) -> tuple[str, str] | None:
     if method.upper() in _WRITE_METHODS:
         if _DESTRUCTIVE.search(clean):
             return ('delete', module)
-        if ENFORCE_ACTION_FOR_WRITES:
+        if action_guard_enabled():
             return (f'action:{required_write_action(clean)}', module)
     return ('module', module)
 
@@ -195,6 +210,49 @@ def check_access() -> tuple[bool, str]:
     if current_user.has_module_access(module):
         return True, ''
     return False, 'شما دسترسی به این بخش را ندارید'
+
+
+def backfill_role_actions(commit: bool = True) -> int:
+    """تکمیل ردیف‌های اکشن (view/create/edit/delete) برای هر «نقش × ماژول».
+
+    چرا؟ تا پیش از این، اکثر نقش‌ها فقط یک ردیف `view` (یا `create`) داشتند؛
+    اگر الزام سطح اکشن بدون این تکمیل روشن می‌شد، همان کاربرانی که امروز
+    مجازند قفل می‌شدند. این تابع **فقط اضافه می‌کند** و هیچ ردیفی را حذف
+    نمی‌کند، پس رفتار عیناً همان چیزی می‌ماند که هست — با این تفاوت که از این
+    پس می‌توان در «ویرایش دسترسی نقش» هر اکشن را جدا برداشت و همان لحظه اعمال
+    می‌شود. نقش‌های ادمین رد می‌شوند (در نگهبان دور می‌زنند).
+    """
+    from extensions import db
+    from models.user import Permission, Role, RolePermission
+
+    admin_roles = {row.id for row in Role.query.filter_by(is_admin=True).all()}
+    pairs = db.session.query(RolePermission, Permission).join(
+        Permission, RolePermission.permission_id == Permission.id).all()
+    existing = {(rp.role_id, perm.module, perm.action) for rp, perm in pairs}
+    modules_by_role: dict[int, set] = {}
+    for role_id, module, _action in existing:
+        if role_id in admin_roles:
+            continue
+        modules_by_role.setdefault(role_id, set()).add(module)
+
+    added = 0
+    for role_id in sorted(modules_by_role):
+        for module in sorted(modules_by_role[role_id]):
+            for action in BACKFILL_ACTIONS:
+                if (role_id, module, action) in existing:
+                    continue
+                perm = Permission.query.filter_by(module=module, action=action).first()
+                if perm is None:
+                    perm = Permission(module=module, action=action,
+                                      description=f'{action} {module}')
+                    db.session.add(perm)
+                    db.session.flush()
+                db.session.add(RolePermission(role_id=role_id, permission_id=perm.id))
+                existing.add((role_id, module, action))
+                added += 1
+    if commit:
+        db.session.commit()
+    return added
 
 
 def audit_access_policy(app) -> list[str]:
