@@ -10,7 +10,6 @@ from models.exam import Exam, QuestionBank, ExamResult, Grade
 from models.course import Course
 from models.classes import ClassGroup
 from models.student import Student
-from models.user import ActivityLog
 from datetime import datetime
 
 exams_bp = Blueprint('exams', __name__)

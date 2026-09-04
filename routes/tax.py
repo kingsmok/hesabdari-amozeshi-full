@@ -21,15 +21,10 @@ tax_bp = Blueprint('tax', __name__)
 
 
 def _log_tax(action, description, entity_type=None, entity_id=None):
-    """ثبت رویدادهای مالیاتی در تاریخچه فعالیت."""
-    try:
-        from models.user import ActivityLog
-        db.session.add(ActivityLog(
-            user_id=current_user.id, action=action, module='tax',
-            entity_type=entity_type, entity_id=entity_id, description=description,
-            ip_address=request.remote_addr))
-    except Exception:
-        pass
+    """ثبت رویدادهای مالیاتی — نقطهٔ مشترک در utils/activity_log (DRY)."""
+    from utils.activity_log import log_activity
+    log_activity(action, description, module='tax',
+                 entity_type=entity_type, entity_id=entity_id)
 
 
 # ═══════════════════════════════════════════

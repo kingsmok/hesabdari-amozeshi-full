@@ -11,7 +11,6 @@ from models.finance import (
 )
 from models.registration import Registration, Installment
 from models.student import Student
-from models.user import ActivityLog
 from utils.document_numbers import next_document_number
 from utils.payments import (apply_payment_to_targets, build_receipt_no, cash_portion,
                             settle_cashbox)
@@ -19,16 +18,10 @@ from datetime import datetime
 
 
 def _log_payment_action(action, payment, description):
-    """ردپای تغییرات مالی دستی (لاگ نباید عملیات را بشکند؛ commit با فراخوان)."""
-    try:
-        db.session.add(ActivityLog(
-            user_id=current_user.id if current_user.is_authenticated else None,
-            action=action, module='finance',
-            entity_type='payment', entity_id=payment.id if payment else None,
-            description=description, ip_address=request.remote_addr,
-        ))
-    except Exception:
-        pass
+    """ردپای تغییرات مالی — نقطهٔ مشترک در utils/activity_log (DRY)."""
+    from utils.activity_log import log_activity
+    log_activity(action, description, module='finance', entity_type='payment',
+                 entity_id=payment.id if payment else None)
 
 finance_bp = Blueprint('finance', __name__)
 
@@ -95,9 +88,9 @@ def add_payment():
         # ستون‌های cash_amount/card_amount/check_amount در مدل بود ولی هیچ‌وقت
         # پر نمی‌شد؛ نتیجه: سهم نقدی به صندوق اضافه نمی‌شد، رسید بدون ریز بود
         # و ابطال/مرجوعی نمی‌دانست چقدر نقد بیرون بیاید.
-        method = request.form.get('payment_method', 'cash')
-        if method not in ('cash', 'card', 'online', 'check', 'combined'):
-            method = 'cash'
+        # اعتبارسنجی مرکزی روش پرداخت (utils/validators)
+        from utils.validators import normalize_payment_method
+        method = normalize_payment_method(request.form.get('payment_method'), 'cash')
         cash_part = card_part = check_part = 0.0
         if method == 'combined':
             cash_part = safe_float(request.form.get('cash_amount'))
@@ -323,10 +316,9 @@ def cashbox_transaction(id):
             return redirect(url_for('finance.cashbox'))
         cashbox.balance = (cashbox.balance or 0) - amount
     
-    # نوع مرجع فقط از مقادیر شناخته‌شده پذیرفته می‌شود (ورودی آزاد حذف شد)
-    reference_type = request.form.get('reference_type', 'manual')
-    if reference_type not in ('manual', 'payment', 'expense', 'salary', 'transfer'):
-        reference_type = 'manual'
+    # نوع مرجع فقط از مقادیر شناخته‌شده — اعتبارسنجی مرکزی (DRY)
+    from utils.validators import normalize_ref_type
+    reference_type = normalize_ref_type(request.form.get('reference_type'), 'manual')
 
     tx = CashboxTransaction(
         cashbox_id=id,

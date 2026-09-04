@@ -9,7 +9,6 @@ from models.course import Certificate, CertificateTemplate
 from models.student import Student
 from models.registration import Registration
 from models.system import Complaint, Survey, SurveyResponse, Ticket, TicketResponse, SystemGoal
-from models.user import ActivityLog
 from datetime import datetime
 import uuid
 

@@ -12,7 +12,7 @@ from models.student import Student
 from models.course import Course
 from models.classes import ClassGroup
 from models.finance import Payment, DiscountCode
-from models.user import ActivityLog
+# لاگ فعالیت از نقطهٔ مشترک utils/activity_log استفاده می‌شود
 from datetime import datetime, timedelta
 
 registration_bp = Blueprint('registration', __name__)
@@ -139,11 +139,9 @@ def add():
             # `PAY-<زمان>-<uuid>` بود که هم با بقیه سیستم فرق داشت و هم با ۲۶
             # کاراکتر از طول ستون (String(20)) بیرون می‌زد
             receipt_num = build_receipt_no()
-            # روش پرداخت فقط از مقادیر شناخته‌شده؛ مقدار دلخواه کاربر باعث می‌شد
-            # settle_cashbox سهم نقدی را صفر ببیند و پول به صندوق نرود
-            payment_method = request.form.get('payment_method', 'cash')
-            if payment_method not in ('cash', 'card', 'online', 'check', 'combined'):
-                payment_method = 'cash'
+            # روش پرداخت فقط از مقادیر شناخته‌شده — اعتبارسنجی مرکزی (DRY)
+            from utils.validators import normalize_payment_method
+            payment_method = normalize_payment_method(request.form.get('payment_method'), 'cash')
             payment = Payment(
                 receipt_no=receipt_num,
                 student_id=reg.student_id,
@@ -176,13 +174,11 @@ def add():
                 class_id=class_group.id, status='active'
             ).count()
         
-        log = ActivityLog(
-            user_id=current_user.id, action='create', module='registration',
-            entity_type='registration',
-            description=f'ثبت‌نام: {reg.reg_code}',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
+        # نقطهٔ مشترک لاگ (DRY)
+        from utils.activity_log import log_activity
+        log_activity('create', f'ثبت‌نام: {reg.reg_code}',
+                     module='registration', entity_type='registration',
+                     entity_id=reg.id)
         db.session.commit()
         
         flash(f'ثبت‌نام {reg.reg_code} با موفقیت انجام شد', 'success')

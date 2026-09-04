@@ -3,14 +3,6 @@
 نسخه ۱.۰
 """
 import os
-import sys
-
-# بررسی سازگاری نسخه‌ها — باید پیش از هر import دیگری انجام شود
-# (نسخه‌های قدیمی SQLAlchemy با پایتون ۳.۱۳/۳.۱۴ همان اول import کرش می‌کنند)
-from startup_checks import ensure_compatible
-
-ensure_compatible()
-
 import time
 
 from flask import Flask, g, render_template, request, url_for
@@ -19,55 +11,13 @@ from utils.jalali import parse_jalali_date
 
 
 def create_app():
+    # کانفیگ مرکزی: بررسی سازگاری نسخه‌ها + بارگذاری تنظیمات + اعمال روی اپ
+    # (قبلاً این‌ها در دو نقطهٔ app.py و config.py جدا انجام می‌شد — SRP/DRY)
+    from utils.config_loader import build_config, apply_to_app
+    config, paths = build_config()
     app = Flask(__name__)
-    
-    # مسیر اصلی — سازگار با PyInstaller
-    if getattr(sys, 'frozen', False):
-        base_dir = os.path.dirname(sys.executable)
-    else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    # Configuration — بهینه‌سازی شده برای داده‌های بزرگ
-    from config import load_config, get_database_uri, get_engine_options
-    config = load_config()
-    
-    secret = os.environ.get('SECRET_KEY') or config.get('app', {}).get('secret_key')
-    if not secret:
-        import secrets
-        secret = secrets.token_hex(32)
-        try:
-            config.setdefault('app', {})['secret_key'] = secret
-            from config import save_config
-            save_config(config)
-        except Exception:
-            pass
-    app.config['SECRET_KEY'] = secret
-    app.config['SQLALCHEMY_DATABASE_URI'] = get_database_uri(config)
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = get_engine_options(config)
-    app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'static', 'uploads')
-    app.config['BACKUP_FOLDER'] = os.path.join(base_dir, 'backups')
-    app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
-    app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-    app.config['REMEMBER_COOKIE_HTTPONLY'] = True
-    app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
-    app.config['WTF_CSRF_TIME_LIMIT'] = 3600
-    # «مرا به خاطر بسپار» پیش‌فرض Flask-Login یک سال است؛ برای نرم‌افزاری که
-    # روی چند سیستم اشتراکی نصب می‌شود خطرناک. نشست فعال هم بیش از یک شیفت
-    # نباید زنده بماند.
-    from datetime import timedelta as _td
-    app.config['REMEMBER_COOKIE_DURATION'] = _td(days=14)
-    app.config['PERMANENT_SESSION_LIFETIME'] = _td(hours=12)
-    # کوکی‌های امن روی HTTPS (میزبانی/هاست)؛ با env روشن می‌شود تا نصب‌های
-    # HTTP داخلی (LAN/دسکتاپ) خراب نشوند.
-    app.config['SESSION_COOKIE_SECURE'] = os.environ.get('ACADEMY_COOKIE_SECURE') == '1'
-    app.config['BASE_DIR'] = base_dir
-    # کش استاتیک + نسخه‌دهی فایل (asset())؛ بدون این، بعد از هر آپدیت،
-    # مرورگر موبایل کاربر CSS/JS قدیمی را نگه می‌داشت
-    # ۱ روز: کش استاتیک؛ فایل‌های آپلودی (عکس هنرجو/پیوست) از همین مسیر سرو
-    # می‌شوند و ممکن است با نام جایگزین شوند، پس کش طولانی‌تر unsafe است.
-    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = _td(days=1)
+    apply_to_app(app, config, paths)
+    base_dir = paths['base_dir']
     
     # Initialize extensions
     db.init_app(app)
@@ -397,21 +347,9 @@ def create_app():
         except:
             return str(date) if date else ''
     
-    # تابع کمکی تبدیل تاریخ شمسی به میلادی در route ها
-    @app.errorhandler(403)
-    def forbidden(_e):
-        from flask import render_template
-        return render_template('errors/403.html'), 403
-
-    @app.errorhandler(404)
-    def not_found(_e):
-        from flask import render_template
-        return render_template('errors/404.html'), 404
-
-    @app.errorhandler(500)
-    def server_error(_e):
-        from flask import render_template
-        return render_template('errors/500.html'), 500
+    # ── مدیریت جامع خطاها: ثبت traceback + صفحهٔ کاربرپسند با کد پیگیری ──
+    from utils.error_handling import register_global_handlers
+    register_global_handlers(app)
 
     @app.template_global()
     def parse_jalali(date_str):
@@ -483,11 +421,21 @@ def create_app():
         if current_user.is_admin:
             return list(MENU_MAP.keys())
         
+        # بهینه‌سازی پرفورمنس: دسترسی‌های نقش با یک کوئری؛ قبل از این برای هر
+        # آیتم منو (~۱۵ مورد) یک کوئری `has_module_access` زده می‌شد.
+        from models.user import Permission, RolePermission
+        allowed_modules = {
+            row[0]
+            for row in db.session.query(Permission.module)
+            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .filter(RolePermission.role_id == current_user.role_id)
+            .distinct().all()
+        }
         allowed = []
         for menu_key, module in MENU_MAP.items():
             if module is None:
                 allowed.append(menu_key)
-            elif current_user.has_module_access(module):
+            elif module in allowed_modules:
                 allowed.append(menu_key)
         
         return allowed

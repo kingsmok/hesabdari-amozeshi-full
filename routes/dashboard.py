@@ -66,11 +66,19 @@ def admin_dashboard():
     stats['month_profit'] = month_income - month_expenses
     stats['cashbox_balance'] = cashbox.balance if cashbox else 0
     
-    recent_regs = Registration.query.order_by(Registration.created_at.desc()).limit(10).all()
+    # بهینه‌سازی N+1: هنرجو/دورهٔ ثبت‌نام‌ها یک‌جا load می‌شوند
+    from sqlalchemy.orm import joinedload
+    recent_regs = Registration.query.options(
+        joinedload(Registration.student), joinedload(Registration.course)
+    ).order_by(Registration.created_at.desc()).limit(10).all()
     recent_activities = ActivityLog.query.order_by(ActivityLog.created_at.desc()).limit(15).all()
     
     today_weekday = (today.weekday() + 2) % 7
-    today_classes = ClassGroup.query.filter(
+    # بهینه‌سازی N+1: مدرس کلاس‌ها یک‌جا load می‌شوند (قالب → cls.teacher.full_name)
+    from sqlalchemy.orm import joinedload
+    today_classes = ClassGroup.query.options(
+        joinedload(ClassGroup.teacher)
+    ).filter(
         ClassGroup.status == 'active',
         ClassGroup.days_of_week.contains(str(today_weekday))
     ).all()
@@ -139,7 +147,11 @@ def secretary_dashboard():
     active_students = Student.query.filter_by(status='active').count()
     active_classes = ClassGroup.query.filter_by(status='active').count()
     
-    recent_regs = Registration.query.order_by(Registration.created_at.desc()).limit(10).all()
+    # بهینه‌سازی N+1: هنرجو/دورهٔ ثبت‌نام‌ها یک‌جا load می‌شوند
+    from sqlalchemy.orm import joinedload
+    recent_regs = Registration.query.options(
+        joinedload(Registration.student), joinedload(Registration.course)
+    ).order_by(Registration.created_at.desc()).limit(10).all()
     
     return render_template('dashboard/secretary.html',
                          today_regs=today_regs, month_regs=month_regs,

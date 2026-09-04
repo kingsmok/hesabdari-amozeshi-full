@@ -11,7 +11,6 @@ from flask_login import current_user, login_required
 
 from extensions import db
 from license_client import license_required, licensed_section
-from models.user import ActivityLog
 from utils import backup_service
 from utils.backup_service import BackupError
 
@@ -26,17 +25,9 @@ def _admin_only():
 
 
 def _log(action, description):
-    try:
-        db.session.add(ActivityLog(
-            user_id=current_user.id,
-            action=action,
-            module='backup',
-            description=description,
-            ip_address=request.remote_addr,
-        ))
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
+    """ثبت رویداد پشتیبان‌گیری — نقطهٔ مشترک در utils/activity_log (DRY)."""
+    from utils.activity_log import log_activity
+    log_activity(action, description, module='backup', commit=True)
 
 
 @backup_center_bp.route('/')

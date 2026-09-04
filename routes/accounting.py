@@ -25,7 +25,6 @@ from models.accounting import (
     AccountGroup, Account, SubAccount, DetailAccount,
     FiscalPeriod, JournalEntry, JournalItem
 )
-from models.user import ActivityLog
 
 accounting_bp = Blueprint('accounting', __name__)
 
@@ -35,13 +34,10 @@ _TOLERANCE = 1.0          # تلورانس گرد کردن، در تومان
 
 
 def _log(action, description, entity_type='journal_entry', entity_id=None):
-    try:
-        db.session.add(ActivityLog(
-            user_id=current_user.id, action=action, module='accounting',
-            entity_type=entity_type, entity_id=entity_id,
-            description=description, ip_address=request.remote_addr))
-    except Exception:
-        pass
+    """ردپای فعالیت — پیاده‌سازی مشترک در utils/activity_log (DRY)."""
+    from utils.activity_log import log_activity
+    log_activity(action, description, module='accounting',
+                 entity_type=entity_type, entity_id=entity_id)
 
 
 def _period_lock_error(entry_date):

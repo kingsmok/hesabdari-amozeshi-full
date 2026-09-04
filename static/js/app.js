@@ -53,6 +53,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // ═══ ۱۶) Service Worker (PWA آفلاینِ استاتیک) ═══
     safeInit(registerServiceWorker, 'service-worker');
 
+    // ═══ ۱۷) بستن خودکار پیام‌های flash قدیمی (UX: انباشته نشدن هشدارها) ═══
+    safeInit(initFlashAutoDismiss, 'flash-auto-dismiss');
+
+    // ═══ ۱۸) جلوگیری از ارسال دوبارهٔ فرم‌ها (دابل‌کلیک) ═══
+    safeInit(initSubmitGuard, 'submit-guard');
+
     console.log('✅ Academy Manager Pro — JS loaded');
 });
 
@@ -291,15 +297,12 @@ function globalSearch(q) {
         const seq = ++searchSeq;
         if (searchAbort) searchAbort.abort();
         searchAbort = new AbortController();
-        fetch('/api/search?q=' + encodeURIComponent(q), { signal: searchAbort.signal })
-            .then(r => {
-                if (!r.ok) throw new Error('search-failed');
-                return r.json();
-            })
+        // از fetch مشترک ui-core استفاده می‌شود (CSRF/busy/خطا یکپارچه)
+        const doFetch = window.Ui ? window.Ui.api : (p, o) => fetch(p, o).then(r => r.json());
+        doFetch('/api/search?q=' + encodeURIComponent(q), { signal: searchAbort.signal })
             .then(data => {
                 if (seq !== searchSeq) return;   // پاسخ قدیمی است؛ دور ریخته می‌شود
-                if (data.results.length === 0) {
-                if (data.results.length === 0) {
+                if (!data || !data.results || data.results.length === 0) {
                     box.innerHTML = '<div style="padding: 16px; text-align: center; color: #b0bec5; font-size: 12px;">نتیجه‌ای یافت نشد</div>';
                 } else {
                     box.innerHTML = data.results.map((r, i) =>
@@ -330,11 +333,13 @@ function initDarkMode() {
 }
 
 function toggleDarkMode() {
-    fetch('/api/dark-mode', {
-        method: 'POST',
-        headers: { 'X-CSRFToken': getCSRFToken() }
-    })
-    .then(r => r.json())
+    const request = window.Ui
+        ? window.Ui.api('/api/dark-mode', { method: 'POST' })
+        : fetch('/api/dark-mode', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCSRFToken() }
+        }).then(r => r.json());
+    request
     .then(data => {
         if (data.dark_mode === 'on') {
             document.body.classList.add('dark-mode');
@@ -656,56 +661,10 @@ function getCookie(name) {
     return '';
 }
 
-// نمایش Toast
+// نمایش Toast — پیاده‌سازی یکپارچه در ui-core.js (State Management مرکزی)
 function showToast(message, type = 'success') {
-    const toastContainer = document.getElementById('toastContainer');
-    if (!toastContainer) {
-        const container = document.createElement('div');
-        container.id = 'toastContainer';
-        container.style.cssText = 'position: fixed; top: 20px; left: 20px; z-index: 9999;';
-        document.body.appendChild(container);
-    }
-    
-    const colors = {
-        success: '#2e7d32',
-        error: '#c62828',
-        warning: '#ff8f00',
-        info: '#1565c0'
-    };
-    
-    const icons = {
-        success: 'check-circle',
-        error: 'x-circle',
-        warning: 'exclamation-triangle',
-        info: 'info-circle'
-    };
-    
-    const toast = document.createElement('div');
-    toast.style.cssText = `
-        background: ${colors[type] || colors.info};
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        font-size: 13px;
-        font-family: Vazirmatn, Tahoma;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        animation: fadeInLeft 0.3s ease-out;
-        direction: rtl;
-    `;
-    toast.innerHTML = `<i class="bi bi-${icons[type]}"></i> ${message}`;
-    
-    document.getElementById('toastContainer').appendChild(toast);
-    
-    setTimeout(() => {
-        toast.style.transition = 'all 0.3s';
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(-20px)';
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    if (window.Ui) { window.Ui.toast(message, type); return; }
+    console.info('[toast]', type, message);   // fallback وقتی ui-core لود نشده
 }
 
 // فرمت تاریخ شمسی
@@ -998,6 +957,42 @@ function safeInit(fn, name) {
     } catch (err) {
         if (window.console && console.warn) console.warn('[ux:' + name + ']', err);
     }
+}
+
+// بستن خودکار هشدارهای flash پس از چند ثانیه (بدون نیاز به کلیک کاربر)
+function initFlashAutoDismiss() {
+    document.querySelectorAll('.flash-alert').forEach((alertEl) => {
+        const closeBtn = alertEl.querySelector('.btn-close');
+        setTimeout(() => {
+            if (closeBtn) closeBtn.click();          // همان مسیر رسمی Bootstrap
+            else alertEl.remove();
+        }, 6000);
+    });
+}
+
+// جلوگیری از ارسال دوبارهٔ فرم: بعد از اولین submit، دکمه‌ها غیرفعال می‌شوند
+// (دابل‌کلیک روی «ذخیره» دیگر رکورد تکراری/دو پرداخت نمی‌سازد؛ لایهٔ دومِ
+// ایمنیِ گارد اتمیک سمت سرور است). اگر سرور ۱۰ ثانیه جواب نداد، آزاد می‌شود.
+function initSubmitGuard() {
+    document.querySelectorAll('form[method="post"], form[method="POST"]').forEach((form) => {
+        form.addEventListener('submit', () => {
+            form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((btn) => {
+                if (btn.disabled) return;
+                btn.disabled = true;
+                btn.dataset.guarded = '1';
+                btn.style.opacity = '0.7';
+            });
+            setTimeout(() => {
+                form.querySelectorAll('button[disabled][data-guarded]').forEach((btn) => {
+                    if (btn.closest('form') === form) {
+                        btn.disabled = false;
+                        btn.style.opacity = '';
+                        btn.removeAttribute('data-guarded');
+                    }
+                });
+            }, 10000);
+        });
+    });
 }
 
 

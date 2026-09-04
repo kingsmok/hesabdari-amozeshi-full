@@ -28,15 +28,9 @@ payroll_bp = Blueprint('payroll', __name__)
 # ═══════════════════════════════════════════
 #  ابزارهای مشترک بخش
 # ═══════════════════════════════════════════
-_CONTRACT_TYPES = {
-    'fixed': 'ثابت ماهانه',
-    'hourly': 'ساعتی',
-    'session': 'جلسه‌ای',
-    'percentage': 'درصدی از شهریه',
-    'combined': 'ترکیبی (ساعتی + درصدی)',
-}
-
-_PERSON_TYPES = {'teacher': 'مدرس', 'employee': 'کارمند', 'manager': 'مدیر'}
+# ثابت‌های مشترک از utils/constants (DRY — منبع واحد برچسب‌ها)
+from utils.constants import CONTRACT_TYPES as _CONTRACT_TYPES
+from utils.constants import PERSON_TYPES as _PERSON_TYPES
 
 
 def _period_choices(model=None, span=18):
@@ -85,17 +79,10 @@ def form_value(field, record=None):
 
 
 def _log(action: str, description: str, entity_type: str = None, entity_id: int = None):
-    """ثبت رویدادهای مالی در تاریخچه فعالیت (قبلاً برای حقوق اصلاً لاگ نمی‌شد)."""
-    try:
-        from models.user import ActivityLog
-        db.session.add(ActivityLog(
-            user_id=current_user.id, action=action, module='payroll',
-            entity_type=entity_type, entity_id=entity_id,
-            description=description, ip_address=request.remote_addr,
-        ))
-    except Exception:
-        # لاگ نباید عملیات مالی را شکست بدهد
-        pass
+    """ثبت رویدادهای مالی — نقطهٔ مشترک در utils/activity_log (DRY)."""
+    from utils.activity_log import log_activity
+    log_activity(action, description, module='payroll',
+                 entity_type=entity_type, entity_id=entity_id)
 
 
 def _active_contract(person_type: str, person_id: int, on_or_before: date = None):
@@ -114,14 +101,9 @@ def _active_contract(person_type: str, person_id: int, on_or_before: date = None
 
 
 def _period_or_400(form_value):
-    """اعتبارسنجی دوره؛ خروجی (period_normalized, start, end)."""
-    normalized = normalize_jalali_period(form_value)
-    if not normalized:
-        return None, None, None
-    bounds = jalali_period_bounds(normalized)
-    if not bounds:
-        return None, None, None
-    return normalized, bounds[0], bounds[1]
+    """اعتبارسنجی دوره؛ پیاده‌سازی مشترک در utils/validators (DRY)."""
+    from utils.validators import validate_period
+    return validate_period(form_value)
 
 
 # ═══════════════════════════════════════════

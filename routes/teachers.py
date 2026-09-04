@@ -7,7 +7,6 @@ from utils.document_numbers import next_document_number
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from utils.jalali import current_jalali_year
 from models.teacher import Teacher, TeacherDocument, TeacherEvaluation
-from models.user import ActivityLog
 from datetime import datetime
 
 teachers_bp = Blueprint('teachers', __name__)
@@ -72,13 +71,10 @@ def add():
         
         db.session.add(teacher)
         
-        log = ActivityLog(
-            user_id=current_user.id, action='create', module='teachers',
-            entity_type='teacher',
-            description=f'ثبت مدرس: {teacher.full_name}',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
+        # نقطهٔ مشترک لاگ (DRY)
+        from utils.activity_log import log_activity
+        log_activity('create', f'ثبت مدرس: {teacher.full_name}',
+                     module='teachers', entity_type='teacher', entity_id=teacher.id)
         db.session.commit()
         
         flash(f'مدرس "{teacher.full_name}" ثبت شد', 'success')

@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, login_required, current_user
 from extensions import db
-from models.user import User, UserSession, ActivityLog
+from models.user import User, UserSession
 from utils import login_guard
 
 auth_bp = Blueprint('auth', __name__)
@@ -52,15 +52,11 @@ def login():
             )
             db.session.add(session)
             
-            # Log activity
-            log = ActivityLog(
-                user_id=user.id,
-                action='login',
-                module='system',
-                description=f'ورود به سیستم از IP: {request.remote_addr}',
-                ip_address=request.remote_addr
-            )
-            db.session.add(log)
+            # Log activity — نقطهٔ مشترک لاگ (DRY)
+            from utils.activity_log import log_activity
+            log_activity('login', f'ورود به سیستم از IP: {request.remote_addr}',
+                         module='system', user_id=user.id,
+                         ip_address=request.remote_addr)
             db.session.commit()
             
             login_guard.reset(username, ip)     # ورود موفق ⇒ شمارش پاک می‌شود
@@ -72,28 +68,21 @@ def login():
         else:
             login_guard.register_failure(username, ip)
             if user:
-                log = ActivityLog(
-                    user_id=user.id,
-                    action='failed_login',
-                    module='system',
-                    description=f'ورود ناموفق از IP: {request.remote_addr}',
-                    ip_address=request.remote_addr
-                )
-                db.session.add(log)
+                from utils.activity_log import log_activity
+                log_activity('failed_login', f'ورود ناموفق از IP: {request.remote_addr}',
+                             module='system', user_id=user.id,
+                             ip_address=request.remote_addr)
                 db.session.commit()
             if login_guard.is_locked(username, ip):
                 flash(login_guard.lock_message(login_guard.lock_remaining(username, ip)), 'error')
                 # رویداد قفل حتی برای «نام کاربری ناشناس» هم ثبت می‌شود
-                # (باگ قبلی: user_id=None با ستون NOT NULL تداخل داشت و
-                # commit داخل except بی‌صدا نگه داشته می‌شد)
-                try:
-                    db.session.add(ActivityLog(
-                        user_id=user.id if user else None, action='login_locked', module='security',
-                        description=f'قفل موقت حساب پس از {login_guard.MAX_ATTEMPTS} تلاش ناموفق — '
-                                    f'IP: {ip}', ip_address=ip))
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
+                # (نقطهٔ مشترک لاگ: کاربر ناشناس → user_id=None)
+                from utils.activity_log import log_activity
+                log_activity(
+                    'login_locked',
+                    f'قفل موقت حساب پس از {login_guard.MAX_ATTEMPTS} تلاش ناموفق — IP: {ip}',
+                    module='security', user_id=user.id if user else None,
+                    ip_address=ip, commit=True)
                 return render_template('auth/login.html'), 429
             flash('نام کاربری یا رمز عبور اشتباه است', 'error')
     
@@ -103,15 +92,9 @@ def login():
 @auth_bp.route('/logout')
 @login_required
 def logout():
-    # Log activity
-    log = ActivityLog(
-        user_id=current_user.id,
-        action='logout',
-        module='system',
-        description='خروج از سیستم',
-        ip_address=request.remote_addr
-    )
-    db.session.add(log)
+    # Log activity — نقطهٔ مشترک لاگ (DRY)
+    from utils.activity_log import log_activity
+    log_activity('logout', 'خروج از سیستم', module='system')
     
     # Close session
     session = UserSession.query.filter_by(
