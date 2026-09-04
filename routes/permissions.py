@@ -217,7 +217,7 @@ def edit_user(id):
         if password_changed:
             user.set_password(request.form['password'])
         # رمز تازه یا حساب غیرفعال ⇒ نشست‌های باز باید ببندند (بازبینی امنیت، بند A3)
-        if password_changed or not user.is_active:
+        if password_changed or user.is_blocked:
             _close_open_sessions(user.id)
         
         db.session.commit()

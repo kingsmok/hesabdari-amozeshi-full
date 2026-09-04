@@ -169,6 +169,22 @@ class TestSessionRevocation:
                                                 is_active=True).count() == 0, \
                 'نشست‌های باز هنگام غیرفعال‌سازی بسته نشدند'
 
+    def test_null_is_active_still_loads(self, test_app, accounts):
+        """در نصب‌های قدیمی ستون NULL است؛ نباید همه را بیرون بیندازیم."""
+        victim = test_app.test_client()
+        assert victim.post('/login', data={'username': accounts['victim_name'],
+                                           'password': accounts['victim_password']}).status_code == 302
+        with test_app.app_context():
+            db.session.execute(db.text('UPDATE users SET is_active = NULL WHERE id = :i'),
+                               {'i': accounts['victim_id']})
+            db.session.commit()
+        assert victim.get('/').status_code == 200, 'کاربر با is_active=NULL نباید قفل شود'
+        with test_app.app_context():
+            db.session.execute(db.text('UPDATE users SET is_active = 0 WHERE id = :i'),
+                               {'i': accounts['victim_id']})
+            db.session.commit()
+        assert victim.get('/').status_code == 302, 'False صریح باید دسترسی را قطع کند'
+
     def test_password_change_closes_sessions(self, test_app, accounts):
         admin = test_app.test_client()
         assert admin.post('/login', data={'username': accounts['admin_name'],
@@ -196,6 +212,36 @@ class TestSessionRevocation:
         with test_app.app_context():
             assert db.session.get(User, accounts['victim_id']).password_hash == before, \
                 'رمز ساده ۱۲۳۴۵۶ هنوز پذیرفته می‌شود'
+
+
+class TestUserAccountFlags:
+    """تله `UserMixin.is_authenticated` که با ستون `is_active` قاتی می‌شد."""
+
+    def test_null_is_active_counts_as_authenticated(self, test_app):
+        from models.user import User as UserModel
+        legacy = UserModel(username='legacy', full_name='کاربر قدیمی')
+        legacy.is_active = None
+        assert legacy.is_authenticated is True, 'NULL نباید کاربر را بیرون بیندازد'
+        assert legacy.is_blocked is False
+
+    def test_explicit_false_blocks(self, test_app):
+        from models.user import User as UserModel
+        blocked = UserModel(username='blocked', full_name='کاربر مسدود')
+        blocked.is_active = False
+        assert blocked.is_authenticated is False
+        assert blocked.is_blocked is True
+
+    def test_legacy_null_user_can_still_log_in(self, test_app, accounts):
+        """نصب قدیمی با ستون خالی نباید در ورود قفل شود."""
+        with test_app.app_context():
+            db.session.execute(db.text('UPDATE users SET is_active = NULL WHERE id = :i'),
+                               {'i': accounts['victim_id']})
+            db.session.commit()
+        client = test_app.test_client()
+        response = client.post('/login', data={'username': accounts['victim_name'],
+                                               'password': accounts['victim_password']})
+        assert response.status_code == 302, 'ورود کاربر با is_active=NULL رد شد'
+        assert client.get('/').status_code == 200
 
 
 class TestCurrencyFilter:

@@ -30,7 +30,12 @@ def login():
         user = User.query.filter_by(username=username).first()
         
         if user and user.check_password(password):
-            if not user.is_active:
+            # خودترمیم: در نصب‌های قدیمی ستون `is_active` خالی است و Flask-Login
+            # در `login_user()` مقدار falsy را «حساب غیرفعال» می‌شمارد ⇒ ورود
+            # بی‌صدا رد می‌شد. پیش از بررسی، آن را به پیش‌فرض («فعال») برمی‌گردانیم.
+            if user.is_active is None:
+                user.is_active = True
+            if user.is_blocked:
                 flash('حساب کاربری شما غیرفعال است', 'error')
                 return render_template('auth/login.html')
             
