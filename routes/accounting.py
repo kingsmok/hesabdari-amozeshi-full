@@ -25,7 +25,6 @@ from models.accounting import (
     AccountGroup, Account, SubAccount, DetailAccount,
     FiscalPeriod, JournalEntry, JournalItem
 )
-from models.user import ActivityLog
 
 accounting_bp = Blueprint('accounting', __name__)
 
@@ -35,13 +34,10 @@ _TOLERANCE = 1.0          # تلورانس گرد کردن، در تومان
 
 
 def _log(action, description, entity_type='journal_entry', entity_id=None):
-    try:
-        db.session.add(ActivityLog(
-            user_id=current_user.id, action=action, module='accounting',
-            entity_type=entity_type, entity_id=entity_id,
-            description=description, ip_address=request.remote_addr))
-    except Exception:
-        pass
+    """ردپای فعالیت — پیاده‌سازی مشترک در utils/activity_log (DRY)."""
+    from utils.activity_log import log_activity
+    log_activity(action, description, module='accounting',
+                 entity_type=entity_type, entity_id=entity_id)
 
 
 def _period_lock_error(entry_date):
@@ -340,14 +336,15 @@ def add_entry():
                                            'diff': difference}), 400
 
         entry_number = next_document_number('voucher')
+        # دوره مالی فقط یک‌بار کوئری می‌شود (قبلاً دو بار)
+        period_for_date = FiscalPeriod.for_date(entry_date)
         entry = JournalEntry(
             entry_number=entry_number,
             entry_date=entry_date,
             entry_type=request.form.get('entry_type', 'manual'),
             description=(request.form.get('description') or '').strip() or None,
             status='draft',
-            fiscal_period_id=(FiscalPeriod.for_date(entry_date).id
-                              if FiscalPeriod.for_date(entry_date) else None),
+            fiscal_period_id=period_for_date.id if period_for_date else None,
             branch_id=safe_int(request.form.get('branch_id'), 1) or 1,
             created_by=current_user.id,
         )
@@ -425,13 +422,13 @@ def edit_entry(id):
             db.session.add(JournalItem(entry_id=entry.id, account_id=row['account_id'],
                                        debit=row['debit'], credit=row['credit'],
                                        description=row['description'], row_number=index + 1))
+        period_for_date = FiscalPeriod.for_date(entry_date)
         entry.entry_date = entry_date
         entry.entry_type = request.form.get('entry_type') or entry.entry_type
         entry.description = (request.form.get('description') or '').strip() or None
         entry.total_debit = total_debit
         entry.total_credit = total_credit
-        entry.fiscal_period_id = (FiscalPeriod.for_date(entry_date).id
-                                  if FiscalPeriod.for_date(entry_date) else None)
+        entry.fiscal_period_id = period_for_date.id if period_for_date else None
         _log('edit', f'ویرایش سند {entry.entry_number}', 'journal_entry', entry.id)
         db.session.commit()
         flash('سند به‌روزرسانی شد', 'success')
@@ -554,8 +551,13 @@ def account_ledger(account_id):
     date_from = get_jalali_date(request.args, 'date_from') if request.args.get('date_from') else None
     date_to = get_jalali_date(request.args, 'date_to') if request.args.get('date_to') else None
 
+    # بهینه‌سازی N+1: account و entry هر آیتم یک‌جا load می‌شوند؛ قبلاً برای
+    # هر ردیف دفتر (حتی ده‌ها هزار) دو کوئری جداگانه زده می‌شد.
+    from sqlalchemy.orm import contains_eager, joinedload
     query = (db.session.query(JournalItem)
              .join(JournalEntry, JournalItem.entry_id == JournalEntry.id)
+             .options(joinedload(JournalItem.account),
+                      contains_eager(JournalItem.entry))
              .filter(JournalItem.account_id == account_id,
                      JournalEntry.status.in_(POSTED_STATUSES)))
     if date_from:

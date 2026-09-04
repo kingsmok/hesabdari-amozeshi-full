@@ -50,7 +50,8 @@ REQUIRED_FILES = [
 OPTIONAL_FILES = ["settings.json"]
 
 # ── پوشه‌های کد و قالب‌ها ──
-DIRS = ["routes", "models", "utils", "templates", "static"]
+# bootstrap/ (جداسازی create_app به ماژول‌های مستقل — app.py از آن import می‌کند)
+DIRS = ["routes", "models", "utils", "bootstrap", "templates", "static"]
 
 # ── پوشه‌های خالی که اپ در زمان اجرا نیاز دارد (قابل نوشتن باشند) ──
 RUNTIME_DIRS = [

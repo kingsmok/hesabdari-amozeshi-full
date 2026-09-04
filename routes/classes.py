@@ -9,7 +9,7 @@ from utils.jalali import current_jalali_year
 from models.classes import ClassGroup, ClassSession, Holiday
 from models.course import Course, Room
 from models.teacher import Teacher
-from models.user import ActivityLog
+# لاگ فعالیت از نقطهٔ مشترک utils/activity_log استفاده می‌شود
 from datetime import datetime, timedelta
 import json
 
@@ -85,13 +85,10 @@ def add():
         
         db.session.add(class_group)
         
-        log = ActivityLog(
-            user_id=current_user.id, action='create', module='classes',
-            entity_type='class',
-            description=f'ایجاد کلاس: {class_group.name}',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
+        # نقطهٔ مشترک لاگ (DRY)
+        from utils.activity_log import log_activity
+        log_activity('create', f'ایجاد کلاس: {class_group.name}',
+                     module='classes', entity_type='class', entity_id=class_group.id)
         db.session.commit()
         
         flash(f'کلاس "{class_group.name}" ایجاد شد', 'success')
@@ -229,13 +226,10 @@ def edit(id):
         class_group.notes = request.form.get('notes')
         class_group.status = request.form.get('status', class_group.status)
         
-        log = ActivityLog(
-            user_id=current_user.id, action='edit', module='classes',
-            entity_type='class', entity_id=id,
-            description=f'ویرایش کلاس: {class_group.name}',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
+        # نقطهٔ مشترک لاگ (DRY)
+        from utils.activity_log import log_activity
+        log_activity('edit', f'ویرایش کلاس: {class_group.name}',
+                     module='classes', entity_type='class', entity_id=id)
         db.session.commit()
         
         flash(f'کلاس "{class_group.name}" بروزرسانی شد', 'success')
@@ -269,13 +263,10 @@ def delete(id):
     class_name = class_group.name
     db.session.delete(class_group)
     
-    log = ActivityLog(
-        user_id=current_user.id, action='delete', module='classes',
-        entity_type='class',
-        description=f'حذف کلاس: {class_name}',
-        ip_address=request.remote_addr
-    )
-    db.session.add(log)
+    # نقطهٔ مشترک لاگ (DRY)
+    from utils.activity_log import log_activity
+    log_activity('delete', f'حذف کلاس: {class_name}',
+                 module='classes', entity_type='class', entity_id=id)
     db.session.commit()
     
     flash(f'کلاس "{class_name}" حذف شد', 'success')

@@ -139,7 +139,7 @@
             {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
                     {% for category, message in messages %}
-                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show anim-in" role="alert" style="border-radius: var(--radius-sm); font-size: 13px; border: none; box-shadow: var(--shadow-sm);">
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show anim-in flash-alert" role="alert" style="border-radius: var(--radius-sm); font-size: 13px; border: none; box-shadow: var(--shadow-sm);">
                             <i class="bi bi-{% if category == 'success' %}check-circle-fill{% elif category == 'error' or category == 'danger' %}exclamation-triangle-fill{% elif category == 'warning' %}exclamation-circle-fill{% else %}info-circle-fill{% endif %} me-2"></i>
                             {{ message }}
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
@@ -147,6 +147,10 @@
                     {% endfor %}
                 {% endif %}
             {% endwith %}
+            <!-- نشانگر سراسری «در حال پردازش» — با state مرکزی ui-core کنترل می‌شود -->
+            <div id="globalBusy" hidden style="position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10000; background: rgba(13,71,161,.95); color: #fff; padding: 8px 18px; border-radius: 20px; font-size: 13px; box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,.15)); display: flex; align-items: center; gap: 8px;">
+                <span class="spinner-border spinner-border-sm" role="status"></span><span></span>
+            </div>
 
             {% block content %}{% endblock %}
         </div>
@@ -154,6 +158,9 @@
 
     <!-- Bootstrap JS از jsDelivr -->
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
+
+    <!-- UI Core: state مرکزی (busy/CSRF/toast/fetch) — پیش از app.js -->
+    <script src="{{ asset('js/ui-core.js') }}"></script>
 
     <!-- فایل JS اصلی -->
     <script src="{{ asset('js/app.js') }}"></script>

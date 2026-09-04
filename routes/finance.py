@@ -11,7 +11,6 @@ from models.finance import (
 )
 from models.registration import Registration, Installment
 from models.student import Student
-from models.user import ActivityLog
 from utils.document_numbers import next_document_number
 from utils.payments import (apply_payment_to_targets, build_receipt_no, cash_portion,
                             settle_cashbox)
@@ -19,16 +18,10 @@ from datetime import datetime
 
 
 def _log_payment_action(action, payment, description):
-    """ردپای تغییرات مالی دستی (لاگ نباید عملیات را بشکند؛ commit با فراخوان)."""
-    try:
-        db.session.add(ActivityLog(
-            user_id=current_user.id if current_user.is_authenticated else None,
-            action=action, module='finance',
-            entity_type='payment', entity_id=payment.id if payment else None,
-            description=description, ip_address=request.remote_addr,
-        ))
-    except Exception:
-        pass
+    """ردپای تغییرات مالی — نقطهٔ مشترک در utils/activity_log (DRY)."""
+    from utils.activity_log import log_activity
+    log_activity(action, description, module='finance', entity_type='payment',
+                 entity_id=payment.id if payment else None)
 
 finance_bp = Blueprint('finance', __name__)
 
@@ -95,9 +88,9 @@ def add_payment():
         # ستون‌های cash_amount/card_amount/check_amount در مدل بود ولی هیچ‌وقت
         # پر نمی‌شد؛ نتیجه: سهم نقدی به صندوق اضافه نمی‌شد، رسید بدون ریز بود
         # و ابطال/مرجوعی نمی‌دانست چقدر نقد بیرون بیاید.
-        method = request.form.get('payment_method', 'cash')
-        if method not in ('cash', 'card', 'online', 'check', 'combined'):
-            method = 'cash'
+        # اعتبارسنجی مرکزی روش پرداخت (utils/validators)
+        from utils.validators import normalize_payment_method
+        method = normalize_payment_method(request.form.get('payment_method'), 'cash')
         cash_part = card_part = check_part = 0.0
         if method == 'combined':
             cash_part = safe_float(request.form.get('cash_amount'))
@@ -214,6 +207,19 @@ def cancel_payment(id):
     want_refund = request.form.get('refund') == 'on'
     refund_amount = cash_portion(payment) if want_refund else 0.0
 
+    # قفل اتمیک وضعیت: دو درخواست هم‌زمان/کلیک دوباره فقط یک‌بار ابطال می‌کند
+    from utils.money_guard import atomic_transition
+    transitioned = atomic_transition(
+        Payment, payment.id, ('confirmed', 'pending'), 'cancelled',
+        {'cancelled_by': current_user.id,
+         'cancelled_at': datetime.utcnow(),
+         'cancel_reason': reason,
+         'refunded_amount': refund_amount})
+    if not transitioned:
+        flash('این پرداخت هم‌زمان توسط درخواست دیگری باطل شده است؛ عملیات تکرار نشد.',
+              'warning')
+        return redirect(url_for('finance.view_payment', id=payment.id))
+
     # اول مرجوعی صندوق؛ اگر موجودی کافی نبود کل عملیات ول می‌شود
     ok, message = settle_cashbox(
         payment, refund_amount, f'مرجوعی ابطال پرداخت {payment.receipt_no}',
@@ -224,11 +230,6 @@ def cancel_payment(id):
         return redirect(url_for('finance.view_payment', id=payment.id))
 
     apply_payment_to_targets(payment, sign=-1)
-    payment.status = 'cancelled'
-    payment.cancelled_by = current_user.id
-    payment.cancelled_at = datetime.utcnow()
-    payment.cancel_reason = reason
-    payment.refunded_amount = refund_amount
     _log_payment_action('payment-cancel', payment,
                         f'ابطال {payment.receipt_no}: {reason}')
     db.session.commit()
@@ -254,7 +255,20 @@ def restore_payment(id):
         flash('فقط پرداخت باطل‌شده قابل بازگردانی است', 'warning')
         return redirect(url_for('finance.view_payment', id=payment.id))
 
+    # مبلغ مرجوع‌شده را قبل از transition بخوان؛ transition آن را صفر می‌کند
     repay = float(payment.refunded_amount or 0)
+
+    # قفل اتمیک: بازگردانی دوباره (کلیک دوباره) فقط یک‌بار اعمال می‌شود
+    from utils.money_guard import atomic_transition
+    transitioned = atomic_transition(
+        Payment, payment.id, ('cancelled',), 'confirmed',
+        {'cancelled_by': None, 'cancelled_at': None,
+         'cancel_reason': None, 'refunded_amount': 0})
+    if not transitioned:
+        flash('این پرداخت هم‌زمان توسط درخواست دیگری بازگردانی شده است؛ عملیات تکرار نشد.',
+              'warning')
+        return redirect(url_for('finance.view_payment', id=payment.id))
+
     if repay > 0:
         ok, message = settle_cashbox(
             payment, repay, f'بازگشت مرجوعی پرداخت {payment.receipt_no}',
@@ -265,11 +279,6 @@ def restore_payment(id):
             return redirect(url_for('finance.view_payment', id=payment.id))
 
     apply_payment_to_targets(payment, sign=+1, date_hint=payment.payment_date)
-    payment.status = 'confirmed'
-    payment.cancelled_by = None
-    payment.cancelled_at = None
-    payment.cancel_reason = None
-    payment.refunded_amount = 0
     _log_payment_action('payment-restore', payment,
                         f'بازگردانی پرداخت {payment.receipt_no}')
     db.session.commit()
@@ -307,12 +316,16 @@ def cashbox_transaction(id):
             return redirect(url_for('finance.cashbox'))
         cashbox.balance = (cashbox.balance or 0) - amount
     
+    # نوع مرجع فقط از مقادیر شناخته‌شده — اعتبارسنجی مرکزی (DRY)
+    from utils.validators import normalize_ref_type
+    reference_type = normalize_ref_type(request.form.get('reference_type'), 'manual')
+
     tx = CashboxTransaction(
         cashbox_id=id,
         trans_type=trans_type,
         amount=amount,
         description=request.form.get('description'),
-        reference_type=request.form.get('reference_type', 'manual'),
+        reference_type=reference_type,
         balance_after=cashbox.balance,
         created_by=current_user.id
     )

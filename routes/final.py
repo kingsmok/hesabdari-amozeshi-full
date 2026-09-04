@@ -22,10 +22,11 @@ final_bp = Blueprint('final', __name__)
 @final_bp.route('/api/dark-mode', methods=['POST'])
 @login_required
 def toggle_dark():
-    """تغییر حالت تاریک"""
+    """تغییر حالت تاریک — پاسخ با قرارداد یکپارچهٔ API (سازگار با کلاینت قبلی)."""
     current = request.cookies.get('dark_mode', 'off')
     new_val = 'on' if current == 'off' else 'off'
-    resp = make_response(jsonify({'ok': True, 'dark_mode': new_val}))
+    from utils.api_contract import ok
+    resp, status = ok({'dark_mode': new_val})
     resp.set_cookie('dark_mode', new_val, max_age=365*24*60*60)
     return resp
 
@@ -47,7 +48,9 @@ def advanced_search():
     
     q = request.args.get('q', '').strip()
     if len(q) < 2:
-        return jsonify({'results': [], 'count': 0})
+        # قرارداد یکپارچهٔ API (utils/api_contract)؛ فیلدهای قدیمی حفظ شده‌اند
+        from utils.api_contract import ok
+        return ok({'results': [], 'count': 0})
     
     results = []
     
@@ -117,7 +120,9 @@ def advanced_search():
             'url': url_for('finance.view_payment', id=p.id)
         })
     
-    return jsonify({'results': results, 'count': len(results)})
+    # قرارداد یکپارچهٔ API؛ `results/count` برای سازگاری کلاینت قبلی حفظ شده‌اند
+    from utils.api_contract import ok
+    return ok({'results': results, 'count': len(results)})
 
 
 # ═══════════════════════════════════════════════════════════════

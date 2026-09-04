@@ -3,19 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>خطای سرور</title>
+    <title>خطای داخلی سرور</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='fonts/Vazirmatn-font-face.css') }}">
     <style>
         body { font-family: Vazirmatn, Tahoma, sans-serif; background: #f0f2f5; display: flex; min-height: 100vh; min-height: 100dvh; align-items: center; justify-content: center; margin: 0; color: #37474f; }
-        .box { background: #fff; padding: 40px; border-radius: 16px; text-align: center; max-width: 420px; box-shadow: 0 8px 32px rgba(0,0,0,.08); }
-        h1 { font-size: 56px; margin: 0; color: #ff9100; }
+        .box { background: #fff; padding: 40px; border-radius: 16px; text-align: center; max-width: 460px; box-shadow: 0 8px 32px rgba(0,0,0,.08); }
+        h1 { font-size: 48px; margin: 0 0 8px; color: #c62828; }
+        p { line-height: 1.9; }
+        code { direction: ltr; display: inline-block; background: #f5f5f5; padding: 4px 12px; border-radius: 6px; color: #c62828; letter-spacing: 1px; }
         a { color: #0d47a1; font-weight: 700; text-decoration: none; }
     </style>
 </head>
 <body>
     <div class="box">
         <h1>۵۰۰</h1>
-        <p>خطای داخلی رخ داد. لطفاً دوباره تلاش کنید.</p>
+        <p>خطای غیرمنتظره‌ای رخ داد. جزئیات فنی برای تیم پشتیبانی ثبت شده است.</p>
+        {% if reference_code %}
+        <p>کد پیگیری: <code>{{ reference_code }}</code><br>
+        <small style="color:#546e7a">این کد را هنگام تماس با پشتیبانی ارائه دهید.</small></p>
+        {% endif %}
         <a href="{{ url_for('dashboard.index') }}">بازگشت به داشبورد</a>
     </div>
 </body>

@@ -149,16 +149,41 @@ class TestInjection:
 # ══════════════════════════════════════════════════════════════
 @pytest.fixture(scope='module')
 def admin_client(test_app):
-    from models.user import User
+    """حساب مدیر کل — اگر در دیتابیس نبود ساخته و در پایان پاک می‌شود.
+
+    باگ ایزولیشن قبلی: `create_app()` عمداً مدیر پیش‌فرض نمی‌سازد (ویزارد /setup
+    آن را می‌سازد)، پس این آزمون در دیتابیس تازه از دستور pytest کلاسور می‌کرد.
+    """
+    from models.user import ActivityLog, Role, User
+
+    created_id = None
     with test_app.app_context():
         admin = User.query.filter_by(is_admin=True, is_active=True).first()
         admin_id = admin.id if admin else None
-    assert admin_id is not None, 'این آزمون به یک حساب مدیر کل نیاز دارد'
+        if admin_id is None:
+            role = Role.query.filter_by(is_admin=True).first() or Role.query.first()
+            created = User(username='test_report_admin', full_name='مدیر آزمون گزارش',
+                           is_admin=True, is_active=True,
+                           role_id=role.id if role else None)
+            created.set_password('Test-Only-Strong-123!')
+            db.session.add(created)
+            db.session.commit()
+            admin_id = created.id
+            created_id = created.id
+
     http = test_app.test_client()
     with http.session_transaction() as sess:
         sess['_user_id'] = str(admin_id)
         sess['_fresh'] = True
-    return http
+    yield http
+
+    if created_id is not None:
+        with test_app.app_context():
+            row = db.session.get(User, created_id)
+            if row is not None:
+                ActivityLog.query.filter_by(user_id=created_id).delete(synchronize_session=False)
+                db.session.delete(row)
+                db.session.commit()
 
 
 @pytest.fixture(scope='module')

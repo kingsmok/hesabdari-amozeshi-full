@@ -225,16 +225,38 @@ def _licensed(live_app):
 
 @pytest.fixture(scope='module')
 def live_client(live_app):
-    from models.user import User
+    """حساب مدیر کل — در نبودش ساخته و در پایان پاک می‌شود (ایزولیشن کامل)."""
+    from extensions import db
+    from models.user import ActivityLog, Role, User
+
+    created_id = None
     with live_app.app_context():
         admin = User.query.filter_by(is_admin=True, is_active=True).first()
         admin_id = admin.id if admin else None
-    assert admin_id is not None, 'برای این آزمون یک حساب مدیر کل لازم است'
+        if admin_id is None:
+            role = Role.query.filter_by(is_admin=True).first() or Role.query.first()
+            created = User(username='test_upload_admin', full_name='مدیر آزمون آپلود',
+                           is_admin=True, is_active=True,
+                           role_id=role.id if role else None)
+            created.set_password('Test-Only-Strong-123!')
+            db.session.add(created)
+            db.session.commit()
+            admin_id = created.id
+            created_id = created.id
+
     http = live_app.test_client()
     with http.session_transaction() as sess:
         sess['_user_id'] = str(admin_id)
         sess['_fresh'] = True
-    return http
+    yield http
+
+    if created_id is not None:
+        with live_app.app_context():
+            row = db.session.get(User, created_id)
+            if row is not None:
+                ActivityLog.query.filter_by(user_id=created_id).delete(synchronize_session=False)
+                db.session.delete(row)
+                db.session.commit()
 
 
 class TestPayrollAttachmentRoute:

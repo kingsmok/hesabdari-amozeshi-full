@@ -8,7 +8,6 @@ from utils.form_helpers import get_jalali_date
 from utils.jalali import current_jalali_year
 from models.student import Student, StudentDocument, WaitingList
 from models.registration import Registration
-from models.user import ActivityLog
 from datetime import datetime
 import json
 
@@ -98,16 +97,10 @@ def add():
         
         db.session.add(student)
         
-        # Log
-        log = ActivityLog(
-            user_id=current_user.id,
-            action='create',
-            module='students',
-            entity_type='student',
-            description=f'ثبت هنرجو: {student.full_name}',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
+        # Log — نقطهٔ مشترک لاگ (DRY)
+        from utils.activity_log import log_activity
+        log_activity('create', f'ثبت هنرجو: {student.full_name}',
+                     module='students', entity_type='student', entity_id=student.id)
         db.session.commit()
         
         flash(f'هنرجو "{student.full_name}" با موفقیت ثبت شد', 'success')
@@ -160,16 +153,10 @@ def edit(id):
         student.status = request.form.get('status')
         student.notes = request.form.get('notes')
         
-        log = ActivityLog(
-            user_id=current_user.id,
-            action='edit',
-            module='students',
-            entity_type='student',
-            entity_id=id,
-            description=f'ویرایش هنرجو: {student.full_name}',
-            ip_address=request.remote_addr
-        )
-        db.session.add(log)
+        # نقطهٔ مشترک لاگ (DRY)
+        from utils.activity_log import log_activity
+        log_activity('edit', f'ویرایش هنرجو: {student.full_name}',
+                     module='students', entity_type='student', entity_id=id)
         db.session.commit()
         
         flash('اطلاعات هنرجو بروزرسانی شد', 'success')
@@ -247,16 +234,10 @@ def delete(id):
                 class_id=class_id, status='active'
             ).count()
     
-    log = ActivityLog(
-        user_id=current_user.id,
-        action='delete',
-        module='students',
-        entity_type='student',
-        entity_id=id,
-        description=f'حذف(غیرفعال) هنرجو: {student.full_name}',
-        ip_address=request.remote_addr
-    )
-    db.session.add(log)
+    # نقطهٔ مشترک لاگ (DRY)
+    from utils.activity_log import log_activity
+    log_activity('delete', f'حذف(غیرفعال) هنرجو: {student.full_name}',
+                 module='students', entity_type='student', entity_id=id)
     db.session.commit()
     
     flash('هنرجو غیرفعال شد', 'warning')

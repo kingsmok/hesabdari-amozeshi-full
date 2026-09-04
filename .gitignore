@@ -69,6 +69,8 @@ host_deploy_*.zip
 # - cookies.txt          → جاروبِ فایل کوکی نشست
 # در نصب تازه، دیتابیس در اولین اجرا ساخته می‌شود (create_all + create_default_data).
 !instance/.gitkeep
+# مهر زمانیِ نگهداری نشست‌ها (utils/session_maintenance.py — state runtime)
+instance/.session_cleanup_stamp
 
 # لاگ و قفل پوسته دسکتاپ (logs/desktop-*.log، single-instance.lock)
 logs/

@@ -47,6 +47,9 @@ datas = [item for item in (
     data_tree('models'),
     data_tree('routes'),
     data_tree('utils'),
+    # Composition root's bootstrapping modules (bootstrap/*, imported lazily
+    # inside create_app — PyInstaller's static analysis may miss them)
+    data_tree('bootstrap'),
 
     # Top level modules the desktop shell imports at runtime
     data_file('app.py'),
@@ -112,7 +115,7 @@ hiddenimports = [
 
 # Blueprints, models and services are imported by name inside create_app(),
 # so collect every module of these packages explicitly.
-for package in ('routes', 'models', 'utils'):
+for package in ('routes', 'models', 'utils', 'bootstrap'):
     package_dir = os.path.join(BASE_DIR, package)
     if not os.path.isdir(package_dir):
         continue

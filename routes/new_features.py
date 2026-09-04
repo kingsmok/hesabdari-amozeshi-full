@@ -735,14 +735,11 @@ def pay_installment(id):
         flash(message, 'danger')
         return redirect(url_for('new_features.installment_dashboard'))
     
-    from models.user import ActivityLog
-    try:
-        db.session.add(ActivityLog(user_id=current_user.id, action='payment-create',
-                                   module='finance', entity_type='installment', entity_id=inst.id,
-                                   description=f'پرداخت قسط {inst.installment_number} — {payment.receipt_no}',
-                                   ip_address=request.remote_addr))
-    except Exception:
-        pass
+    # نقطهٔ مشترک لاگ (DRY)
+    from utils.activity_log import log_activity
+    log_activity('payment-create',
+                 f'پرداخت قسط {inst.installment_number} — {payment.receipt_no}',
+                 module='finance', entity_type='installment', entity_id=inst.id)
     db.session.commit()
     flash(f'پرداخت قسط {inst.installment_number} ثبت شد ({amount:,.0f} تومان) — رسید {payment.receipt_no}',
           'success')

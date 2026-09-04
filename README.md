@@ -96,13 +96,60 @@ python -m pip install --upgrade "SQLAlchemy>=2.0.31"
 - فایل `instance/academy.db` را حذف کنید (اطلاعات حذف می‌شوند)
 - یا از ابزار بازنشانی رمز استفاده کنید
 
+### استقرار در سرور (Docker — پیشنهادی)
+
+```bash
+# ۱) کلید امن را در فایل .env بگذارید (هرگز در git!)
+echo "ACADEMY_SECRET_KEY=$(python -c 'import secrets; print(secrets.token_hex(32))')" > .env
+
+# ۲) ساخت و اجرا
+docker compose up -d --build
+
+# ۳) لاگ / بررسی سلامت
+docker compose logs -f academy
+docker compose ps
+```
+
+- دیتابیس (`instance/`)، پشتیبان‌ها، لاگ‌ها و فایل‌های آپلودی روی `volume` هستند؛
+  با `docker compose down` داده‌ها از بین نمی‌روند.
+- برای HTTPS، یک reverse proxy (Caddy/Nginx) جلوی پورت ۵۰۰۰ بگذارید و
+  `ACADEMY_COOKIE_SECURE=1` را در `.env` فعال کنید.
+- پشتیبان‌گیری خودکار داخل container با CRON هاست انجام می‌شود
+  (در gunicorn به‌صورت پیش‌فرض خاموش است تا چند ورکر هم‌زمان پشتیبان نسازند).
+
+### استقرار بدون Docker (Gunicorn)
+
+```bash
+pip install -r requirements.txt -r requirements-prod.txt
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_hex(32))')"
+gunicorn --config gunicorn.conf.py 'app:create_app()'   # http://0.0.0.0:5000
+```
+
+### CI / تست
+
+هر push/PR توسط GitHub Actions (`py3.11` و `py3.12`) بررسی می‌شود:
+lint (ruff) + `compileall` + کل تست‌ها (`pytest -q`).
+
+### متغیرهای محیطی (Environment)
+
+| متغیر | پیش‌فرض | توضیح |
+|-------|---------|-------|
+| `SECRET_KEY` | تولید خودکار | کلید امضای نشست — در production حتماً ثابت و قوی |
+| `ACADEMY_LOG_LEVEL` | `INFO` | DEBUG/INFO/WARNING/ERROR/CRITICAL |
+| `ACADEMY_DISABLE_SCHEDULER` | `0` | خاموش‌کردن زمان‌بند پشتیبان (تست‌ها/ورکرها) |
+| `ACADEMY_COOKIE_SECURE` | `0` | کوکی امن (فقط HTTPS) |
+| `ACADEMY_SQLITE_BUSY_TIMEOUT` | `10` | ثانیه‌های انتظار برای قفل SQLite |
+| `ACADEMY_RATE_LIMIT` / `ACADEMY_RATE_PERIOD` | `120` / `60` | سقف درخواست‌های API به ازای IP+مسیر |
+| `GUNICORN_WORKERS` | `2` | تعداد ورکرها (SQLite ⇒ کم) |
+
 ### اطلاعات فنی
 
-- **فریمورک:** Flask (Python)
-- **رابط کاربری:** PyQt6 + WebEngine
+- **فریمورک:** Flask (Python) + Gunicorn (production)
+- **رابط کاربری:** PyQt6 + WebEngine (دسکتاپ) / Bootstrap 5.3 (وب)
 - **دیتابیس:** SQLite (پیش‌فرض)، MySQL، PostgreSQL
 - **تقویم:** شمسی (جلالی)
 - **زبان:** فارسی (RTL)
+- **مشاهده‌پذیری:** `logs/academy.log` چرخشی + `X-Request-ID` در پاسخ‌ها
 
 ### آموزشگاه رهسا
 - **وبسایت:** [rahsacademic.com](https://rahsacademic.com)
