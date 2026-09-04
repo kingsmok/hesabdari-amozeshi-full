@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════════════════════════════
+# Academy Manager Pro — اجرای production با Docker Compose
+# ═══════════════════════════════════════════════════════════════
+# استفاده:   docker compose up -d --build
+# داده‌ها:    instance/ (دیتابیس)، backups/، logs/، static/uploads/ ← همه volume
+services:
+  academy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: academy-manager
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      # ⚠ در production حتماً SECRET_KEY قوی و ثابت بگذارید (نشست‌ها)
+      - SECRET_KEY=${ACADEMY_SECRET_KEY:? برای امنیت، SECRET_KEY را در .env بگذارید}
+      - ACADEMY_COOKIE_SECURE=1                # HTTPS از طریق proxy
+      - ACADEMY_LOG_LEVEL=INFO
+      - ACADEMY_SQLITE_BUSY_TIMEOUT=10
+      - GUNICORN_WORKERS=2
+    volumes:
+      - ./instance:/app/instance               # دیتابیس SQLite
+      - ./backups:/app/backups                 # بسته‌های پشتیبان
+      - ./logs:/app/logs                       # لاگ چرخشی
+      - ./static/uploads:/app/static/uploads   # فایل‌های آپلودی
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:5000/login', timeout=4).status in (200,302) else sys.exit(1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    # در production یک reverse proxy (Caddy/Nginx) با TLS جلوی این سرویس بگذارید
+    networks:
+      - academy-net
+
+networks:
+  academy-net:
+    driver: bridge

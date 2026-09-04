@@ -1,0 +1,30 @@
+# ═══════════════════════════════════════════════════════════════
+# .dockerignore — تصویر سبک: بدون git/venv/tests/بک‌آپ/خروجی‌های build
+# ═══════════════════════════════════════════════════════════════
+.git
+.gitignore
+.gitattributes
+.venv
+venv
+.env
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+tests
+instance/*
+!instance/.gitkeep
+backups/*
+logs/*
+static/uploads/*
+static/fonts/*.ttf
+dist
+build
+installer_output
+*.spec
+*.iss
+README.md
+CODE_REVIEW_REPORT.md
+ENHANCEMENT_REPORT.md
+COUNCIL_REPORT.md
+FEATURE_AUDIT.txt

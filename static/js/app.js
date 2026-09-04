@@ -300,8 +300,10 @@ function globalSearch(q) {
         // از fetch مشترک ui-core استفاده می‌شود (CSRF/busy/خطا یکپارچه)
         const doFetch = window.Ui ? window.Ui.api : (p, o) => fetch(p, o).then(r => r.json());
         doFetch('/api/search?q=' + encodeURIComponent(q), { signal: searchAbort.signal })
-            .then(data => {
+            .then(raw => {
                 if (seq !== searchSeq) return;   // پاسخ قدیمی است؛ دور ریخته می‌شود
+                // قرارداد API: {ok, data:{results...}} — هم‌خوان با پاسخ قدیمی
+                const data = (raw && raw.data) ? { ...raw.data, ok: raw.ok } : raw;
                 if (!data || !data.results || data.results.length === 0) {
                     box.innerHTML = '<div style="padding: 16px; text-align: center; color: #b0bec5; font-size: 12px;">نتیجه‌ای یافت نشد</div>';
                 } else {
@@ -340,7 +342,9 @@ function toggleDarkMode() {
             headers: { 'X-CSRFToken': getCSRFToken() }
         }).then(r => r.json());
     request
-    .then(data => {
+    .then(raw => {
+        // قرارداد API: {ok, data:{dark_mode}} — هم‌خوان با پاسخ قدیمی
+        const data = (raw && raw.data) ? { ...raw.data, ok: raw.ok } : raw;
         if (data.dark_mode === 'on') {
             document.body.classList.add('dark-mode');
         } else {

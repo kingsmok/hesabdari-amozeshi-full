@@ -32,21 +32,43 @@ def create_app():
     configure_app_logging(app)
     _log = app.logger
 
-    # ── هدرهای امنیتی + لاگ درخواست‌ها (هر request: متد/مسیر/کد/زمان) ─────
+    # ── مشاهده‌پذیری: شناسهٔ درخواست + محدودسازی نرخ API + هدرهای امنیتی ──
     @app.before_request
     def _request_started():
         g._request_started = time.monotonic()
+        # شناسهٔ درخواست برای همبستگی لاگ/پاسخ (X-Request-ID)
+        from utils.request_id import start_request_id
+        start_request_id()
+        # محدودسازی نرخ برای مسیرهای API (در TESTING غیرفعال است)
+        if request.path.startswith('/api/') and not app.config.get('TESTING'):
+            from utils.rate_limit import hit, remaining
+            if not hit():
+                from flask import jsonify
+                response = jsonify({'ok': False,
+                                    'error': {'code': 'RATE_LIMITED',
+                                              'message': 'تعداد درخواست‌ها بیش از حد مجاز است؛ '
+                                                         'لطفاً کمی صبر کنید.'}})
+                response.status_code = 429
+                response.headers['Retry-After'] = '60'
+                return response
+            request._rate_remaining = remaining()
 
     @app.after_request
     def _security_and_access_log(response):
-        # هدرهای پایهٔ امنیت؛ CSP عمداً اضافه نشده (قالب‌ها استایل inline دارند
-        # و CSP سخت‌گیرانه کل UI را می‌شکند)
+        # هدرهای پایهٔ امنیت؛ CSP عمداً اضافه نشده (قالب‌ها استایل inline دارند)
         response.headers.setdefault('X-Content-Type-Options', 'nosniff')
         response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
         response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
         response.headers.setdefault('X-Permitted-Cross-Domain-Policies', 'none')
         response.headers.setdefault('Permissions-Policy',
                                     'camera=(), microphone=(), geolocation=()')
+        # شناسهٔ درخواست در پاسخ — کاربر/پشتیبانی می‌توانند همان را بگویند
+        from utils.request_id import request_id_header
+        header = request_id_header()
+        if header:
+            response.headers[header[0]] = header[1]
+        if hasattr(request, '_rate_remaining'):
+            response.headers['X-RateLimit-Remaining'] = str(request._rate_remaining)
         # لاگ گذر درخواست‌های نوشتنی و خطاها (GET های عادی را شلوغ نمی‌کنیم)
         if request.method != 'GET' or response.status_code >= 500:
             duration = None
@@ -54,8 +76,9 @@ def create_app():
                 started = getattr(g, '_request_started', None)
                 if started is not None:
                     duration = time.monotonic() - started
-                _log.info('%s %s -> %s%s',
-                          request.method, request.path, response.status_code,
+                rid = getattr(g, 'request_id', '-')
+                _log.info('[%s] %s %s -> %s%s', rid, request.method, request.path,
+                          response.status_code,
                           f' ({duration * 1000:.0f}ms)' if duration is not None else '')
             except Exception:
                 pass

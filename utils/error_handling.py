@@ -37,9 +37,9 @@ def register_global_handlers(app) -> None:
 
     @app.errorhandler(500)
     def internal_error_handler(error):
-        # لاگ کامل traceback (در لاگ فایل موجود در app.py)
-        app.logger.error('Unhandled exception on %s: %s',
-                         _request_path(), error, exc_info=error)
+        # لاگ کامل traceback به همراه شناسهٔ درخواست (همبستگی لاگ و پاسخ)
+        app.logger.error('Unhandled exception [%s] on %s: %s',
+                         _request_id(), _request_path(), error, exc_info=error)
         if app.debug:
             # در توسعه، پاسخ پیش‌فرض Werkzeug مفیدتر است
             raise error
@@ -49,8 +49,8 @@ def register_global_handlers(app) -> None:
     @app.errorhandler(Exception)
     def generic_error_handler(error):
         if isinstance(error, Exception) and not getattr(error, 'code', None):
-            app.logger.error('Unhandled exception on %s: %s',
-                             _request_path(), error, exc_info=error)
+            app.logger.error('Unhandled exception [%s] on %s: %s',
+                             _request_id(), _request_path(), error, exc_info=error)
             if app.debug:
                 raise error
             return render_template('errors/500.html',
@@ -65,3 +65,12 @@ def _request_path() -> str:
         return request.path
     except Exception:                      # noqa: BLE001
         return '(no request context)'
+
+
+def _request_id() -> str:
+    """شناسهٔ درخواست جاری (برای همبستگی با هدر X-Request-ID)."""
+    try:
+        from utils.request_id import current_request_id
+        return current_request_id() or '-'
+    except Exception:                      # noqa: BLE001
+        return '-'
