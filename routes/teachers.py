@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
+from utils.document_numbers import next_document_number
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from utils.jalali import current_jalali_year
 from models.teacher import Teacher, TeacherDocument, TeacherEvaluation
@@ -39,9 +40,7 @@ def index():
 @login_required
 def add():
     if request.method == 'POST':
-        last = Teacher.query.order_by(Teacher.id.desc()).first()
-        next_num = (last.id + 1) if last else 1
-        code = f'TEC-{current_jalali_year()}-{next_num:03d}'
+        code = next_document_number('teacher', width=3)
         
         teacher = Teacher(
             teacher_code=code,

@@ -87,7 +87,7 @@ body {
     display: block;
     font-size: 12px;
     font-weight: 400;
-    color: #90a4ae;
+    color: var(--clr-text-soft, #546e7a);
     margin-top: 2px;
 }
 
@@ -257,6 +257,15 @@ canvas {
         min-width: 220px;
     }
 
+    /* منوی کاربر روی موبایل بلند است ⇒ اسکرول داخلی (با overflow:hidden قبلی
+       آیتم‌های پایین دیده نمی‌شدند) */
+    .user-dropdown {
+        max-height: min(62dvh, 420px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+    }
+
     .user-chip.open .user-dropdown,
     .user-chip.show-menu .user-dropdown {
         display: block;
@@ -278,13 +287,41 @@ canvas {
         word-break: break-word;
     }
 
-    .table {
-        font-size: 12px;
+    /* جدول روی گوشی: قبلاً ۱۲px با nowrap بود؛ حالا فونت از متغیر --table-fs
+       (تعریف‌شده در همین بخش) می‌آید و ستون توضیحات می‌شکند تا متن نپرد بیرون */
+    :root {
+        --table-fs: 14px;
     }
 
-    .table thead th,
-    .table tbody td {
+    .table thead th {
         padding: 8px 10px;
+        white-space: nowrap;
+    }
+
+    .table tbody td {
+        padding: 9px 10px;
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    /* دکمه‌های آیکونی ردیف‌ها (ویرایش/حذف/چاپ) ۲۴px بودند — روی گوشی
+       عملاً قابل فشار نبودند؛ حداقل هدف لمس در همان جدول‌ها */
+    .table .btn-sm,
+    .table .btn-sm-custom,
+    .table .btn-link {
+        min-height: 34px;
+        min-width: 34px;
+        padding: 5px 8px;
+    }
+
+    .table .btn-sm i,
+    .table .btn-sm-custom i { font-size: 15px; }
+
+    /* ستون‌های کوتاه (عملیات، مبلغ، وضعیت) نباید بشکنند */
+    .table td.cell-nowrap,
+    .table td:last-child,
+    .table td.text-end,
+    .table .money {
         white-space: nowrap;
     }
 
@@ -321,8 +358,15 @@ canvas {
         --sidebar-w: 280px;
     }
 
-    .top-icon-btn:nth-of-type(n+3) {
-        /* نگه داشتن زنگ و پیام؛ فشرده‌سازی فاصله */
+    /* قبلاً فقط یک کامنت داخلش بود (قانون بی‌اثر). روی صفحه خیلی باریک،
+       آیکون‌های بعدی نوار بالا پنهان می‌شوند تا چیپ کاربر جا داشته باشد؛
+       دو آیکون اول (تم تاریک، زنگ) همیشه می‌مانند. */
+    .top-bar-left .top-icon-btn:nth-of-type(n+4) {
+        display: none;
+    }
+
+    .top-bar-left {
+        gap: 4px;
     }
 
     .breadcrumb-nav li:not(.active):not(:first-child) {
@@ -349,12 +393,43 @@ html, body {
     max-width: 100%;
 }
 
-/* چاپ بدون سایدبار */
-@media print {
-    .sidebar, .top-bar, .mobile-overlay, .no-print {
-        display: none !important;
+/* قوانین چاپ به static/css/print.css منتقل شد؛ این بلوک تکراری بود و چون
+   layout.html بعد از این فایل بارگذاری می‌شد، هیچ‌وقت تغییرش اثر نمی‌کرد. */
+
+/* ═══════════ پوسته اسکرول موبایل (table-wrap-mobile در app.js) ═══════════ */
+.table-wrap-mobile {
+    position: relative;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    border-radius: 10px;
+}
+
+/* راهنمای بصری «ادامه جدول در چپ است» — فقط روی موبایل */
+@media (max-width: 768px) {
+    .table-wrap-mobile table {
+        box-shadow: inset -14px 0 12px -12px rgba(0, 0, 0, .25);
     }
-    .main-wrap {
-        margin: 0 !important;
+
+    /* سرستون چسبان تا کاربر با اسکرول عمودی بداند کدام ستون کدام است */
+    .table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #eceff1;
+    }
+}
+
+/* ورودی عددی (پس از تبدیل app.js به type=text) */
+input.num-input {
+    direction: ltr;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+@media print {
+    .table-wrap-mobile {
+        overflow: visible !important;
+        box-shadow: none !important;
     }
 }

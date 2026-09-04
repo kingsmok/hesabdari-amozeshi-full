@@ -5,12 +5,52 @@
 <li class="active">پرداخت‌ها</li>
 {% endblock %}
 
+{% set method_labels = {'cash': 'نقد', 'card': 'کارت', 'online': 'آنلاین',
+                        'check': 'چک', 'combined': 'ترکیبی'} %}
+{% set status_badges = {'confirmed': ('badge-active', 'تأییدشده'),
+                        'pending': ('badge-pending', 'در انتظار'),
+                        'cancelled': ('badge-inactive', 'باطل‌شده')} %}
+
 {% block content %}
 <div class="animate-in">
     <div class="page-header">
         <h1><i class="bi bi-receipt me-2 text-success"></i>پرداخت‌ها<small>لیست تمام پرداخت‌ها</small></h1>
         <a href="{{ url_for('finance.add_payment') }}" class="btn btn-primary-custom"><i class="bi bi-plus-circle me-2"></i>پرداخت جدید</a>
     </div>
+
+    <!-- فیلتر: فرم GET است، پس در چاپ خودبه‌خود پنهان می‌شود (print.css) -->
+    <form method="GET" class="row g-2 align-items-end mb-3" action="{{ url_for('finance.payments') }}">
+        <div class="col-6 col-md-3">
+            <label class="form-label" for="paySearch">جستجو</label>
+            <input type="search" class="form-control form-control-sm" id="paySearch" name="search"
+                   value="{{ search or '' }}" placeholder="نام هنرجو یا شماره رسید">
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label" for="payMethod">روش</label>
+            <select class="form-select form-select-sm" id="payMethod" name="method">
+                <option value="">همه</option>
+                {% for key, title in method_labels.items() %}
+                <option value="{{ key }}" {% if method == key %}selected{% endif %}>{{ title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-2">
+            <label class="form-label" for="payStatus">وضعیت</label>
+            <select class="form-select form-select-sm" id="payStatus" name="status">
+                <option value="">همه</option>
+                {% for key, (badge, title) in status_badges.items() %}
+                <option value="{{ key }}" {% if status == key %}selected{% endif %}>{{ title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-2 d-flex gap-1">
+            <button class="btn btn-sm btn-primary-custom">اعمال</button>
+            {% if search or method or status %}
+            <a href="{{ url_for('finance.payments') }}" class="btn btn-sm btn-outline-secondary">پاک‌سازی</a>
+            {% endif %}
+        </div>
+    </form>
+
     <div class="card-custom">
         <div class="card-body-custom" style="padding: 0;">
             {% if payments.items %}
@@ -18,22 +58,54 @@
                 <thead><tr><th>رسید</th><th>هنرجو</th><th>مبلغ</th><th>روش</th><th>تاریخ</th><th>وضعیت</th><th>عملیات</th></tr></thead>
                 <tbody>
                     {% for p in payments.items %}
-                    <tr>
+                    {% set badge, label = status_badges.get(p.status, ('badge-pending', p.status or '-')) %}
+                    <tr{% if p.status == 'cancelled' %} style="opacity: .6;"{% endif %}>
                         <td><code>{{ p.receipt_no }}</code></td>
                         <td>{{ p.student.full_name if p.student else '-' }}</td>
+                        {% if p.status == 'cancelled' %}
+                        <td style="color: #c62828; font-weight: 700; text-decoration: line-through;">{{ p.amount|currency }} ت</td>
+                        {% else %}
                         <td style="color: #27ae60; font-weight: 700;">{{ p.amount|currency }} ت</td>
-                        <td>{{ p.payment_method }}</td>
+                        {% endif %}
+                        <td>{{ method_labels.get(p.payment_method, p.payment_method) }}</td>
                         <td>{{ p.payment_date|to_jalali }}</td>
-                        <td><span class="badge-status badge-{{ 'active' if p.status == 'confirmed' else 'pending' }}">{{ p.status }}</span></td>
-                        <td><a href="{{ url_for('finance.view_payment', id=p.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                        <td><span class="badge-status {{ badge }}">{{ label }}</span>
+                            {% if p.status == 'cancelled' and p.cancel_reason %}
+                            <i class="bi bi-info-circle" title="{{ p.cancel_reason }}"
+                               style="color: var(--clr-text-soft, #546e7a);"></i>
+                            {% endif %}</td>
+                        <td class="cell-nowrap">
+                            <a href="{{ url_for('finance.view_payment', id=p.id) }}" class="btn btn-sm-custom btn-outline-primary"
+                               title="{{ 'ابطال/بازگردانی' if p.status != 'cancelled' else 'بازگردانی' }}">
+                                <i class="bi bi-eye"></i></a>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
             {% else %}
-            <div class="text-center py-5" style="color: #aaa;">پرداختی ثبت نشده</div>
+            <div class="text-center py-5" style="color: var(--clr-text-soft, #546e7a);">
+                {% if search or method or status %}
+                پرداختی با این فیلترها پیدا نشد — <a href="{{ url_for('finance.payments') }}">نمایش همه</a>
+                {% else %}
+                پرداختی ثبت نشده
+                {% endif %}
+            </div>
             {% endif %}
         </div>
     </div>
+
+    {% if payments.pages > 1 %}
+    <div class="card-custom mt-2"><div class="card-body-custom d-flex justify-content-center gap-1 py-2">
+        {% for page_no in payments.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if page_no %}
+            <a href="{{ url_for('finance.payments', page=page_no, method=method, search=search, status=status) }}"
+               class="btn btn-sm {{ 'btn-primary' if page_no == payments.page else 'btn-outline-secondary' }}">{{ page_no }}</a>
+            {% else %}
+            <span style="padding: 0 6px; color: var(--clr-text-faint, #607d8b);">…</span>
+            {% endif %}
+        {% endfor %}
+    </div></div>
+    {% endif %}
 </div>
 {% endblock %}

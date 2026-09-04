@@ -41,8 +41,18 @@ document.addEventListener('DOMContentLoaded', function() {
     initLiveClock();
 
     // ═══ ۱۳) تجربه موبایل / شبکه ═══
-    initMobileUX();
-    
+    safeInit(initMobileUX, 'mobile-ux');
+
+    // ═══ ۱۴) ورودی‌های عددی: ارقام فارسی، جداکننده هزارگان، enterkeyhint ═══
+    safeInit(initNumericInputs, 'numeric-inputs');
+
+    // ═══ ۱۵) لیبل‌های بی‌for + کلیک‌های قابل‌دسترس با کیبورد ═══
+    safeInit(initLabelTargets, 'label-targets');
+    safeInit(initClickableA11y, 'clickable-a11y');
+
+    // ═══ ۱۶) Service Worker (PWA آفلاینِ استاتیک) ═══
+    safeInit(registerServiceWorker, 'service-worker');
+
     console.log('✅ Academy Manager Pro — JS loaded');
 });
 
@@ -511,14 +521,32 @@ function gregorianToJalali(gy, gm, gd) {
 function initMobileUX() {
     wrapTablesForMobile();
     initUserMenuTouch();
+
+    // جداولی که بعداً با fetch تزریق می‌شوند (سریع‌جستجو، مودال‌ها، خروجی
+    // گزارش‌ها) قبلاً بدون اسکرول می‌ماندند؛ یک MutationObserver کافی است
+    var main = document.querySelector('.main-wrap, .content, main') || document.body;
+    if (window.MutationObserver) {
+        var schedule = null;
+        new MutationObserver(function() {
+            if (schedule) return;
+            schedule = requestAnimationFrame(function() {
+                schedule = null;
+                wrapTablesForMobile();
+            });
+        }).observe(main, { childList: true, subtree: true });
+    }
 }
 
 function wrapTablesForMobile() {
+    // جداول لیست‌ها (شهریه، اقساط، حقوق) روی موبایل از قاب بیرون می‌زدند؛
+    // برخی قالب‌ها .table-responsive دارند و بعضی نه — اینجا پوشش کامل می‌شود.
     document.querySelectorAll('table').forEach(function(table) {
         if (table.closest('.table-responsive')) return;
+        if (table.closest('td, th')) return;          // جدول تودرتو ⇒ دست نزن
         if (table.closest('.jalali-picker, .ss-dropdown')) return;
+        if (table.classList.contains('table-nowrap-mobile')) return;
         var wrap = document.createElement('div');
-        wrap.className = 'table-responsive';
+        wrap.className = 'table-responsive table-wrap-mobile';
         table.parentNode.insertBefore(wrap, table);
         wrap.appendChild(table);
     });
@@ -694,5 +722,326 @@ function copyToClipboard(text) {
         document.execCommand('copy');
         document.body.removeChild(textarea);
         showToast('کپی شد!', 'success');
+    });
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ۱۴) ورودی‌های عددی و پولی
+   ───────────────────────────────────────────────────────────────
+   ۹۷ ورودی type="number" در قالب‌ها بود و هیچ inputmode/enterkeyhintی نداشت:
+   الف) type="number" ارقام فارسی را «مقدار نامعتبر» می‌کند ⇒ فرم بی‌صدا
+      submit نمی‌شد (کاربر ایرانی ۵۰۰۰۰۰ را با ارقام فارسی تایپ می‌کند)؛
+   ب) روی موبایل کیبورد عددی درست باز نمی‌شد و کلید «بعدی» کار نمی‌کرد.
+   اینجا بدون دست‌زدن به قالب‌ها حل می‌شود: نوع به text+inputmode تبدیل و
+   ارقام فارسی/جداکننده‌ها نرمال می‌گردند. سمت سرور هم همان منع را دارد
+   (utils/form_helpers.parse_number)، پس JS فقط بهبود است نه تنها راه.
+   ═══════════════════════════════════════════════════════════════ */
+
+var FA_DIGITS = {
+    '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
+    '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9',
+    '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+    '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+};
+
+function toLatinDigits(text) {
+    // هر دو مجموعه رقم: فارسی ۰-۹ (U+06F0..) و عربی ٠-٩ (U+0660..) — کیبورد
+    // «Arabic» اندروید گروه دوم را تولید می‌کند.
+    return String(text == null ? '' : text).replace(/[\u06f0-\u06f9\u0660-\u0669]/g, function(ch) {
+        return FA_DIGITS[ch] || ch;
+    });
+}
+
+// تبدیل رشته‌ای مثل «۱۲,۵۰,۰۰۰» یا «12.500.000» به عدد (یا خالی اگر نامعتبر)
+function parseGroupedNumber(text) {
+    var raw = (text === undefined || text === null) ? '' : String(text);
+    var clean = toLatinDigits(raw)
+        .replace(/[\s\u200e\u200f_]/g, '')
+        .replace(/\u066B/g, '.')                       // ٫ ممیز فارسی
+        .replace(/[\u060C\u066C\u064C]/g, ',');      // ٬ و ، ویرگول فارسی/عربی
+    if (!clean) return '';
+
+    var negative = /^[\u2212-]/.test(clean);            // − یا -
+    clean = clean.replace(/^[\u2212-]/, '');
+
+    var lastComma = clean.lastIndexOf(',');
+    var lastDot = clean.lastIndexOf('.');
+    if (lastComma !== -1 && lastDot !== -1) {
+        // هر دو علامت هست ⇒ آن که آخر آمده جداکننده اعشار است، بقیه هزارگان
+        if (lastDot > lastComma) {
+            clean = clean.replace(/,/g, '');            // 1,200.50
+        } else {
+            clean = clean.replace(/\./g, '').replace(/,/g, '.');   // 1.200,50
+        }
+    } else if (lastComma !== -1) {
+        var parts = clean.split(',');
+        var isGrouping = parts.length > 1 && parts[0].length <= 3 &&
+            parts.slice(1).every(function (group) { return /^[0-9]{3}$/.test(group); });
+        // «1,200,000» ⇒ هزارگان؛  «12,5» ⇒ ممیزِ دستی کاربر فارسی‌زبان
+        clean = isGrouping ? parts.join('') : parts.join('.');
+    }
+
+    var dot = clean.indexOf('.');
+    var intPart = (dot === -1 ? clean : clean.slice(0, dot)).replace(/[^0-9]/g, '');
+    var fracPart = dot === -1 ? '' : clean.slice(dot + 1).replace(/[^0-9]/g, '');
+    if (!intPart && !fracPart) return '';
+
+    var value = parseFloat((intPart || '0') + (fracPart ? '.' + fracPart : ''));
+    if (!isFinite(value)) return '';
+    return (negative ? '-' : '') + String(value);
+}
+
+function formatGroupedNumber(value) {
+    if (value === '' || value === null || value === undefined) return '';
+    var numeric = Number(String(value).replace(/,/g, ''));
+    if (isNaN(numeric)) return String(value);
+    var split = String(numeric).split('.');
+    split[0] = split[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return split.join('.');
+}
+
+function isNumericish(input) {
+    if (!input || input.tagName !== 'INPUT') return false;
+    var mode = (input.getAttribute('inputmode') || '').toLowerCase();
+    return input.type === 'number' || mode === 'numeric' || mode === 'decimal' ||
+        input.classList.contains('money') || input.dataset.money !== undefined;
+}
+
+/* «۱۲٬۵۰۰٬۰۰۰ تومان» زیر فیلد — خواندن مرتبه عدد روی موبایل را راحت می‌کند؛
+   فقط نمایشی است و به مقدار فرم دست نمی‌زند (no-print تا چاپ نشود). */
+function updateMoneyEcho(input) {
+    if (!input || !input.dataset || input.dataset.money === undefined) return;
+    var echo = input.parentNode && input.parentNode.querySelector(':scope > .money-echo');
+    var parsed = parseGroupedNumber(input.value);
+    if (parsed === '') {
+        if (echo) echo.textContent = '';
+        return;
+    }
+    var grouped = formatGroupedNumber(parsed);
+    if (!grouped) return;
+    var unit = /rial|ریال/i.test((input.name || '') + (input.dataset.unit || '')) ? ' ریال' : ' تومان';
+    if (!echo) {
+        echo = document.createElement('span');
+        echo.className = 'money-echo no-print';
+        (input.parentNode || input).appendChild(echo);
+    }
+    echo.textContent = grouped + unit;
+}
+
+function initNumericInputs() {
+    // الف) type="number" → text + inputmode؛ مقدار حفظ می‌شود
+    document.querySelectorAll('input[type="number"]').forEach(function(input) {
+        var min = input.getAttribute('min');
+        var max = input.getAttribute('max');
+        var step = input.getAttribute('step');
+        try { input.type = 'text'; } catch (e) { return; }
+        var isDecimal = step && (step.indexOf('.') !== -1 || step === 'any');
+        input.setAttribute('inputmode', isDecimal ? 'decimal' : 'numeric');
+        input.classList.add('num-input');
+        if (min !== null) input.dataset.min = min;
+        if (max !== null) input.dataset.max = max;
+        if (step !== null) input.dataset.step = step;
+        if (min !== null && Number(min) >= 0) input.dataset.noNegative = '1';
+        // نوع فیلد را نگه می‌داریم تا فرم همچنان داده درست بفرستد
+        input.dataset.numeric = '1';
+    });
+
+    // ب) enterkeyhint خودکار: در هر فرم، «بعدی» روی همه و «پایان» روی آخرین فیلد
+    document.querySelectorAll('form').forEach(function(form) {
+        var fields = Array.prototype.filter.call(form.querySelectorAll(
+            'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]), select, textarea:not([readonly])'),
+            function(el) { return !el.disabled && el.offsetParent !== null; });
+        if (fields.length < 2) return;
+        fields.forEach(function(el, index) {
+            if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return;
+            if (el.hasAttribute('enterkeyhint')) return;
+            el.setAttribute('enterkeyhint', index === fields.length - 1 ? 'done' : 'next');
+        });
+    });
+
+    // پ) نرمال‌سازی رقم در حین تایپ و چسباندن
+    document.addEventListener('input', function(event) {
+        var input = event.target;
+        if (!isNumericish(input)) return;
+        var raw = input.value;
+        // ۱) ارقام فارسی/عربی → لاتین   ۲) ٫ → .   ۳) ویرگول = هزارگان ⇒ حذف
+        // (قبلاً همان مرحله ۳ همه‌چیزِ غیررقم را با regex پاک می‌کرد و «۱۲٫۵»
+        //  به «۱۲۵» تبدیل می‌شد — یعنی اعشارِ تایپ‌شده وسط کار از دست می‌رفت)
+        var clean = toLatinDigits(raw)
+            .replace(/\u066B/g, '.')
+            .replace(/,/g, '')
+            .replace(/[^0-9.\-]/g, '');
+        // فقط یک نقطه اعشار و یک منفیِ ابتدایی
+        var dotAt = clean.indexOf('.');
+        if (dotAt !== -1) {
+            clean = clean.slice(0, dotAt + 1) + clean.slice(dotAt + 1).replace(/\./g, '');
+        }
+        if (clean.indexOf('-') !== -1) {
+            clean = '-' + clean.replace(/-/g, '');
+        }
+        if (input.dataset.noNegative === '1') clean = clean.replace(/-/g, '');
+        // تعداد رقم اعشار را مطابق step محدود می‌کنیم (step=0.01 ⇒ دو رقم)
+        var step = input.dataset.step || '';
+        var stepMatch = step.match(/^0*\.(\d+)$/);
+        if (stepMatch && clean.indexOf('.') !== -1) {
+            var allowed = stepMatch[1].length;
+            var pos = clean.indexOf('.');
+            clean = clean.slice(0, pos + 1 + allowed);
+        }
+        if (clean !== raw) {
+            input.value = clean;
+            // خطای native «Please enter a number» را پاک می‌کنیم
+            if (input.setCustomValidity) input.setCustomValidity('');
+            updateMoneyEcho(input);
+        }
+    }, true);
+
+    document.addEventListener('paste', function(event) {
+        var input = event.target;
+        if (!isNumericish(input)) return;
+        var text = (event.clipboardData || window.clipboardData).getData('text');
+        var parsed = parseGroupedNumber(text);
+        if (parsed !== '') {
+            event.preventDefault();
+            input.value = input.value.slice(0, input.selectionStart) + parsed +
+                input.value.slice(input.selectionEnd);
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }, true);
+
+    // ت) در blur: نرمال‌سازی نهایی + رعایت min/max.
+    //    عمداً جداکننده هزارگان داخل value نمی‌گذاریم: در همین پروژه ده‌ها
+    //    اسکریپت inline با parseFloat(input.value) جمع کل را حساب می‌کنند و
+    //    «1,200» را ۱ می‌خوانند ⇒ مبلغ خرد می‌شد. عدد خام می‌ماند؛ قرت‌پذیری
+    //    با tabular-nums و راست‌چین کردن انجام می‌شود.
+    document.addEventListener('blur', function(event) {
+        var input = event.target;
+        if (!isNumericish(input)) return;
+        var parsed = parseGroupedNumber(input.value);
+        if (parsed === '') { input.value = ''; return; }
+        var value = Number(parsed);
+        if (isNaN(value)) { input.value = ''; return; }
+        if (input.dataset.noNegative === '1' && value < 0) value = Math.abs(value);
+        if (input.dataset.min !== undefined && value < Number(input.dataset.min)) value = Number(input.dataset.min);
+        if (input.dataset.max !== undefined && value > Number(input.dataset.max)) value = Number(input.dataset.max);
+        input.value = String(value);
+        updateMoneyEcho(input);
+    }, true);
+
+    // ث) پیش از submit، مبالغ جداکننده‌دار به عدد خام تبدیل شوند
+    document.addEventListener('submit', function(event) {
+        var form = event.target;
+        if (!form || !form.querySelectorAll) return;
+        form.querySelectorAll('input').forEach(function(input) {
+            if (!isNumericish(input) || input.value === '' || input.dataset.money === undefined) return;
+            var parsed = parseGroupedNumber(input.value);
+            if (parsed !== '') input.value = parsed;
+        });
+    });
+
+    // ج) کلاس .money برای فیلدهای پولی — نام، id، placeholder و <label> بررسی
+    //    می‌شود؛ سال/نسبت/درصد/ماه استثنا هستند (جداکننده هزارگان معنا ندارد)
+    var MONEY_RE = /amount|price|fee|cost|debt|credit|money|toman|rial|salary|wage|total|mablag|hazine|پرداخت|مبلغ|هزینه|قیمت|حقوق|بدهی|مانده|بودجه/;
+    var NOT_MONEY_RE = /year|month|percent|ratio|score|count|number_of|days|sal|mah|درصد|سال|تعداد|روز/;
+    document.querySelectorAll('input').forEach(function(input) {
+        if (!isNumericish(input)) return;
+        var label = '';
+        if (input.id) {
+            var labelEl = document.querySelector('label[for="' + input.id + '"]');
+            if (labelEl) label = labelEl.textContent || '';
+        }
+        var hint = ((input.name || '') + ' ' + (input.id || '') + ' ' +
+                    (input.placeholder || '') + ' ' + label).toLowerCase();
+        if (NOT_MONEY_RE.test(hint) || !MONEY_RE.test(hint)) return;
+        input.dataset.money = '1';
+        input.classList.add('money');
+        updateMoneyEcho(input);
+    });
+    window.addEventListener('pageshow', function () {
+        document.querySelectorAll('input.money').forEach(updateMoneyEcho);
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ۱۴.۱) اطمینان از بوت شدن بقیه افزونه‌ها
+   ═══════════════════════════════════════════════════════════════ */
+function safeInit(fn, name) {
+    // این لایه «بهبود تدریجی» است: اگر قالب عجیبی باعث خطا شد، بقیه
+    // رفتارهای صفحه (و ثبت service worker) نباید از کار بیفتند.
+    try {
+        fn();
+    } catch (err) {
+        if (window.console && console.warn) console.warn('[ux:' + name + ']', err);
+    }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ۱۵) دسترس‌پذیری: لیبل‌ها و کلیک‌های غیردکمه‌ای
+   ═══════════════════════════════════════════════════════════════ */
+function initLabelTargets() {
+    // ۵۳۷ <label> در قالب‌ها بود و فقط ۱۱ تا for= داشت؛ یعنی ضربه به متن
+    // لیبل روی موبایل فیلد را فوکوس نمی‌کرد (و صفحه‌کلید باز نمی‌شد).
+    // اینجا برای لیبل‌هایی که دقیقاً یک کنترل دارند، for ساخته می‌شود.
+    var seq = 0;
+    function usable(list) {
+        return Array.prototype.filter.call(list, function(el) {
+            return el.type !== 'hidden' && !el.disabled;
+        });
+    }
+    document.querySelectorAll('label:not([for])').forEach(function(label) {
+        var controls = usable(label.querySelectorAll('input, select, textarea'));
+        if (controls.length === 0 && label.parentNode && label.parentNode.querySelectorAll) {
+            // الگوی رایج همین پروژه: «<label>…</label><input>» خواهر‌به‌خواهر داخل
+            // یک کانتینر. اگر کانتینر دقیقاً یک کنترل داشت، همان را به لیبل می‌دهیم.
+            var parentControls = usable(label.parentNode.querySelectorAll('input, select, textarea'));
+            if (parentControls.length === 1) controls = parentControls;
+        }
+        if (controls.length !== 1) return;      // گروه رادیو/چک‌باکس: خود HTML کافی است
+        var field = controls[0];
+        // کامپوننت‌هایی که select اصلی را مخفی و یک نمایش جایگزین می‌کنند:
+        // for دادن به آن‌ها کلیک را به یک کنترل نامرئی می‌برد
+        if (field.closest('.ss-container, .ss-display')) return;
+        if (field.offsetWidth === 0 && field.offsetHeight === 0 && field.type !== 'hidden') return;
+        if (!field.id) {
+            seq += 1;
+            field.id = 'auto-fld-' + seq + '-' + Math.random().toString(36).slice(2, 6);
+        }
+        label.setAttribute('for', field.id);
+        label.style.cursor = 'pointer';
+    });
+}
+
+function initClickableA11y() {
+    // ۸۵ onclick روی div/span: با کیبورد و screen reader هیچ‌وقت قابل استفاده
+    // نبود. ردیف/لیست جدول را دست نمی‌زنیم (role خودشان معنادار است).
+    document.querySelectorAll('[onclick]').forEach(function(el) {
+        var tag = el.tagName;
+        if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' ||
+            tag === 'TEXTAREA' || tag === 'TR' || tag === 'LI' || tag === 'LABEL') return;
+        if (el.hasAttribute('tabindex')) return;
+        el.setAttribute('role', 'button');
+        el.setAttribute('tabindex', '0');
+        el.addEventListener('keydown', function(ev) {
+            if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
+                ev.preventDefault();
+                el.click();
+            }
+        });
+    });
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   ۱۶) Service Worker
+   ═══════════════════════════════════════════════════════════════ */
+function registerServiceWorker() {
+    if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
+    // ثبت فقط روی خط خودِ اپ انجام می‌شود (روی http محلی دسکتاپ SW مجاز نیست)
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function() {
+            /* محیط‌هایی که SW مجاز نیست (زیر path، http داخلی دسکتاپ) */
+        });
     });
 }

@@ -84,10 +84,10 @@
                 <div class="card-head"><h5><i class="bi bi-info-circle"></i> اطلاعات بات</h5></div>
                 <div class="card-body-padded">
                     <table class="table table-borderless mb-0">
-                        <tr><td style="color: #78909c; width: 120px;">نام بات</td><td><strong>{{ bot_info.first_name }}</strong></td></tr>
-                        <tr><td style="color: #78909c;">یوزرنیم</td><td><code>@{{ bot_info.username }}</code></td></tr>
-                        <tr><td style="color: #78909c;">شناسه</td><td>{{ bot_info.id }}</td></tr>
-                        <tr><td style="color: #78909c;">وضعیت</td><td><span class="badge-status badge-active">فعال</span></td></tr>
+                        <tr><td style="color: var(--clr-text-muted, #455a64); width: 120px;">نام بات</td><td><strong>{{ bot_info.first_name }}</strong></td></tr>
+                        <tr><td style="color: var(--clr-text-muted, #455a64);">یوزرنیم</td><td><code>@{{ bot_info.username }}</code></td></tr>
+                        <tr><td style="color: var(--clr-text-muted, #455a64);">شناسه</td><td>{{ bot_info.id }}</td></tr>
+                        <tr><td style="color: var(--clr-text-muted, #455a64);">وضعیت</td><td><span class="badge-status badge-active">فعال</span></td></tr>
                     </table>
                 </div>
             </div>
@@ -99,10 +99,10 @@
                 <div class="card-head"><h5><i class="bi bi-globe"></i> وضعیت وب‌هوک</h5></div>
                 <div class="card-body-padded">
                     <table class="table table-borderless mb-0">
-                        <tr><td style="color: #78909c; width: 120px;">آدرس</td><td><code>{{ webhook_info.url or 'تنظیم نشده' }}</code></td></tr>
-                        <tr><td style="color: #78909c;">خطاها</td><td>{{ webhook_info.pending_update_count or 0 }}</td></tr>
+                        <tr><td style="color: var(--clr-text-muted, #455a64); width: 120px;">آدرس</td><td><code>{{ webhook_info.url or 'تنظیم نشده' }}</code></td></tr>
+                        <tr><td style="color: var(--clr-text-muted, #455a64);">خطاها</td><td>{{ webhook_info.pending_update_count or 0 }}</td></tr>
                         {% if webhook_info.last_error_date %}
-                        <tr><td style="color: #78909c;">آخرین خطا</td><td style="color: #c62828;">{{ webhook_info.last_error_message or '-' }}</td></tr>
+                        <tr><td style="color: var(--clr-text-muted, #455a64);">آخرین خطا</td><td style="color: #c62828;">{{ webhook_info.last_error_message or '-' }}</td></tr>
                         {% endif %}
                     </table>
                 </div>

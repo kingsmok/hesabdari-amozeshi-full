@@ -6,16 +6,42 @@
     <div class="page-head">
         <h1><i class="bi bi-cash-coin"></i> سیستم حقوق و دستمزد پیشرفته<small>مدیریت کامل حقوق مدرسین و کارکنان</small></h1>
         <div class="d-flex gap-2">
-            <a href="{{ url_for('payroll.add_contract') }}" class="btn btn-outline-primary"><i class="bi bi-file-earmark-plus me-1"></i> قرارداد جدید</a>
-            <a href="{{ url_for('payroll.calculate') }}" class="btn btn-primary"><i class="bi bi-calculator me-1"></i> محاسبه حقوق</a>
+            <a href="{{ url_for('payroll.contracts') }}" class="btn btn-outline-primary"><i class="bi bi-file-earmark-plus me-1"></i> قرارداد جدید</a>
+            <a href="{{ url_for('payroll.calculate', period=period) }}" class="btn btn-primary"><i class="bi bi-calculator me-1"></i> محاسبه حقوق</a>
+        </div>
+    </div>
+
+    <!-- انتخاب دوره: همه آمار بر اساس همین دوره شمسی است -->
+    <div class="card mb-4">
+        <div class="card-body-padded">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label" for="periodFilter">دوره</label>
+                    <select name="period" id="periodFilter" class="form-select" onchange="this.form.submit()">
+                        {% for value in period_choices %}
+                        <option value="{{ value }}" {{ 'selected' if value == period }}>{{ value }} — {{ value|jalali_period }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <div style="font-size: 12px; color: var(--clr-text-muted, #455a64);">
+                        <i class="bi bi-info-circle me-1"></i>
+                        محاسبه حقوق فقط بر اساس بازه همین دوره انجام می‌شود؛ دوره {{ period }} ({{ period_label }}).
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex gap-2 justify-content-end">
+                    <a href="{{ url_for('payroll.payslips', period=period) }}" class="btn btn-outline-secondary w-100"><i class="bi bi-list-ul me-1"></i> همه فیش‌ها</a>
+                </div>
+            </form>
         </div>
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">کل پرداخت شده</div><div class="stat-val" style="font-size: 18px; color: #2e7d32;">{{ total_paid|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div></div></div>
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">در انتظار پرداخت</div><div class="stat-val" style="font-size: 18px; color: #e65100;">{{ total_pending|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div></div></div>
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">مدرسین فعال</div><div class="stat-val">{{ teachers|length }}</div></div></div>
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">قراردادهای فعال</div><div class="stat-val">{{ contracts|length }}</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">پرداخت‌شده این دوره</div><div class="stat-val" style="font-size: 18px; color: #2e7d32;">{{ period_paid|currency }} <small style="font-size: 11px; color: var(--clr-text-muted, #455a64);">تومان</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">در انتظار این دوره</div><div class="stat-val" style="font-size: 18px; color: #e65100;">{{ period_pending|currency }} <small style="font-size: 11px; color: var(--clr-text-muted, #455a64);">تومان</small></div></div></div>
+        <div class="col-md-2"><div class="stat-box"><div class="stat-label">مدرسین فعال</div><div class="stat-val">{{ teachers|length }}</div></div></div>
+        <div class="col-md-2"><div class="stat-box"><div class="stat-label">قراردادهای فعال</div><div class="stat-val">{{ contracts|selectattr('is_active')|list|length }}</div></div></div>
+        <div class="col-md-2"><div class="stat-box"><div class="stat-label">کل پرداختی کل</div><div class="stat-val" style="font-size: 15px;">{{ total_paid|currency }}</div></div></div>
     </div>
 
     <div class="row g-3">
@@ -36,32 +62,72 @@
             </div>
         </div>
 
-        <!-- فیش‌های اخیر -->
+        <!-- فیش‌های این دوره -->
         <div class="col-lg-8">
             <div class="card">
-                <div class="card-head"><h5><i class="bi bi-receipt"></i> آخرین فیش‌های حقوقی</h5></div>
+                <div class="card-head">
+                    <h5><i class="bi bi-receipt"></i> فیش‌های دوره {{ period }}</h5>
+                    {% if period_payslips %}
+                    <span style="font-size: 12px; color: var(--clr-text-muted, #455a64);">{{ period_payslips|length }} فیش</span>
+                    {% endif %}
+                </div>
                 <div class="card-body-padded" style="padding: 0;">
-                    {% if recent_payslips %}
+                    {% if period_payslips %}
+                    <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead><tr><th>شماره</th><th>شخص</th><th>ناخالص</th><th>کسورات</th><th>خالص</th><th>وضعیت</th><th></th></tr></thead>
+                        <tbody>
+                            {% for p in period_payslips %}
+                            <tr>
+                                <td><code>{{ p.payslip_number }}</code></td>
+                                <td>{{ person_name(p.person_type, p.person_id) }}</td>
+                                <td>{{ p.gross_amount|currency }} ت</td>
+                                <td style="color: #c62828;">{{ p.total_deductions|currency }} ت</td>
+                                <td style="font-weight: 700;">{{ p.net_amount|currency }} ت</td>
+                                <td>
+                                    <span class="badge-status badge-{{ 'active' if p.status == 'paid' else ('pending' if p.status == 'approved' else ('inactive' if p.status == 'cancelled' else 'completed')) }}">
+                                        {{ {'paid': 'پرداخت‌شده', 'approved': 'تأییدشده', 'cancelled': 'ابطال‌شده'}.get(p.status, 'پیش‌نویس') }}
+                                    </span>
+                                </td>
+                                <td><a href="{{ url_for('payroll.view_payslip', id=p.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4" style="color: var(--clr-text-faint, #607d8b);">
+                        <p>برای دوره {{ period|jalali_period }} فیشی صادر نشده است</p>
+                        <a href="{{ url_for('payroll.calculate', period=period) }}" class="btn btn-sm btn-outline-success"><i class="bi bi-calculator me-1"></i> محاسبه این دوره</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if recent_payslips %}
+            <div class="card mt-4">
+                <div class="card-head"><h5><i class="bi bi-clock-history"></i> آخرین فیش‌ها (همه دوره‌ها)</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    <div class="table-responsive">
                     <table class="table mb-0">
                         <thead><tr><th>شماره</th><th>نوع</th><th>دوره</th><th>خالص</th><th>وضعیت</th><th>عملیات</th></tr></thead>
                         <tbody>
                             {% for p in recent_payslips[:10] %}
                             <tr>
                                 <td><code>{{ p.payslip_number }}</code></td>
-                                <td>{{ p.person_type }}</td>
+                                <td>{{ person_types.get(p.person_type, p.person_type) }}</td>
                                 <td>{{ p.period }}</td>
                                 <td style="font-weight: 700;">{{ p.net_amount|currency }} ت</td>
-                                <td><span class="badge-status badge-{{ 'active' if p.status == 'paid' else ('pending' if p.status == 'approved' else 'inactive') }}">{{ p.status }}</span></td>
+                                <td><span class="badge-status badge-{{ 'active' if p.status == 'paid' else ('pending' if p.status == 'approved' else ('inactive' if p.status == 'cancelled' else 'completed')) }}">{{ {'paid': 'پرداخت‌شده', 'approved': 'تأییدشده', 'cancelled': 'ابطال‌شده'}.get(p.status, 'پیش‌نویس') }}</span></td>
                                 <td><a href="{{ url_for('payroll.view_payslip', id=p.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
-                    {% else %}
-                    <div class="text-center py-4" style="color: #b0bec5;"><p>فیشی صادر نشده</p></div>
-                    {% endif %}
+                    </div>
                 </div>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>

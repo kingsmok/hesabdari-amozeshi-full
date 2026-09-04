@@ -1,4 +1,8 @@
 {% extends "base/layout.html" %}
+
+{% block chart_assets %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+{% endblock %}
 {% block title %}گزارش مالی{% endblock %}
 {% block breadcrumb %}
 <li><a href="{{ url_for('reports.financial_report') }}">گزارش‌ها</a></li>

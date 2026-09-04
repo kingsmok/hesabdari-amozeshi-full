@@ -14,7 +14,7 @@
                         <div class="stat-box text-center" style="cursor: pointer; border: 2px solid {{ '#0d47a1' if config.database.type == 'sqlite' else '#e0e4e8' }};" onclick="selectDbType('sqlite')">
                             <i class="bi bi-database" style="font-size: 32px; color: #0d47a1;"></i>
                             <h6 class="mt-2">SQLite</h6>
-                            <p style="font-size: 11px; color: #78909c;">تک‌کاربره — ساده</p>
+                            <p style="font-size: 11px; color: var(--clr-text-muted, #455a64);">تک‌کاربره — ساده</p>
                             <input type="radio" name="db_type" value="sqlite" id="db-sqlite" {{ 'checked' if config.database.type == 'sqlite' }} style="display: none;">
                         </div>
                     </div>
@@ -22,7 +22,7 @@
                         <div class="stat-box text-center" style="cursor: pointer; border: 2px solid {{ '#0d47a1' if config.database.type == 'mysql' else '#e0e4e8' }};" onclick="selectDbType('mysql')">
                             <i class="bi bi-database-fill" style="font-size: 32px; color: #e65100;"></i>
                             <h6 class="mt-2">MySQL</h6>
-                            <p style="font-size: 11px; color: #78909c;">متوسط — شبکه</p>
+                            <p style="font-size: 11px; color: var(--clr-text-muted, #455a64);">متوسط — شبکه</p>
                             <input type="radio" name="db_type" value="mysql" id="db-mysql" {{ 'checked' if config.database.type == 'mysql' }} style="display: none;">
                         </div>
                     </div>
@@ -30,7 +30,7 @@
                         <div class="stat-box text-center" style="cursor: pointer; border: 2px solid {{ '#0d47a1' if config.database.type == 'postgresql' else '#e0e4e8' }};" onclick="selectDbType('postgresql')">
                             <i class="bi bi-database-fill-add" style="font-size: 32px; color: #2e7d32;"></i>
                             <h6 class="mt-2">PostgreSQL</h6>
-                            <p style="font-size: 11px; color: #78909c;">بزرگ — حرفه‌ای</p>
+                            <p style="font-size: 11px; color: var(--clr-text-muted, #455a64);">بزرگ — حرفه‌ای</p>
                             <input type="radio" name="db_type" value="postgresql" id="db-postgresql" {{ 'checked' if config.database.type == 'postgresql' }} style="display: none;">
                         </div>
                     </div>

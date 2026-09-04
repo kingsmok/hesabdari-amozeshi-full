@@ -7,29 +7,68 @@
         <h1><i class="bi bi-file-earmark-text"></i> قراردادهای حقوقی<small>مدیریت قراردادهای مدرسین و کارکنان</small></h1>
         <a href="{{ url_for('payroll.add_contract') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> قرارداد جدید</a>
     </div>
+
+    <div class="alert alert-info" style="font-size: 13px;">
+        <i class="bi bi-info-circle me-1"></i>
+        هر نفر فقط یک قرارداد <strong>فعال</strong> می‌تواند داشته باشد؛ قرارداد منقضی‌شده (تاریخ پایان گذشته) در
+        محاسبه دوره‌های بعد اعمال نمی‌شود. برای اصلاح اعداد، از دکمه ویرایش استفاده کنید — نه حذف و ساخت مجدد.
+    </div>
+
     <div class="card">
         <div class="card-body-padded" style="padding: 0;">
             {% if contracts %}
+            <div class="table-responsive">
             <table class="table mb-0">
-                <thead><tr><th>شخص</th><th>نوع</th><th>پایه</th><th>ساعتی</th><th>جلسه‌ای</th><th>درصد</th><th>بیمه</th><th>مالیات</th><th>وضعیت</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>شخص</th><th>نوع قرارداد</th><th>پایه</th><th>ساعتی</th><th>جلسه‌ای</th>
+                        <th>درصد</th><th>بیمه</th><th>مالیات</th><th>شروع</th><th>پایان</th>
+                        <th>وضعیت</th><th></th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for c in contracts %}
                     <tr>
-                        <td><strong>{{ c.person_id }}</strong></td>
-                        <td><span class="badge-status badge-completed">{{ c.contract_type }}</span></td>
+                        <td>
+                            <strong>{{ person_name(c.person_type, c.person_id) }}</strong>
+                            <div style="font-size: 11px; color: var(--clr-text-muted, #455a64);">{{ person_types.get(c.person_type, c.person_type) }} #{{ c.person_id }}</div>
+                        </td>
+                        <td><span class="badge-status badge-completed">{{ contract_types.get(c.contract_type, c.contract_type or '-') }}</span></td>
                         <td>{{ c.base_salary|currency }} ت</td>
                         <td>{{ c.hourly_rate|currency }} ت</td>
                         <td>{{ c.session_rate|currency }} ت</td>
-                        <td>{{ c.percentage_rate }}%</td>
-                        <td>{{ c.insurance|currency }} ت</td>
-                        <td>{{ c.tax|currency }} ت</td>
-                        <td><span class="badge-status badge-{{ 'active' if c.is_active else 'inactive' }}">{{ 'فعال' if c.is_active else 'غیرفعال' }}</span></td>
+                        <td>{{ c.percentage_rate }}{% if c.percentage_rate %}٪{% endif %}</td>
+                        <td>{{ c.insurance_amount|currency }} ت</td>
+                        <td>{{ c.tax_amount|currency }} ت</td>
+                        <td>{{ c.start_date|to_jalali or '-' }}</td>
+                        <td>{{ c.end_date|to_jalali or '-' }}</td>
+                        <td>
+                            <span class="badge-status badge-{{ 'active' if c.is_active else 'inactive' }}">{{ 'فعال' if c.is_active else 'غیرفعال' }}</span>
+                            {% if c.end_date and c.is_active and c.end_date < today %}
+                            <div style="font-size: 11px; color: #c62828;">منقضی شده</div>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            <a href="{{ url_for('payroll.edit_contract', id=c.id) }}" class="btn btn-sm btn-outline-primary" title="ویرایش"><i class="bi bi-pencil"></i></a>
+                            <form method="POST" action="{{ url_for('payroll.toggle_contract', id=c.id) }}" style="display:inline;"
+                                  onsubmit="return confirm('قرارداد {{ 'غیرفعال' if c.is_active else 'فعال' }} شود؟');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-{{ 'warning' if c.is_active else 'success' }}"
+                                        title="{{ 'غیرفعال کردن' if c.is_active else 'فعال کردن' }}">
+                                    <i class="bi bi-{{ 'pause' if c.is_active else 'play' }}-circle"></i>
+                                </button>
+                            </form>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
             {% else %}
-            <div class="text-center py-5" style="color: #b0bec5;"><p>قراردادی ثبت نشده</p></div>
+            <div class="text-center py-5" style="color: var(--clr-text-faint, #607d8b);">
+                <p>قراردادی ثبت نشده</p>
+                <a href="{{ url_for('payroll.add_contract') }}" class="btn btn-sm btn-primary"><i class="bi bi-plus me-1"></i> اولین قرارداد</a>
+            </div>
             {% endif %}
         </div>
     </div>

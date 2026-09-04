@@ -11,13 +11,13 @@
         <div class="card-body-padded">
             <div class="text-center mb-4">
                 <h4>فیش مالیاتی حقوق و دستمزد</h4>
-                <p style="color: #78909c;">دوره: {{ payslip.period }} | شماره: {{ payslip.payslip_number }}</p>
+                <p style="color: var(--clr-text-muted, #455a64);">دوره: {{ payslip.period }} | شماره: {{ payslip.payslip_number }}</p>
             </div>
             
             <table class="table table-borderless mb-4" style="border: 1px solid #eee;">
-                <tr><td style="color: #78909c;">نام</td><td><strong>{{ person_name }}</strong></td></tr>
-                <tr><td style="color: #78909c;">کد پرسنلی</td><td>{{ payslip.person_id }}</td></tr>
-                <tr><td style="color: #78909c;">دوره</td><td>{{ payslip.period }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">نام</td><td><strong>{{ person_name }}</strong></td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">کد پرسنلی</td><td>{{ payslip.person_id }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">دوره</td><td>{{ payslip.period }}</td></tr>
             </table>
             
             <table class="table" style="border: 1px solid #ddd;">
@@ -47,8 +47,8 @@
             </div>
             
             <div class="d-flex justify-content-between mt-4">
-                <div><p style="color: #78909c;">مهر و امضا:</p><div style="width: 120px; height: 60px; border-bottom: 1px solid #333;"></div></div>
-                <div><p style="color: #78909c;">تاریخ:</p><p>{{ "now"|to_jalali }}</p></div>
+                <div><p style="color: var(--clr-text-muted, #455a64);">مهر و امضا:</p><div style="width: 120px; height: 60px; border-bottom: 1px solid #333;"></div></div>
+                <div><p style="color: var(--clr-text-muted, #455a64);">تاریخ:</p><p>{{ "now"|to_jalali }}</p></div>
             </div>
         </div>
     </div>

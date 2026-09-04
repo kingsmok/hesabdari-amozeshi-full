@@ -79,6 +79,12 @@ LICENSE_EXEMPT_ENDPOINTS = frozenset({
     'favicon',
     'auth.login',
     'auth.logout',
+    # پوسته PWA باید پیش از فعال‌سازی لایسنس هم بارگذاری شود (نصب/آفلاین بودن
+    # صفحه، نه داده آموزشی)؛ در غیر این صورت manifest و صفحه آفلاین به
+    # /license/activate ریدایرکت می‌شوند و «افزودن به صفحه اصلی» می‌شکند.
+    'manifest',
+    'offline',
+    'service_worker',
 })
 
 LICENSE_BLUEPRINT_PREFIX = 'license.'

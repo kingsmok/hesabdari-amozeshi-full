@@ -1,4 +1,8 @@
 {% extends "base/layout.html" %}
+
+{% block chart_assets %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+{% endblock %}
 {% block title %}آمار و گزارش{% endblock %}
 {% block breadcrumb %}
 <li><a href="{{ url_for('bot_panel.dashboard') }}">پنل ربات</a></li>

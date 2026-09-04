@@ -1,0 +1,121 @@
+{# فرم مشترک ثبت/ویرایش قرارداد حقوقی #}
+<div class="card mb-4">
+    <div class="card-head"><h5>اطلاعات شخص</h5></div>
+    <div class="card-body-padded">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label" for="personType">نوع شخص</label>
+                <select name="person_type" id="personType" class="form-select">
+                    {% for key, label in person_types.items() %}
+                    <option value="{{ key }}" {{ 'selected' if form_value('person_type', contract) == key }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="personId">شخص</label>
+                <select name="person_id" id="personId" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
+                    <option value="">انتخاب کنید</option>
+                    {% for t in teachers %}
+                    <option value="{{ t.id }}" {{ 'selected' if form_value('person_id', contract)|string == t.id|string }}>{{ t.full_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="contractType">نوع قرارداد</label>
+                <select name="contract_type" id="contractType" class="form-select" onchange="showFields()">
+                    {% for key, label in contract_types.items() %}
+                    <option value="{{ key }}" {{ 'selected' if form_value('contract_type', contract) == key }}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-head"><h5>مبالغ قرارداد <small style="font-weight: 400; color: var(--clr-text-muted, #455a64);">(تومان)</small></h5></div>
+    <div class="card-body-padded">
+        <div class="row g-3">
+            <div class="col-md-3" id="baseField">
+                <label class="form-label" for="baseSalary">حقوق پایه (ماهانه)</label>
+                <input type="number" step="1000" min="0" inputmode="numeric" name="base_salary" id="baseSalary"
+                       class="form-control" value="{{ form_value('base_salary', contract) }}">
+            </div>
+            <div class="col-md-3" id="hourlyField">
+                <label class="form-label" for="hourlyRate">نرخ ساعتی</label>
+                <input type="number" step="1000" min="0" inputmode="numeric" name="hourly_rate" id="hourlyRate"
+                       class="form-control" value="{{ form_value('hourly_rate', contract) }}">
+            </div>
+            <div class="col-md-3" id="sessionField">
+                <label class="form-label" for="sessionRate">نرخ هر جلسه</label>
+                <input type="number" step="1000" min="0" inputmode="numeric" name="session_rate" id="sessionRate"
+                       class="form-control" value="{{ form_value('session_rate', contract) }}">
+            </div>
+            <div class="col-md-3" id="percentField">
+                <label class="form-label" for="percentageRate">درصد از شهریه (٪)</label>
+                <input type="number" step="0.1" min="0" max="100" inputmode="decimal" name="percentage_rate" id="percentageRate"
+                       class="form-control" value="{{ form_value('percentage_rate', contract) }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="commissionRate">پورسانت فروش (٪)</label>
+                <input type="number" step="0.1" min="0" max="100" inputmode="decimal" name="commission_rate" id="commissionRate"
+                       class="form-control" value="{{ form_value('commission_rate', contract) }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="insuranceAmount">کسر بیمه (ماهانه)</label>
+                <input type="number" step="1000" min="0" inputmode="numeric" name="insurance_amount" id="insuranceAmount"
+                       class="form-control" value="{{ form_value('insurance_amount', contract) }}">
+                <div style="font-size: 11px; color: var(--clr-text-muted, #455a64); margin-top: 3px;">۷٪ حقوق مبنای بیمه — در صورت صفر بودن، خودکار محاسبه نمی‌شود</div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="taxAmount">کسر مالیات (ماهانه)</label>
+                <input type="number" step="1000" min="0" inputmode="numeric" name="tax_amount" id="taxAmount"
+                       class="form-control" value="{{ form_value('tax_amount', contract) }}">
+                <div style="font-size: 11px; color: var(--clr-text-muted, #455a64); margin-top: 3px;">
+                    برای محاسبه خودکار بر اساس پلکان قانون، به بخش مالیات ← «محاسبه خودکار مالیات فیش‌ها» بروید
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-head"><h5>تاریخ و توضیحات</h5></div>
+    <div class="card-body-padded">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label" for="startDate">تاریخ شروع</label>
+                <input type="text" name="start_date" id="startDate" class="form-control jalali-date"
+                       value="{{ form_value('start_date', contract) }}" placeholder="۱۴۰۵/۰۱/۰۱">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="endDate">تاریخ پایان</label>
+                <input type="text" name="end_date" id="endDate" class="form-control jalali-date"
+                       value="{{ form_value('end_date', contract) }}" placeholder="اختیاری">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label" for="notesInput">توضیحات</label>
+                <input type="text" name="notes" id="notesInput" class="form-control" value="{{ form_value('notes', contract) }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="is_active" id="isActive" value="1"
+                           {{ 'checked' if (contract is none or contract.is_active) }}>
+                    <label class="form-check-label" for="isActive">فعال</label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showFields() {
+    var type = document.getElementById('contractType').value;
+    document.getElementById('baseField').style.display = (type === 'fixed' || type === 'combined') ? '' : 'none';
+    document.getElementById('hourlyField').style.display = (type === 'hourly' || type === 'combined') ? '' : 'none';
+    document.getElementById('sessionField').style.display = (type === 'session') ? '' : 'none';
+    document.getElementById('percentField').style.display = (type === 'percentage' || type === 'combined') ? '' : 'none';
+}
+document.addEventListener('DOMContentLoaded', showFields);
+showFields();
+</script>

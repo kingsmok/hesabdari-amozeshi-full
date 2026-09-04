@@ -18,8 +18,8 @@
                 <h5>کارنامه آموزشی</h5>
             </div>
             <table class="table table-borderless mb-4" style="border: 1px solid #eee;">
-                <tr><td style="color: #78909c;">نام</td><td><strong>{{ student.full_name }}</strong></td><td style="color: #78909c;">کد</td><td>{{ student.student_code }}</td></tr>
-                <tr><td style="color: #78909c;">کد ملی</td><td>{{ student.national_code or '-' }}</td><td style="color: #78909c;">تاریخ</td><td>{{ "now"|to_jalali }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">نام</td><td><strong>{{ student.full_name }}</strong></td><td style="color: var(--clr-text-muted, #455a64);">کد</td><td>{{ student.student_code }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">کد ملی</td><td>{{ student.national_code or '-' }}</td><td style="color: var(--clr-text-muted, #455a64);">تاریخ</td><td>{{ "now"|to_jalali }}</td></tr>
             </table>
             {% if grades %}
             <table class="table" style="border: 1px solid #ddd;">
@@ -38,7 +38,7 @@
                 </tbody>
             </table>
             {% else %}
-            <div class="text-center" style="color: #b0bec5;"><p>نمره‌ای ثبت نشده</p></div>
+            <div class="text-center" style="color: var(--clr-text-faint, #607d8b);"><p>نمره‌ای ثبت نشده</p></div>
             {% endif %}
         </div>
     </div>

@@ -6,22 +6,130 @@
 {% endblock %}
 
 {% block content %}
+{% set status_map = {'confirmed': ('badge-active', 'تأییدشده'),
+                     'pending': ('badge-pending', 'در انتظار'),
+                     'cancelled': ('badge-inactive', 'باطل‌شده')} %}
+{% set badge, label = status_map.get(payment.status, ('badge-pending', payment.status or '-')) %}
 <div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-receipt me-2 text-success"></i>رسید پرداخت<small>{{ payment.receipt_no }}</small></h1></div>
-    <div class="card-custom" style="max-width: 600px;">
+    <div class="page-header">
+        <h1><i class="bi bi-receipt me-2 text-success"></i>رسید پرداخت<small>{{ payment.receipt_no }}</small></h1>
+        <div class="d-flex gap-2 no-print">
+            <a href="{{ url_for('finance.payments') }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-right me-1"></i> بازگشت</a>
+            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i> چاپ</button>
+            {% if payment.status != 'cancelled' %}
+            <button class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#cancelPaymentModal">
+                <i class="bi bi-x-circle me-1"></i> ابطال پرداخت</button>
+            {% else %}
+            <form method="POST" action="{{ url_for('finance.restore_payment', id=payment.id) }}" style="display: inline;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-outline-primary btn-sm"
+                        onclick="return confirm('این پرداخت به وضعیت تأییدشده برمی‌گردد؛ مانده هنرجو دوباره کم می‌شود. ادامه می‌دهید؟');">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> بازگردانی پرداخت</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if payment.status == 'cancelled' %}
+    <div class="alert alert-danger no-print">
+        <i class="bi bi-ban me-1"></i> این پرداخت باطل شده است
+        {%- if payment.cancel_reason %} — دلیل: {{ payment.cancel_reason }}{% endif %}
+        {%- if payment.cancelled_at %} در {{ payment.cancelled_at|to_jalali }}{% endif %}
+        {%- if payment.refunded_amount %} — {{ payment.refunded_amount|currency }} تومان به صندوق برگشته است{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card-custom" style="max-width: 640px;">
         <div class="card-body-custom">
             <div class="text-center mb-4">
                 <h4>رسید پرداخت</h4>
-                <p style="color: #888;">{{ payment.receipt_no }}</p>
+                <p style="color: var(--clr-text-muted, #455a64); margin-bottom: 6px;">{{ payment.receipt_no }}</p>
+                <span class="badge-status {{ badge }}">{{ label }}</span>
             </div>
             <table class="table table-borderless" style="font-size: 13px;">
-                <tr><td style="color: #888;">هنرجو</td><td><strong>{{ payment.student.full_name if payment.student else '-' }}</strong></td></tr>
-                <tr><td style="color: #888;">مبلغ</td><td style="font-size: 18px; font-weight: 800; color: #27ae60;">{{ payment.amount|currency }} تومان</td></tr>
-                <tr><td style="color: #888;">روش پرداخت</td><td>{{ payment.payment_method }}</td></tr>
-                <tr><td style="color: #888;">تاریخ</td><td>{{ payment.payment_date|to_jalali }}</td></tr>
-                <tr><td style="color: #888;">توضیحات</td><td>{{ payment.description or '-' }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64); width: 40%;">هنرجو</td>
+                    <td><strong>{{ payment.student.full_name if payment.student else '-' }}</strong></td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">مبلغ</td>
+                    <td style="font-size: 18px; font-weight: 800; color: #27ae60;">{{ payment.amount|currency }} تومان</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">روش پرداخت</td>
+                    <td>{{ {'cash': 'نقد', 'card': 'کارت', 'online': 'آنلاین', 'check': 'چک', 'combined': 'ترکیبی'}.get(payment.payment_method, payment.payment_method) }}</td></tr>
+                {% if payment.payment_method == 'combined' %}
+                <tr><td style="color: var(--clr-text-muted, #455a64);">شرح روش ترکیبی</td>
+                    <td>{% if payment.cash_amount %}نقد: {{ payment.cash_amount|currency }} {% endif %}
+                        {%- if payment.card_amount %} · کارت: {{ payment.card_amount|currency }} {% endif %}
+                        {%- if payment.check_amount %} · چک: {{ payment.check_amount|currency }}{% endif %}</td></tr>
+                {% endif %}
+                <tr><td style="color: var(--clr-text-muted, #455a64);">تاریخ</td>
+                    <td>{{ payment.payment_date|to_jalali if payment.payment_date else '-' }}</td></tr>
+                {% if payment.card_number or payment.tracking_number %}
+                <tr><td style="color: var(--clr-text-muted, #455a64);">کارت/کد رهگیری</td>
+                    <td dir="ltr" style="text-align: right;">{{ payment.card_number or '-' }} / {{ payment.tracking_number or '-' }}</td></tr>
+                {% endif %}
+                {% if payment.registration %}
+                <tr><td style="color: var(--clr-text-muted, #455a64);">ثبت‌نام</td>
+                    <td><a href="{{ url_for('registration.view', id=payment.registration.id) }}">
+                        {{ payment.registration.reg_code }}</a>
+                        — مانده پس از این پرداخت: {{ payment.registration.remaining_amount|currency }} تومان</td></tr>
+                {% endif %}
+                {% if payment.installment %}
+                <tr><td style="color: var(--clr-text-muted, #455a64);">قسط</td>
+                    <td>شماره {{ payment.installment.installment_number }} —
+                        {{ payment.installment.paid_amount|currency }} از {{ payment.installment.amount|currency }} تومان
+                        ({{ payment.installment.status }})</td></tr>
+                {% endif %}
+                {% if payment.cashbox %}
+                <tr><td style="color: var(--clr-text-muted, #455a64);">صندوق</td><td>{{ payment.cashbox.name }}</td></tr>
+                {% endif %}
+                <tr><td style="color: var(--clr-text-muted, #455a64);">ثبت‌کننده</td>
+                    <td>{{ creator_name or '-' }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">توضیحات</td><td>{{ payment.description or '-' }}</td></tr>
             </table>
         </div>
     </div>
+
+    {% if payment.status != 'cancelled' %}
+    <!-- ابطال پرداخت: دلیل اجباری است و مرجوعی صندوق اختیاری (مدل «حذف» نداریم،
+         فقط وضعیت عوض می‌شود تا سند مالی از بین نرود) -->
+    <div class="modal fade no-print" id="cancelPaymentModal" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+            <form method="POST" action="{{ url_for('finance.cancel_payment', id=payment.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">ابطال پرداخت {{ payment.receipt_no }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p style="font-size: 13px; color: var(--clr-text-soft, #546e7a); margin-bottom: 14px;">
+                        با ابطال، {{ payment.amount|currency }} تومان از «پرداخت‌شده» این ثبت‌نام کم و به
+                        مانده اضافه می‌شود؛ ردیف حذف نمی‌شود و دلیل آن ثبت می‌گردد.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label" for="cancelReason">دلیل ابطال <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="cancelReason" name="reason" rows="2" required
+                                  placeholder="مثلاً: مبلغ اشتباه وارد شد / پرداخت تکراری"></textarea>
+                    </div>
+                    {% if payment.payment_method in ('cash', 'combined') %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="refund" id="refundBox" value="on" checked>
+                        <label class="form-check-label" for="refundBox">
+                            مبلغ نقدی ({{ cash_in_part|currency }} تومان) از صندوق کم و به هنرجو برگردد
+                        </label>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0" style="font-size: 12.5px;">
+                        این پرداخت نقدی نبوده، پس موجودی صندوق تغییر نمی‌کند.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">انصراف</button>
+                    <button type="submit" class="btn btn-danger btn-sm">ابطال پرداخت</button>
+                </div>
+            </form>
+        </div></div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

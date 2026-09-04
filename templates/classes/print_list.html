@@ -16,7 +16,7 @@
             <div class="text-center mb-4">
                 <h4>{{ app_name }}</h4>
                 <p>لیست حضور و غیاب — {{ class_group.name }} | {{ class_group.course.title if class_group.course else '' }}</p>
-                <p style="font-size: 12px; color: #78909c;">مدرس: {{ class_group.teacher.full_name if class_group.teacher else '-' }} | ساعت: {{ class_group.start_time }}-{{ class_group.end_time }}</p>
+                <p style="font-size: 12px; color: var(--clr-text-muted, #455a64);">مدرس: {{ class_group.teacher.full_name if class_group.teacher else '-' }} | ساعت: {{ class_group.start_time }}-{{ class_group.end_time }}</p>
             </div>
             <table class="table" style="border: 1px solid #ddd;">
                 <thead>

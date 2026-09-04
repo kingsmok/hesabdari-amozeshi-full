@@ -35,7 +35,7 @@
                         <tbody>
                             {% for cls in today_classes %}
                             <tr>
-                                <td><strong>{{ cls.name }}</strong><br><small style="color:#78909c;">{{ cls.course.title if cls.course else '' }}</small></td>
+                                <td><strong>{{ cls.name }}</strong><br><small style="color: var(--clr-text-muted, #455a64);">{{ cls.course.title if cls.course else '' }}</small></td>
                                 <td>{{ cls.start_time }} - {{ cls.end_time }}</td>
                                 <td>{{ cls.room.name if cls.room else '-' }}</td>
                                 <td><a href="{{ url_for('teacher_portal.my_class_detail', id=cls.id) }}" class="btn btn-sm btn-primary"><i class="bi bi-eye"></i></a></td>
@@ -44,7 +44,7 @@
                         </tbody>
                     </table>
                     {% else %}
-                    <div class="text-center py-4" style="color:#b0bec5;"><i class="bi bi-calendar-x" style="font-size:32px;"></i><p class="mt-2">کلاسی برای امروز ندارید</p></div>
+                    <div class="text-center py-4" style="color: var(--clr-text-faint, #607d8b);"><i class="bi bi-calendar-x" style="font-size:32px;"></i><p class="mt-2">کلاسی برای امروز ندارید</p></div>
                     {% endif %}
                 </div>
             </div>

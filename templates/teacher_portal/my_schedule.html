@@ -14,12 +14,12 @@
                     {% for cls in schedule[day_idx] %}
                     <div style="background: #e8f5e9; border-right: 3px solid #2e7d32; padding: 8px; border-radius: 6px; margin-bottom: 6px; font-size: 12px;">
                         <strong>{{ cls.name }}</strong><br>
-                        <span style="color: #78909c;">{{ cls.start_time }}-{{ cls.end_time }}</span><br>
-                        <span style="color: #78909c;">{{ cls.room.name if cls.room else '' }}</span>
+                        <span style="color: var(--clr-text-muted, #455a64);">{{ cls.start_time }}-{{ cls.end_time }}</span><br>
+                        <span style="color: var(--clr-text-muted, #455a64);">{{ cls.room.name if cls.room else '' }}</span>
                     </div>
                     {% endfor %}
                     {% else %}
-                    <div style="text-align: center; color: #b0bec5; padding: 20px; font-size: 12px;">آزاد</div>
+                    <div style="text-align: center; color: var(--clr-text-faint, #607d8b); padding: 20px; font-size: 12px;">آزاد</div>
                     {% endif %}
                 </div>
             </div>

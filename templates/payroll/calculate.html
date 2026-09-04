@@ -3,42 +3,164 @@
 {% block breadcrumb %}<li><a href="{{ url_for('payroll.dashboard') }}">حقوق</a></li><li class="active">محاسبه</li>{% endblock %}
 {% block content %}
 <div class="anim-in">
-    <div class="page-head"><h1><i class="bi bi-calculator"></i> محاسبه خودکار حقوق<small>محاسبه بر اساس نوع قرارداد</small></h1></div>
+    <div class="page-head">
+        <h1><i class="bi bi-calculator"></i> محاسبه خودکار حقوق<small>بر اساس نوع قرارداد و بازه زمانی همان دوره</small></h1>
+    </div>
+
+    <div class="alert alert-info" style="font-size: 13px;">
+        <i class="bi bi-info-circle me-1"></i>
+        مبالغ بر اساس <strong>بازه دوره انتخابی</strong> محاسبه می‌شود (ساعات تدریس و شهریه‌های پرداختیِ همان ماه)،
+        نه کل تاریخچه. ابتدا «پیش‌نمایش» را بزنید و پس از بررسی، «صدور فیش» را تأیید کنید.
+    </div>
+
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="card mb-4">
-            <div class="card-head"><h5>دوره و افراد</h5></div>
+            <div class="card-head"><h5>دوره</h5></div>
             <div class="card-body-padded">
-                <div class="row g-3">
+                <div class="row g-3 align-items-end">
                     <div class="col-md-4">
-                        <label class="form-label">دوره (ماه/سال)</label>
-                        <input type="text" name="period" class="form-control" placeholder="1405/04" required>
+                        <label class="form-label" for="periodInput">دوره (ماه/سال شمسی)</label>
+                        <select name="period" id="periodInput" class="form-select" required>
+                            {% for value in period_choices %}
+                            <option value="{{ value }}" {{ 'selected' if value == period }}>{{ value }} — {{ value|jalali_period }}</option>
+                            {% endfor %}
+                        </select>
+                        <div style="font-size: 11px; color: var(--clr-text-muted, #455a64); margin-top: 4px;">
+                            در صورت نیاز می‌توانید دوره را دستی بنویسید؛ قالب <code>1405/06</code> یا <code>۱۴۰۵/۰۶</code> قابل قبول است.
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="replace_drafts" id="replaceDrafts" value="1">
+                            <label class="form-check-label" for="replaceDrafts">
+                                اگر برای این دوره فیش پیش‌نویس وجود دارد، با محاسبات جدید <strong>جایگزین</strong> شود
+                                <span style="color: var(--clr-text-muted, #455a64); font-size: 11px;">(فیش تأییدشده یا پرداخت‌شده تغییر نمی‌کند)</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
         <div class="card mb-4">
-            <div class="card-head"><h5>انتخاب مدرسین</h5></div>
+            <div class="card-head">
+                <h5>انتخاب مدرسین</h5>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAll(true)">همه</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="toggleAll(false)">هیچ‌کدام</button>
+                </div>
+            </div>
             <div class="card-body-padded" style="padding: 0;">
+                <div class="table-responsive">
                 <table class="table mb-0">
-                    <thead><tr><th style="width: 40px;">✓</th><th>نام</th><th>تخصص</th><th>نوع قرارداد</th></tr></thead>
+                    <thead><tr><th style="width: 40px;">✓</th><th>نام</th><th>تخصص</th><th>قرارداد</th><th>مبنای پرداخت</th></tr></thead>
                     <tbody>
                         {% for t in teachers %}
+                        {% set contract = contract_by_teacher.get(t.id) %}
                         <tr>
-                            <td><input type="checkbox" name="teacher_ids" value="{{ t.id }}" class="form-check-input" checked></td>
+                            <td><input type="checkbox" name="teacher_ids" value="{{ t.id }}" class="form-check-input teacher-check"
+                                       {{ 'checked' if contract else '' }}></td>
                             <td><strong>{{ t.full_name }}</strong></td>
                             <td>{{ t.specialization or '-' }}</td>
-                            <td><span class="badge-status badge-completed">{{ t.contract_type or '-' }}</span></td>
+                            <td>
+                                {% if contract %}
+                                <span class="badge-status badge-active">{{ contract_types.get(contract.contract_type, contract.contract_type) }}</span>
+                                {% else %}
+                                <span class="badge-status badge-inactive">بدون قرارداد</span>
+                                {% endif %}
+                            </td>
+                            <td style="font-size: 12px; color: var(--clr-text-muted, #455a64);">
+                                {% if contract %}
+                                    {% if contract.contract_type == 'fixed' %}{{ contract.base_salary|currency }} ت / ماه
+                                    {% elif contract.contract_type == 'hourly' %}{{ contract.hourly_rate|currency }} ت / ساعت
+                                    {% elif contract.contract_type == 'session' %}{{ contract.session_rate|currency }} ت / جلسه
+                                    {% elif contract.contract_type == 'percentage' %}{{ contract.percentage_rate }}٪ از شهریه
+                                    {% else %}{{ contract.base_salary|currency }} ت + {{ contract.hourly_rate|currency }} ت / ساعت{% endif %}
+                                {% else %}—{% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
+
         <div class="d-flex justify-content-end gap-2 mb-4">
-            <a href="{{ url_for('payroll.dashboard') }}" class="btn btn-outline-secondary">انصراف</a>
-            <button type="submit" class="btn btn-success"><i class="bi bi-calculator me-2"></i> محاسبه و صدور فیش</button>
+            <a href="{{ url_for('payroll.dashboard', period=period) }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" name="preview" value="1" class="btn btn-outline-primary"><i class="bi bi-eye me-2"></i> پیش‌نمایش محاسبه</button>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> محاسبه و صدور فیش</button>
         </div>
     </form>
+
+    {% if results %}
+    <div class="card mb-4">
+        <div class="card-head">
+            <h5><i class="bi bi-list-check"></i> نتیجه محاسبه — {{ period }} ({{ period_label }})</h5>
+            {% if gregorian_window %}<span style="font-size: 11px; color: var(--clr-text-muted, #455a64);">بازه میلادی: {{ gregorian_window }}</span>{% endif %}
+        </div>
+        <div class="card-body-padded" style="padding: 0;">
+            <div class="table-responsive">
+            <table class="table mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>مدرس</th><th>قرارداد</th><th>پایه</th><th>ساعت/جلسه</th><th>پورسانت</th>
+                        <th>ناخالص</th><th>بیمه</th><th>مالیات</th><th>خالص</th><th>وضعیت</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                    <tr>
+                        {% if row.error %}
+                        <td>{{ row.name }}</td>
+                        <td colspan="8" style="color: #c62828;"><i class="bi bi-exclamation-triangle me-1"></i>{{ row.error }}</td>
+                        <td><span class="badge-status badge-inactive">رد شد</span></td>
+                        {% else %}
+                        <td><strong>{{ row.name }}</strong></td>
+                        <td><span class="badge-status badge-completed">{{ row.contract_label }}</span></td>
+                        <td>{{ row.base_amount|currency }} ت</td>
+                        <td>
+                            {{ row.teaching_hours }} ساعت → {{ row.teaching_amount|currency }} ت
+                            {% if row.sessions_count %}<br>{{ row.sessions_count }} جلسه → {{ row.session_amount|currency }} ت{% endif %}
+                        </td>
+                        <td>{{ row.commission_amount|currency }} ت</td>
+                        <td style="font-weight: 700;">{{ row.gross|currency }} ت</td>
+                        <td>{{ row.insurance|currency }} ت</td>
+                        <td>{{ row.tax|currency }} ت</td>
+                        <td style="font-weight: 700; color: #2e7d32;">{{ row.net|currency }} ت</td>
+                        <td>
+                            {% if row.replaces %}<span class="badge-status badge-pending">جایگزین {{ row.replaces }}</span>
+                            {% else %}<span class="badge-status badge-active">صادر می‌شود</span>{% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr style="background: #f5f7f9; font-weight: 700;">
+                        <td colspan="5">جمع</td>
+                        <td>{{ results|selectattr('gross')|map(attribute='gross')|sum|currency }} ت</td>
+                        <td colspan="3">خالص قابل پرداخت: {{ results|rejectattr('error')|map(attribute='net')|sum|currency }} ت</td>
+                        <td>{{ results|selectattr('error')|list|length }} مورد رد شد</td>
+                    </tr>
+                </tfoot>
+            </table>
+            </div>
+        </div>
+    </div>
+
+    {% if preview %}
+    <div class="alert alert-warning" style="font-size: 13px;">
+        <i class="bi bi-eye me-1"></i> این فقط پیش‌نمایش است؛ هیچ فیشی صادر نشده. برای صدور، دکمه «محاسبه و صدور فیش» را بزنید.
+    </div>
+    {% endif %}
+    {% endif %}
 </div>
+
+<script>
+function toggleAll(state) {
+    document.querySelectorAll('.teacher-check').forEach(function (box) { box.checked = state; });
+}
+</script>
 {% endblock %}

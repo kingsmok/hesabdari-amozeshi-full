@@ -727,3 +727,90 @@ def test_database_integrity_of_generated_package(app, tmp_path):
         assert connection.execute('SELECT name FROM demo').fetchone()[0] == 'نسخه اول'
     finally:
         connection.close()
+
+
+# ══════════════════════════════════════════════════════════════
+#  ۵) حالت WAL: بازیابی نباید فایل کمکی قدیمی را روی دیتابیس تازه بگذارد
+# ══════════════════════════════════════════════════════════════
+class TestWalSidecarsOnRestore:
+    """config/extensions دیتابیس SQLite را روی WAL می‌گذارد و کنار فایل،
+    `-wal`/`-shm` می‌سازد. اگر بعد از جایگزینی فایل دیتابیس آن‌ها بمانند،
+    SQLite محتوای قدیمی را روی دیتابیسِ بازگردانده‌شده اعمال می‌کند؛ پس
+    `restore_backup` باید آن‌ها را حذف کند و اگر قفل بودند، صادقانه خطا بدهد.
+    """
+
+    def _db_path(self, app):
+        from utils.database_tools import sqlite_database_path
+        return sqlite_database_path()
+
+    def test_restore_drops_stale_sidecars(self, app):
+        db_path = self._db_path(app)
+        info = backup_service.create_backup(kind='database')
+
+        db.session.execute(db.text('PRAGMA journal_mode=WAL'))
+        db.session.execute(db.text("INSERT INTO demo (name) VALUES ('بعد از بکاپ')"))
+        db.session.commit()
+        assert _row_count() == ['نسخه اول', 'بعد از بکاپ']
+
+        for suffix in ('-wal', '-shm'):
+            with open(db_path + suffix, 'wb') as handle:
+                handle.write(b'-- fake sidecar --')
+
+        backup_service.restore_backup(info['name'], restore_uploads=False)
+
+        for suffix in ('-wal', '-shm'):
+            assert not os.path.exists(db_path + suffix), \
+                f'{os.path.basename(db_path + suffix)} بعد از بازیابی مانده است'
+        assert _row_count() == ['نسخه اول'], 'دیتابیس باید به لحظه پشتیبان برگردد'
+
+    def test_sidecar_removal_wraps_the_replacement(self):
+        """رگرسیون: پاک‌سازی باید دو طرفِ خودِ `copy2` باشد، نه فقط بعد از آن.
+
+        خود SQLite هم WAL با salt ناسازگار را دور می‌ریزد، پس خطر فساد داده کم است؛
+        ارزش این تست آن است که پاک‌سازی در مسیر اصلی جابه‌جا نشود (تست بعدی رفتار
+        فایل قفل را می‌سنجد)."""
+        import inspect
+        from utils import backup_service as bs
+        lines = inspect.getsource(bs.restore_backup).splitlines()
+        drop_lines = [i for i, line in enumerate(lines) if '_drop_sidecars(sidecars)' in line]
+        copy_lines = [i for i, line in enumerate(lines) if 'shutil.copy2(temp_db, db_path)' in line]
+        assert len(drop_lines) == 2, 'باید پیش و پس از جایگزینی فایل کمکی پاک شود'
+        assert len(copy_lines) == 1
+        assert drop_lines[0] < copy_lines[0] < drop_lines[1]
+
+    def test_locked_sidecar_aborts_before_any_change(self, app, monkeypatch):
+        """اگر `-wal` توسط فرایند دیگری قفل باشد، بازیابی باید با پیام خوانا بایستد
+        و دیتابیس فعلی را دست‌نخورده بگذارد، نه اینکه نیمه‌جایگزین شود."""
+        info = backup_service.create_backup(kind='database')
+        real_remove = os.remove
+
+        def fake_remove(path):
+            if str(path).endswith('-wal'):
+                raise PermissionError(13, 'locked')
+            return real_remove(path)
+
+        monkeypatch.setattr(backup_service.os, 'remove', fake_remove)
+        try:
+            with pytest.raises(BackupError, match='قفل است'):
+                backup_service.restore_backup(info['name'], restore_uploads=False)
+        finally:
+            monkeypatch.undo()
+        assert _row_count() == ['نسخه اول'], 'بازیابی ناموفق نباید داده را تغییر دهد'
+
+    def test_backup_api_captures_wal_contents(self, app):
+        """پشتیبان باید دادهٔ داخل WAL را هم ببرد (کپی فایل این کار را نمی‌کرد)."""
+        db.session.execute(db.text('PRAGMA journal_mode=WAL'))
+        db.session.execute(db.text("INSERT INTO demo (name) VALUES ('فقط در WAL')"))
+        db.session.commit()
+
+        info = backup_service.create_backup(kind='database')
+        extract = app.root_path + '/extracted'
+        os.makedirs(extract, exist_ok=True)
+        with zipfile.ZipFile(backup_service.safe_backup_path(info['name'])) as archive:
+            archive.extract('database/academy.db', extract)
+        connection = sqlite3.connect(os.path.join(extract, 'database/academy.db'))
+        try:
+            names = [row[0] for row in connection.execute('SELECT name FROM demo ORDER BY id')]
+        finally:
+            connection.close()
+        assert 'فقط در WAL' in names

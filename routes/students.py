@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
+from utils.document_numbers import next_document_number
 from utils.form_helpers import get_jalali_date
 from utils.jalali import current_jalali_year
 from models.student import Student, StudentDocument, WaitingList
@@ -60,9 +61,7 @@ def index():
 def add():
     if request.method == 'POST':
         # Generate student code
-        last = Student.query.order_by(Student.id.desc()).first()
-        next_num = (last.id + 1) if last else 1
-        code = f'ST-{current_jalali_year()}-{next_num:05d}'
+        code = next_document_number('student')
         
         student = Student(
             student_code=code,

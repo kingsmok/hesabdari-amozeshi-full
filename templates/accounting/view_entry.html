@@ -6,33 +6,76 @@
 {% endblock %}
 
 {% block content %}
+{% set balanced = (entry.total_debit or 0) == (entry.total_credit or 0) %}
 <div class="animate-in">
     <div class="page-header">
-        <h1><i class="bi bi-journal-bookmark me-2 text-primary"></i>سند {{ entry.entry_number }}<small>{{ entry.entry_date|to_jalali }}</small></h1>
+        <h1><i class="bi bi-journal-bookmark me-2 text-primary"></i>سند {{ entry.entry_number }}
+            <small>{{ entry.entry_date|to_jalali }} — {{ {'draft': 'پیش‌نویس', 'confirmed': 'تأییدشده', 'approved': 'تصویب‌شده', 'cancelled': 'ابطال‌شده'}.get(entry.status, entry.status) }}</small></h1>
         <div class="d-flex gap-2">
-            {% if entry.status == 'draft' %}
-            <form method="POST" action="{{ url_for('accounting.confirm_entry', id=entry.id) }}" style="display: inline;">
+            {% if can_edit and entry.status == 'draft' %}
+            <a href="{{ url_for('accounting.edit_entry', id=entry.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1"></i> ویرایش</a>
+            {% endif %}
+            {% if can_edit and entry.status == 'draft' %}
+            <form method="POST" action="{{ url_for('accounting.confirm_entry', id=entry.id) }}" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-success-custom"><i class="bi bi-check me-1"></i> تایید</button>
+                <button class="btn btn-success-custom" {{ 'disabled' if not balanced }} title="{{ 'برای تأیید، سند باید تراز باشد' if not balanced else '' }}">
+                    <i class="bi bi-check me-1"></i> تأیید
+                </button>
             </form>
             {% endif %}
-            {% if entry.status == 'confirmed' %}
-            <form method="POST" action="{{ url_for('accounting.approve_entry', id=entry.id) }}" style="display: inline;">
+            {% if can_edit and entry.status == 'confirmed' %}
+            <form method="POST" action="{{ url_for('accounting.approve_entry', id=entry.id) }}" style="display:inline;">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button class="btn btn-primary-custom"><i class="bi bi-check-circle me-1"></i> تصویب</button>
             </form>
             {% endif %}
+            {% if can_edit and entry.status != 'cancelled' %}
+            <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelEntryModal"><i class="bi bi-x-circle me-1"></i> ابطال</button>
+            {% endif %}
+            <button class="btn btn-outline-secondary no-print" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
         </div>
     </div>
+
+    {% if not balanced %}
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        سند تراز نیست: بدهکار {{ entry.total_debit|currency }} در برابر بستانکار {{ entry.total_credit|currency }} —
+        اختلاف {{ ((entry.total_debit or 0) - (entry.total_credit or 0))|currency }} تومان.
+    </div>
+    {% endif %}
+
+    {% if entry.status == 'cancelled' %}
+    <div class="alert alert-secondary">
+        <i class="bi bi-ban me-1"></i> این سند ابطال شده است
+        {%- if entry.cancel_reason %} — دلیل: {{ entry.cancel_reason }}{% endif %}
+        {%- if entry.cancelled_at %} در {{ entry.cancelled_at|to_jalali }}{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">تاریخ</div><div style="font-size:16px;font-weight:700;">{{ entry.entry_date|to_jalali }}</div></div></div></div>
+        <div class="col-md-3"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">نوع</div><div style="font-size:16px;font-weight:700;">{{ {'income': 'درآمد', 'expense': 'هزینه', 'adjustment': 'اصلاحی', 'transfer': 'انتقالی', 'opening': 'افتتاحیه', 'manual': 'دستی'}.get(entry.entry_type, entry.entry_type or '—') }}</div></div></div></div>
+        <div class="col-md-3"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">دوره مالی</div><div style="font-size:16px;font-weight:700;">
+            {{ entry.fiscal_period.name if entry.fiscal_period else '—' }}
+            {% if entry.fiscal_period and entry.fiscal_period.is_closed %}<span class="badge-status badge-inactive" style="font-size:10px;">بسته</span>{% endif %}
+        </div></div></div></div>
+        <div class="col-md-3"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">جمع سند</div><div style="font-size:16px;font-weight:700;">{{ entry.total_debit|currency }} ت</div></div></div></div>
+    </div>
+
     <div class="card-custom">
+        {% if entry.description %}<div class="card-header-custom"><h5>{{ entry.description }}</h5></div>{% endif %}
         <div class="card-body-custom" style="padding: 0;">
+            <div class="table-responsive">
             <table class="table table-custom mb-0">
                 <thead><tr><th>#</th><th>حساب</th><th>بدهکار</th><th>بستانکار</th><th>شرح</th></tr></thead>
                 <tbody>
-                    {% for item in entry.items.all() %}
+                    {% for item in items %}
                     <tr>
                         <td>{{ item.row_number }}</td>
-                        <td>{{ item.account.name if item.account else '-' }}</td>
+                        <td>
+                            <code>{{ item.account.code if item.account else '' }}</code>
+                            {{ item.account.name if item.account else '—' }}
+                        </td>
                         <td>{{ item.debit|currency }}</td>
                         <td>{{ item.credit|currency }}</td>
                         <td>{{ item.description or '-' }}</td>
@@ -40,15 +83,52 @@
                     {% endfor %}
                 </tbody>
                 <tfoot>
-                    <tr style="font-weight: 700; background: #f8f9fa;">
+                    <tr style="font-weight: 700; background: rgba(128,128,128,.08);">
                         <td colspan="2">جمع</td>
                         <td>{{ entry.total_debit|currency }}</td>
                         <td>{{ entry.total_credit|currency }}</td>
-                        <td></td>
+                        <td>{{ '✓ تراز' if balanced else '✗ اختلاف دارد' }}</td>
                     </tr>
                 </tfoot>
+            </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-custom mt-3">
+        <div class="card-body-custom">
+            <table class="table table-borderless mb-0" style="font-size: 12px;">
+                <tr><td style="color: var(--clr-text-muted, #455a64);width:140px;">ثبت‌کننده</td><td>{{ entry.created_by_user.full_name if entry.created_by_user else '—' }}</td>
+                    <td style="color: var(--clr-text-muted, #455a64);width:140px;">تاریخ ثبت</td><td>{{ entry.created_at|to_jalali if entry.created_at else '—' }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">تأییدکننده</td><td>{{ entry.confirmed_by_user.full_name if entry.confirmed_by_user else '—' }}</td>
+                    <td style="color: var(--clr-text-muted, #455a64);">تاریخ تأیید</td><td>{{ entry.confirmed_at|to_jalali if entry.confirmed_at else '—' }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">تصویب‌کننده</td><td>{{ entry.approved_by_user.full_name if entry.approved_by_user else '—' }}</td>
+                    <td style="color: var(--clr-text-muted, #455a64);">تاریخ تصویب</td><td>{{ entry.approved_at|to_jalali if entry.approved_at else '—' }}</td></tr>
             </table>
         </div>
     </div>
 </div>
+
+{% if can_edit and entry.status != 'cancelled' %}
+<div class="modal fade no-print" id="cancelEntryModal" tabindex="-1">
+    <div class="modal-dialog"><div class="modal-content">
+        <form method="POST" action="{{ url_for('accounting.cancel_entry', id=entry.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="modal-header"><h5 class="modal-title">ابطال سند {{ entry.entry_number }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <div class="alert alert-warning" style="font-size:13px;">
+                    سند ابطال می‌شود و از تراز آزمایشی و سود و زیان خارج می‌گردد؛ برای اصلاح عدد، سند جدید بزنید.
+                </div>
+                <label class="form-label" for="cancelReason">دلیل ابطال (الزامی)</label>
+                <input type="text" name="reason" id="cancelReason" class="form-control" required placeholder="مثلاً: اشتباه در کد حساب">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
+                <button type="submit" class="btn btn-danger"><i class="bi bi-x-circle me-1"></i> ابطال سند</button>
+            </div>
+        </form>
+    </div></div>
+</div>
+{% endif %}
 {% endblock %}

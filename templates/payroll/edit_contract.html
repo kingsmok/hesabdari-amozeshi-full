@@ -1,0 +1,32 @@
+{% extends "base/layout.html" %}
+{% block title %}ویرایش قرارداد{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('payroll.contracts') }}">قراردادها</a></li><li class="active">ویرایش #{{ contract.id }}</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-pencil"></i> ویرایش قرارداد حقوقی<small>{{ person_name(contract.person_type, contract.person_id) }}</small></h1>
+        <div class="d-flex gap-2">
+            <span class="badge-status badge-{{ 'active' if contract.is_active else 'inactive' }}" style="align-self: center;">
+                {{ 'فعال' if contract.is_active else 'غیرفعال' }}
+            </span>
+            <form method="POST" action="{{ url_for('payroll.toggle_contract', id=contract.id) }}"
+                  onsubmit="return confirm('قرارداد {{ 'غیرفعال' if contract.is_active else 'فعال' }} شود؟ فیش‌های صادرشده تغییر نمی‌کنند.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-outline-{{ 'warning' if contract.is_active else 'success' }}">
+                    <i class="bi bi-{{ 'pause' if contract.is_active else 'play' }}-circle me-1"></i>
+                    {{ 'غیرفعال کردن' if contract.is_active else 'فعال کردن' }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% include "payroll/_contract_form.html" %}
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('payroll.contracts') }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> ذخیره تغییرات</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

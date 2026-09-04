@@ -14,8 +14,8 @@
                 <h5>صورتحساب سازمانی</h5>
             </div>
             <table class="table table-borderless mb-4" style="border: 1px solid #eee;">
-                <tr><td style="color: #78909c;">نام سازمان</td><td><strong>{{ student.full_name }}</strong></td><td style="color: #78909c;">تلفن</td><td>{{ student.mobile }}</td></tr>
-                <tr><td style="color: #78909c;">آدرس</td><td>{{ student.address or '-' }}</td><td style="color: #78909c;">تاریخ</td><td>{{ "now"|to_jalali }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">نام سازمان</td><td><strong>{{ student.full_name }}</strong></td><td style="color: var(--clr-text-muted, #455a64);">تلفن</td><td>{{ student.mobile }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">آدرس</td><td>{{ student.address or '-' }}</td><td style="color: var(--clr-text-muted, #455a64);">تاریخ</td><td>{{ "now"|to_jalali }}</td></tr>
             </table>
             <table class="table" style="border: 1px solid #ddd;">
                 <thead><tr style="background: #f5f5f5;"><th>#</th><th>دوره</th><th>شهریه</th><th>پرداختی</th><th>مانده</th></tr></thead>
@@ -39,7 +39,7 @@
                     </tr>
                 </tfoot>
             </table>
-            <div class="mt-4" style="font-size: 12px; color: #78909c;">
+            <div class="mt-4" style="font-size: 12px; color: var(--clr-text-muted, #455a64);">
                 <p>مهر و امضا: ________________</p>
             </div>
         </div>

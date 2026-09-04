@@ -2,15 +2,15 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>ویزارد نصب — Academy Manager Pro</title>
-    <link rel="stylesheet" href="/static/fonts/Vazirmatn-font-face.css">
-    <link rel="stylesheet" href="/static/css/bootstrap.rtl.min.css">
-    <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{{ asset('fonts/Vazirmatn-font-face.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/bootstrap.rtl.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/bootstrap-icons.min.css') }}">
     <style>
         * { font-family: Vazirmatn, Tahoma, sans-serif; box-sizing: border-box; }
         body {
-            min-height: 100vh;
+            min-height: 100vh; min-height: 100dvh;
             background: linear-gradient(135deg, #0a1628, #0d47a1);
             display: flex; align-items: center; justify-content: center;
             padding: 20px;
@@ -33,7 +33,7 @@
             width: 36px; height: 36px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             font-size: 14px; font-weight: 700;
-            background: #e0e4e8; color: #78909c;
+            background: #e0e4e8; color: var(--clr-text-muted, #455a64);
             transition: all .3s;
         }
         .step.active { background: #0d47a1; color: white; box-shadow: 0 4px 12px rgba(13,71,161,.3); }
@@ -120,7 +120,7 @@
                         <div class="db-option selected" onclick="selectDb('sqlite')">
                             <i class="bi bi-database" style="color: #0d47a1;"></i>
                             <h6>SQLite</h6>
-                            <p style="font-size: 11px; color: #78909c;">پیش‌فرض — تک‌کاربره</p>
+                            <p style="font-size: 11px; color: var(--clr-text-muted, #455a64);">پیش‌فرض — تک‌کاربره</p>
                             <input type="radio" name="db_type" value="sqlite" checked style="display: none;" id="db-sqlite">
                         </div>
                     </div>
@@ -128,7 +128,7 @@
                         <div class="db-option" onclick="selectDb('mysql')">
                             <i class="bi bi-database-fill" style="color: #e65100;"></i>
                             <h6>MySQL</h6>
-                            <p style="font-size: 11px; color: #78909c;">مناسب متوسط</p>
+                            <p style="font-size: 11px; color: var(--clr-text-muted, #455a64);">مناسب متوسط</p>
                             <input type="radio" name="db_type" value="mysql" style="display: none;" id="db-mysql">
                         </div>
                     </div>
@@ -136,7 +136,7 @@
                         <div class="db-option" onclick="selectDb('postgresql')">
                             <i class="bi bi-database-fill-add" style="color: #2e7d32;"></i>
                             <h6>PostgreSQL</h6>
-                            <p style="font-size: 11px; color: #78909c;">بهترین برای داده بزرگ</p>
+                            <p style="font-size: 11px; color: var(--clr-text-muted, #455a64);">بهترین برای داده بزرگ</p>
                             <input type="radio" name="db_type" value="postgresql" style="display: none;" id="db-postgresql">
                         </div>
                     </div>
@@ -204,7 +204,7 @@
             <div class="success-box">
                 <i class="bi bi-check-circle-fill"></i>
                 <h3 style="margin-top: 16px;">نصب با موفقیت انجام شد!</h3>
-                <p style="color: #78909c;">سیستم آماده استفاده است</p>
+                <p style="color: var(--clr-text-muted, #455a64);">سیستم آماده استفاده است</p>
                 
                 <div class="row g-3 mt-4 text-start">
                     <div class="col-md-6">

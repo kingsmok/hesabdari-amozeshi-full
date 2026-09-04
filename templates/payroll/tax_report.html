@@ -3,31 +3,98 @@
 {% block breadcrumb %}<li><a href="{{ url_for('payroll.dashboard') }}">حقوق</a></li><li class="active">مالیات</li>{% endblock %}
 {% block content %}
 <div class="anim-in">
-    <div class="page-head"><h1><i class="bi bi-percent"></i> گزارش مالیاتی<small>خلاصه مالیات و بیمه</small></h1></div>
-    <div class="row g-3 mb-4">
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع ناخالص</div><div class="stat-val" style="font-size: 18px;">{{ total_gross|currency }} ت</div></div></div>
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع مالیات</div><div class="stat-val" style="font-size: 18px; color: #c62828;">{{ total_tax|currency }} ت</div></div></div>
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع بیمه</div><div class="stat-val" style="font-size: 18px; color: #e65100;">{{ total_insurance|currency }} ت</div></div></div>
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع خالص</div><div class="stat-val" style="font-size: 18px; color: #2e7d32;">{{ total_net|currency }} ت</div></div></div>
+    <div class="page-head">
+        <h1><i class="bi bi-percent"></i> گزارش مالیاتی<small>مالیات ثبت‌شده در فیش‌ها در برابر محاسبه پلکانی قانون</small></h1>
+        <div class="d-flex gap-2 no-print">
+            <a href="{{ url_for('tax.tax_rules') }}" class="btn btn-outline-primary"><i class="bi bi-sliders me-1"></i> قواعد مالیاتی</a>
+            <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
+        </div>
     </div>
+
+    <div class="card mb-4">
+        <div class="card-body-padded">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label" for="periodFilter">دوره</label>
+                    <select name="period" id="periodFilter" class="form-select" onchange="this.form.submit()">
+                        <option value="">همه دوره‌ها</option>
+                        {% for value in period_choices %}
+                        <option value="{{ value }}" {{ 'selected' if value == period }}>{{ value }} — {{ value|jalali_period }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-9">
+                    {% if rule %}
+                    <div style="font-size: 12px; color: #546e7a;">
+                        <i class="bi bi-info-circle me-1"></i>
+                        قواعد اعمال‌شده: سقف معافیت ماهانه <strong>{{ rule.monthly_exemption|currency }} تومان</strong>
+                        {% if rule.note %}— {{ rule.note }}{% endif %}
+                        <span style="color: var(--clr-text-muted, #455a64);">(منبع: {{ 'تنظیمات سیستم' if rule.source == 'database' else 'پیش‌فرض قانون بودجه ' ~ rule.year }})</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع ناخالص</div><div class="stat-val" style="font-size: 18px;">{{ totals.gross|currency }} ت</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">مالیات ثبت‌شده</div><div class="stat-val" style="font-size: 18px; color: #c62828;">{{ totals.tax|currency }} ت</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">مالیات پیشنهادی قانون</div><div class="stat-val" style="font-size: 18px; color: #7b1fa2;">{{ totals.suggested_tax|currency }} ت</div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">جمع بیمه</div><div class="stat-val" style="font-size: 18px; color: #e65100;">{{ totals.insurance|currency }} ت</div></div></div>
+    </div>
+
     <div class="card">
+        <div class="card-head">
+            <h5>فیش‌های دوره {{ period or 'همه' }}</h5>
+            {% if totals.tax != totals.suggested_tax %}
+            <span class="badge-status badge-pending" style="font-size: 11px;">اختلاف {{ (totals.suggested_tax - totals.tax)|currency }} ت</span>
+            {% endif %}
+        </div>
         <div class="card-body-padded" style="padding: 0;">
+            {% if payslips %}
+            <div class="table-responsive">
             <table class="table mb-0">
-                <thead><tr><th>فیش</th><th>دوره</th><th>ناخالص</th><th>بیمه</th><th>مالیات</th><th>خالص</th></tr></thead>
+                <thead>
+                    <tr><th>فیش</th><th>شخص</th><th>دوره</th><th>ناخالص</th><th>بیمه</th>
+                        <th>مالیات ثبت‌شده</th><th>مالیات محاسبه‌شده</th><th>اختلاف</th><th>خالص</th></tr>
+                </thead>
                 <tbody>
-                    {% for p in payslips %}
+                    {% for row in payslips %}
+                    {% set p = row.payslip %}
                     <tr>
                         <td><code>{{ p.payslip_number }}</code></td>
+                        <td>{{ row.name }}</td>
                         <td>{{ p.period }}</td>
                         <td>{{ p.gross_amount|currency }} ت</td>
                         <td style="color: #e65100;">{{ p.insurance|currency }} ت</td>
                         <td style="color: #c62828;">{{ p.tax|currency }} ت</td>
+                        <td style="font-weight: 700;">{{ row.suggested_tax|currency }} ت</td>
+                        <td>
+                            {% if row.difference and (row.difference|abs) > 1000 %}
+                            <span class="badge-status badge-{{ 'pending' if row.difference > 0 else 'inactive' }}">
+                                {{ '+' if row.difference > 0 }}{{ row.difference|currency }}
+                            </span>
+                            {% else %}
+                            <span style="color: #2e7d32;"><i class="bi bi-check-circle"></i></span>
+                            {% endif %}
+                        </td>
                         <td style="color: #2e7d32; font-weight: 700;">{{ p.net_amount|currency }} ت</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color: var(--clr-text-faint, #607d8b);"><p class="mb-0">فیشی برای این دوره ثبت نشده است</p></div>
+            {% endif %}
         </div>
+    </div>
+
+    <div class="alert alert-light mt-4" style="font-size: 12px; color: #546e7a;">
+        <i class="bi bi-shield-exclamation me-1"></i>
+        «مالیات محاسبه‌شده» بر اساس پلکان <strong>ماهانه</strong> قانون بودجه و از مبنای (ناخالص − بیمه سهم کارمند)
+        به‌دست می‌آید. این عدد پیشنهادی است؛ برای ثبت در فیش، از بخش مالیات → «محاسبه خودکار مالیات فیش‌ها» استفاده کنید.
     </div>
 </div>
 {% endblock %}

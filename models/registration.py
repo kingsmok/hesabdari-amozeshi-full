@@ -103,7 +103,9 @@ class Installment(db.Model):
     
     @property
     def remaining(self):
-        return self.amount + self.late_fee - self.paid_amount
+        # ردیف‌های قدیمی می‌توانند late_fee/paid_amount تهی داشته باشند؛
+        # قبلاً همین باعث ۵۰۰ در صفحه اقساط می‌شد
+        return (self.amount or 0) + (self.late_fee or 0) - (self.paid_amount or 0)
     
     def __repr__(self):
         return f'<Installment #{self.installment_number} - {self.amount}>'

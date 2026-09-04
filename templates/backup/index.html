@@ -162,7 +162,7 @@
                         <input type="text" name="backup_bot_chat_id" class="form-control form-control-sm"
                                style="direction:ltr;" placeholder="۱۲۳۴۵۶۷۸۹ — چند مقصد را با کاما جدا کنید"
                                value="{{ settings.backup_bot_chat_id or '' if settings else '' }}">
-                        <div style="font-size:11px;color:#90a4ae;margin-top:4px;">
+                        <div style="font-size:11px;color: var(--clr-text-soft, #546e7a);margin-top:4px;">
                             کاربرانی که در بخش ربات «مدیر ربات» شده‌اند هم به‌صورت خودکار مقصد هستند
                             (اکنون {{ bot.targets_count }} مقصد).
                         </div>
@@ -191,7 +191,7 @@
                 </form>
 
                 <hr>
-                <div style="font-size:11.5px;color:#78909c;line-height:2;">
+                <div style="font-size:11.5px;color: var(--clr-text-muted, #455a64);line-height:2;">
                     <div><i class="bi bi-folder2-open"></i> محل ذخیره: <code style="direction:ltr;">{{ stats.folder }}</code></div>
                     <div><i class="bi bi-info-circle"></i> پیش از هر بازیابی، یک «پشتیبان ایمنی» خودکار ساخته می‌شود.</div>
                     <div><i class="bi bi-shield-check"></i> سلامت دیتابیس و هش بسته پیش از جایگزینی بررسی می‌شود.</div>
@@ -272,7 +272,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="7" class="text-center" style="color:#90a4ae;">
+                    <tr><td colspan="7" class="text-center" style="color: var(--clr-text-soft, #546e7a);">
                         هنوز هیچ بسته پشتیبانی ساخته نشده است.
                     </td></tr>
                     {% endfor %}

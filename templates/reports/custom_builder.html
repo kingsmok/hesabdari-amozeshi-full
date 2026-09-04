@@ -3,29 +3,112 @@
 {% block breadcrumb %}<li>گزارش‌ها</li><li class="active">گزارش‌ساز</li>{% endblock %}
 {% block content %}
 <div class="anim-in">
-    <div class="page-head"><h1><i class="bi bi-wrench-adjustable"></i> گزارش‌ساز سفارشی<small>بدون نیاز به برنامه‌نویسی</small></h1></div>
+    <div class="page-head"><h1><i class="bi bi-wrench-adjustable"></i> گزارش‌ساز سفارشی<small>فقط مدیر کل</small></h1></div>
     <div class="card mb-4">
         <div class="card-body-padded">
             <form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label">جدول</label>
-                        <select name="table" class="form-select">
-                            {% for t in tables %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+                        <select name="table" id="rb-table" class="form-select">
+                            <option value="">— انتخاب کنید —</option>
+                            {% for t in tables %}
+                            <option value="{{ t }}" {% if t == selected_table %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-2"><label class="form-label">تعداد</label><input type="number" name="limit" class="form-control" value="50"></div>
-                    <div class="col-md-2"><label class="form-label">&nbsp;</label><button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i> اجرا</button></div>
+                    <div class="col-md-2"><label class="form-label">تعداد</label>
+                        <input type="number" name="limit" class="form-control" value="50" min="1" max="500"></div>
+                    <div class="col-md-2"><label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i> اجرا</button></div>
+                </div>
+                <div class="mt-3">
+                    <div class="d-flex align-items-center justify-content-between mb-1">
+                        <label class="form-label mb-0">ستون‌ها</label>
+                        <span class="small">
+                            <a href="#" id="rb-all">همه</a> ·
+                            <a href="#" id="rb-none">هیچ‌کدام</a>
+                        </span>
+                    </div>
+                    <div id="rb-columns" class="d-flex flex-wrap gap-2">
+                        {% for col in columns %}
+                        <label class="form-check form-check-inline mb-0">
+                            <input class="form-check-input" type="checkbox" name="columns" value="{{ col }}" checked>
+                            <span class="form-check-label small">{{ col }}</span>
+                        </label>
+                        {% endfor %}
+                        {% if not columns %}
+                        <span class="text-muted small" id="rb-empty">اول جدول را انتخاب کنید.</span>
+                        {% endif %}
+                    </div>
+                    <div class="form-text">
+                        جدول‌های حساب‌کاربری/نشست و ستون‌های حساس (رمز، توکن، شناسهٔ نشست)
+                        در این ابزار نمایش داده نمی‌شوند.
+                    </div>
                 </div>
             </form>
         </div>
     </div>
     {% if results %}
     <div class="card"><div class="card-body-padded" style="padding: 0;">
+        <div class="table-responsive">
         <table class="table mb-0">
             <thead><tr>{% for col in results.columns %}<th>{{ col }}</th>{% endfor %}</tr></thead>
-            <tbody>{% for row in results.rows %}<tr>{% for val in row %}<td>{{ val or '-' }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+            <tbody>{% for row in results.rows %}<tr>{% for val in row %}<td>{{ val if val is not none else '-' }}</td>{% endfor %}</tr>{% endfor %}</tbody>
         </table>
+        </div>
+        <div class="p-2 text-muted small">{{ results.query }}</div>
     </div></div>
     {% endif %}
 </div>
+{% endblock %}
+{% block extra_js %}
+<script>
+/* فهرست ستون‌ها از روی دادهٔ سرور ساخته می‌شود (بدون JS، ستون‌های جدولِ
+   انتخابی همان‌جا رندر شده‌اند). سرور هم دوباره هر ستونِ درخواستی را
+   اعتبارسنجی می‌کند؛ این اسکریپت فقط رابط را سریع‌تر می‌کند. */
+(function () {
+    var COLUMNS = {{ (columns_by_table or {}) | tojson }};
+    var box = document.getElementById('rb-columns');
+    var tableSelect = document.getElementById('rb-table');
+    if (!box || !tableSelect) { return; }
+
+    function render(name) {
+        var cols = COLUMNS[name] || [];
+        box.innerHTML = '';
+        if (!cols.length) {
+            box.innerHTML = '<span class="text-muted small">اول جدول را انتخاب کنید.</span>';
+            return;
+        }
+        cols.forEach(function (col) {
+            var label = document.createElement('label');
+            label.className = 'form-check form-check-inline mb-0';
+            var input = document.createElement('input');
+            input.className = 'form-check-input';
+            input.type = 'checkbox';
+            input.name = 'columns';
+            input.value = col;
+            input.checked = true;
+            var text = document.createElement('span');
+            text.className = 'form-check-label small';
+            text.textContent = col;
+            label.appendChild(input);
+            label.appendChild(text);
+            box.appendChild(label);
+        });
+    }
+
+    tableSelect.addEventListener('change', function () { render(tableSelect.value); });
+    if (tableSelect.value && !box.querySelector('input')) { render(tableSelect.value); }
+
+    function toggle(state) {
+        box.querySelectorAll('input[name="columns"]').forEach(function (input) {
+            input.checked = state;
+        });
+    }
+    var all = document.getElementById('rb-all');
+    var none = document.getElementById('rb-none');
+    if (all) { all.addEventListener('click', function (e) { e.preventDefault(); toggle(true); }); }
+    if (none) { none.addEventListener('click', function (e) { e.preventDefault(); toggle(false); }); }
+})();
+</script>
 {% endblock %}

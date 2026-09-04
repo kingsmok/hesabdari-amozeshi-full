@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, make_response
 from flask_login import login_required, current_user
 from extensions import db
+from utils.document_numbers import next_document_number
 
 final_bp = Blueprint('final', __name__)
 
@@ -148,8 +149,7 @@ def multi_register(id):
             if not course:
                 continue
             
-            last = Registration.query.order_by(Registration.id.desc()).first()
-            reg_code = f'REG-{(last.id + 1 + count) if last else 1:06d}'
+            reg_code = next_document_number('registration')
             
             cls_id = int(class_ids[i]) if i < len(class_ids) and class_ids[i] else None
             

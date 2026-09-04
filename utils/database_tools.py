@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+from datetime import datetime
 
 from sqlalchemy import inspect, text
 
@@ -157,4 +158,111 @@ def ensure_settings_columns() -> int:
             added += 1
         except Exception:
             db.session.rollback()          # ستون از قبل وجود دارد
+    return added
+
+
+def ensure_payroll_columns() -> dict:
+    """ستون‌های گردش‌کار فیش حقوقی + یکتایی «یک فیش برای هر نفر در هر دوره».
+
+    نصب‌های قدیمی این ستون‌ها را ندارند و SQLite با create_all آن‌ها را
+    اضافه نمی‌کند. ایندکس یکتا بعد از پاک‌سازی تکراری‌ها ساخته می‌شود:
+    از فیش‌های تکراریِ همان دوره، فیشِ پرداخت‌شده (یا بزرگ‌ترین id) نگه
+    داشته می‌شود و بقیه «ابطال» می‌خورند (حذف فیزیکی نمی‌شوند تا سابقه بماند).
+    """
+    result = {'added': 0, 'cancelled_duplicates': 0, 'unique_index': False, 'error': None}
+    alters = [
+        "ALTER TABLE payslips ADD COLUMN approved_at DATETIME",
+        "ALTER TABLE payslips ADD COLUMN paid_by INTEGER REFERENCES users (id)",
+        "ALTER TABLE payslips ADD COLUMN cashbox_id INTEGER REFERENCES cashboxes (id)",
+        "ALTER TABLE payslips ADD COLUMN cancel_reason VARCHAR(255)",
+        "ALTER TABLE payslips ADD COLUMN cancelled_at DATETIME",
+        "ALTER TABLE payslips ADD COLUMN cancelled_by INTEGER REFERENCES users (id)",
+    ]
+    for sql in alters:
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+            result['added'] += 1
+        except Exception:
+            db.session.rollback()          # ستون از قبل وجود دارد
+
+    # ۱) لغو فیش‌های تکراریِ همان شخص و همان دوره (به‌جز نسخه‌ای که نگه داشته می‌شود)
+    try:
+        from models.finance import Payslip
+        rows = (db.session.query(Payslip.person_type, Payslip.person_id, Payslip.period)
+                .filter(Payslip.period.isnot(None))
+                .group_by(Payslip.person_type, Payslip.person_id, Payslip.period)
+                .having(db.func.count(Payslip.id) > 1).all())
+        keep_status_order = {'paid': 0, 'approved': 1, 'draft': 2, 'cancelled': 3}
+        for person_type, person_id, period in rows:
+            duplicates = (Payslip.query
+                          .filter_by(person_type=person_type, person_id=person_id, period=period)
+                          .order_by(Payslip.id.desc()).all())
+            keep = sorted(duplicates,
+                          key=lambda p: (keep_status_order.get(p.status, 4), -p.id))[0]
+            for old in duplicates:
+                if old.id == keep.id or old.status == 'cancelled':
+                    continue
+                old.status = 'cancelled'
+                old.cancel_reason = 'ابطال خودکار: فیش تکراری برای همین دوره (اصلاح ساختاری)'
+                old.cancelled_at = datetime.utcnow()
+                result['cancelled_duplicates'] += 1
+        if result['cancelled_duplicates']:
+            db.session.commit()
+    except Exception as exc:                                  # pragma: no cover
+        db.session.rollback()
+        result['error'] = f'dedupe: {exc}'
+
+    # ۲) ایندکس یکتای جزئی — فقط فیش‌های غیرمبتل به ابطال
+    try:
+        db.session.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_payslip_person_period "
+            "ON payslips (person_type, person_id, period) WHERE status != 'cancelled'"
+        ))
+        db.session.commit()
+        result['unique_index'] = True
+    except Exception as exc:                                  # pragma: no cover
+        db.session.rollback()
+        result['error'] = (result['error'] or '') + f' index: {exc}'
+    return result
+
+
+def ensure_accounting_columns() -> int:
+    """ستون‌های تازه جدول دوره مالی (قفل شدن واقعی دوره بسته)."""
+    alters = [
+        "ALTER TABLE fiscal_periods ADD COLUMN closed_by_user BOOLEAN DEFAULT 0",
+        "ALTER TABLE journal_entries ADD COLUMN confirmed_at DATETIME",
+        "ALTER TABLE journal_entries ADD COLUMN approved_at DATETIME",
+    ]
+    added = 0
+    for sql in alters:
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+            added += 1
+        except Exception:
+            db.session.rollback()
+    return added
+
+
+def ensure_finance_columns() -> int:
+    """ستون‌های ابطال/مرجوعیِ پرداخت (`Payment`).
+
+    مدل این فیلدها را داشت ولی هیچ مسیر ابطال وجود نداشت؛ با افزودن
+    `cancel_reason`/`refunded_amount`، ابطال هم ردپا می‌گذارد و هم مبلغ
+    درست را به صندوق برمی‌گرداند. مثل بقیه مهاجرت‌ها: فقط ADD COLUMN، هیچ
+    داده‌ای بازنویسی/حذف نمی‌شود و اجرای دوباره بی‌ضرر است.
+    """
+    alters = [
+        "ALTER TABLE payments ADD COLUMN cancel_reason TEXT",
+        "ALTER TABLE payments ADD COLUMN refunded_amount FLOAT DEFAULT 0",
+    ]
+    added = 0
+    for sql in alters:
+        try:
+            db.session.execute(text(sql))
+            db.session.commit()
+            added += 1
+        except Exception:
+            db.session.rollback()
     return added

@@ -1,0 +1,165 @@
+{% extends "base/layout.html" %}
+{% block title %}قواعد مالیات و بیمه{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('tax.dashboard') }}">مالیات</a></li><li class="active">قواعد</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-sliders"></i> قواعد مالیات حقوق و بیمه<small>به تفکیک سال — بدون نیاز به ویرایش کد</small></h1>
+        <a href="{{ url_for('payroll.tax_report') }}" class="btn btn-outline-primary"><i class="bi bi-percent me-1"></i> گزارش مالیاتی</a>
+    </div>
+
+    <div class="alert alert-info" style="font-size: 13px;">
+        <i class="bi bi-info-circle me-1"></i>
+        مبنای قانونی: <strong>پلکان ماهانه</strong>. تا سقف معافیت ماهانه هیچ مالیاتی کسر نمی‌شود و به مازادِ هر پله،
+        نرخ همان پله اعمال می‌گردد. در نبود ردیف برای یک سال، پیش‌فرض ماده ۱ قانون بودجه ۱۴۰۵ اعمال می‌شود.
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-plus-circle me-1"></i> ثبت / ویرایش قواعد یک سال</h5></div>
+                <div class="card-body-padded">
+                    <form method="POST" action="{{ url_for('tax.save_tax_rules') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="ruleYear">سال شمسی</label>
+                                <input type="text" name="year" id="ruleYear" class="form-control" inputmode="numeric"
+                                       value="{{ effective.year }}" required placeholder="1405">
+                                <div style="font-size: 11px; color: var(--clr-text-muted, #455a64); margin-top: 3px;">اگر سالی وجود داشته باشد، جایگزین می‌شود</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="ruleExemption">سقف معافیت ماهانه (تومان)</label>
+                                <input type="text" name="monthly_exemption" id="ruleExemption" class="form-control" inputmode="numeric"
+                                       value="{{ effective.monthly_exemption|int }}" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="ruleInsEmployee">بیمه کارمند (٪)</label>
+                                <input type="text" name="insurance_employee_rate" id="ruleInsEmployee" class="form-control" inputmode="decimal"
+                                       value="{{ (effective.insurance_employee_rate * 100)|round(2) }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="ruleInsEmployer">بیمه کارفرما (٪)</label>
+                                <input type="text" name="insurance_employer_rate" id="ruleInsEmployer" class="form-control" inputmode="decimal"
+                                       value="{{ (effective.insurance_employer_rate * 100)|round(2) }}">
+                            </div>
+                        </div>
+
+                        <h6 style="margin: 18px 0 8px;">پلکان‌ها (مازاد بر هر پله)</h6>
+                        <div id="bracketsWrap">
+                            <table class="table mb-2" style="font-size: 13px;">
+                                <thead>
+                                    <tr><th style="width: 32%;">از (تومان)</th><th style="width: 32%;">تا (تومان)</th><th>نرخ (٪)</th><th style="width: 46px;"></th></tr>
+                                </thead>
+                                <tbody id="bracketsBody">
+                                    {% for b in effective.brackets %}
+                                    <tr>
+                                        <td><input type="text" name="bracket_from" class="form-control form-control-sm" inputmode="numeric" value="{{ b.from|int }}"></td>
+                                        <td><input type="text" name="bracket_to" class="form-control form-control-sm" inputmode="numeric" value="{{ b.to|int if b.to else '' }}"></td>
+                                        <td><input type="text" name="bracket_rate" class="form-control form-control-sm" inputmode="decimal" value="{{ (b.rate * 100)|round(2) }}"></td>
+                                        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="bi bi-trash"></i></button></td>
+                                    </tr>
+                                    {% endfor %}
+                                    {% if not effective.brackets %}
+                                    <tr id="emptyBracketRow">
+                                        <td colspan="4" style="color: var(--clr-text-faint, #607d8b); font-size: 12px;">پلکانی ثبت نشده — با دکمه زیر اضافه کنید</td>
+                                    </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex gap-2 mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addBracket()"><i class="bi bi-plus me-1"></i> افزودن پلکان</button>
+                            <div class="form-check ms-auto">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="ruleActive" value="on" checked>
+                                <label class="form-check-label" for="ruleActive">این سال فعال باشد</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label" for="ruleNote">منبع / توضیح</label>
+                            <input type="text" name="note" id="ruleNote" class="form-control" value="{{ effective.note or '' }}"
+                                   placeholder="مثلاً: ماده ۱ قانون بودجه ۱۴۰۵">
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i> ذخیره قواعد</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-head"><h5><i class="bi bi-table me-1"></i> قواعد ثبت‌شده</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    {% if rules %}
+                    <table class="table mb-0">
+                        <thead><tr><th>سال</th><th>معافیت ماهانه</th><th>پلکان‌ها</th><th>وضعیت</th><th></th></tr></thead>
+                        <tbody>
+                            {% for r in rules %}
+                            <tr>
+                                <td><strong>{{ r.year }}</strong></td>
+                                <td>{{ r.monthly_exemption|currency }} ت</td>
+                                <td style="font-size: 11px; color: var(--clr-text-muted, #455a64);">
+                                    {% for b in r.brackets|from_json %}
+                                    {{ b.from|currency }}→{{ (b.to|currency) if b.to else '∞' }} ({{ (b.rate * 100)|round(0)|int }}٪){% if not loop.last %}, {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td><span class="badge-status badge-{{ 'active' if r.is_active else 'inactive' }}">{{ 'فعال' if r.is_active else 'غیرفعال' }}</span></td>
+                                <td>
+                                    <form method="POST" action="{{ url_for('tax.delete_tax_rule', id=r.id) }}" style="display:inline;"
+                                          onsubmit="return confirm('قواعد سال {{ r.year }} حذف شود؟ از این پس پیش‌فرض کد اعمال می‌شود.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <div class="card-body-padded text-center" style="color: var(--clr-text-faint, #607d8b);">
+                        <p class="mb-0">هنوز ردیفی ثبت نشده — پیش‌فرض سال {{ effective.year }} در حال اعمال است</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head"><h5><i class="bi bi-diagram-3 me-1"></i> نمونه محاسبه با قواعد جاری</h5></div>
+                <div class="card-body-padded" style="padding: 0;">
+                    <table class="table mb-0" style="font-size: 13px;">
+                        <thead><tr><th>حقوق ماهانه</th><th>مالیات</th><th>بیمه</th><th>دریافتی</th></tr></thead>
+                        <tbody>
+                            {% for row in preview %}
+                            <tr>
+                                <td>{{ row.monthly|currency }} ت</td>
+                                <td style="color: #c62828;">{{ row.tax|currency }} ت</td>
+                                <td style="color: #e65100;">{{ row.insurance|currency }} ت</td>
+                                <td style="font-weight: 700; color: #2e7d32;">{{ row.net|currency }} ت</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addBracket() {
+    var body = document.getElementById('bracketsBody');
+    var row = document.createElement('tr');
+    row.innerHTML = '<td><input type="text" name="bracket_from" class="form-control form-control-sm" inputmode="numeric" value=""></td>'
+        + '<td><input type="text" name="bracket_to" class="form-control form-control-sm" inputmode="numeric" value=""></td>'
+        + '<td><input type="text" name="bracket_rate" class="form-control form-control-sm" inputmode="decimal" value=""></td>'
+        + '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="bi bi-trash"></i></button></td>';
+    var placeholder = document.getElementById('emptyBracketRow');
+    if (placeholder) placeholder.remove();
+    body.appendChild(row);
+}
+</script>
+{% endblock %}

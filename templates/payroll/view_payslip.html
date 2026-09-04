@@ -2,46 +2,147 @@
 {% block title %}فیش {{ payslip.payslip_number }}{% endblock %}
 {% block breadcrumb %}<li><a href="{{ url_for('payroll.dashboard') }}">حقوق</a></li><li class="active">{{ payslip.payslip_number }}</li>{% endblock %}
 {% block content %}
+{% set status_badge = {'paid': 'active', 'approved': 'pending', 'cancelled': 'inactive'}.get(payslip.status, 'completed') %}
+{% set status_label = {'paid': 'پرداخت‌شده', 'approved': 'تأییدشده', 'cancelled': 'ابطال‌شده'}.get(payslip.status, 'پیش‌نویس') %}
 <div class="anim-in">
     <div class="page-head">
-        <h1><i class="bi bi-receipt"></i> فیش حقوقی<small>{{ payslip.payslip_number }} — {{ payslip.period }}</small></h1>
-        <div class="d-flex gap-2">
-            {% if payslip.status == 'draft' %}
-            <form method="POST" action="{{ url_for('payroll.approve_payslip', id=payslip.id) }}" style="display: inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-primary"><i class="bi bi-check me-1"></i> تأیید</button></form>
+        <h1><i class="bi bi-receipt"></i> فیش حقوقی<small>{{ payslip.payslip_number }} — {{ payslip.period }} ({{ payslip.period|jalali_period }})</small></h1>
+        <div class="d-flex gap-2 no-print">
+            {% if payslip.status == 'draft' and can_edit %}
+            <form method="POST" action="{{ url_for('payroll.approve_payslip', id=payslip.id) }}" style="display: inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-primary"><i class="bi bi-check me-1"></i> تأیید فیش</button></form>
+            <a href="{{ url_for('payroll.edit_payslip', id=payslip.id) }}" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1"></i> ویرایش</a>
             {% endif %}
-            {% if payslip.status == 'approved' %}
-            <form method="POST" action="{{ url_for('payroll.pay_payslip', id=payslip.id) }}" style="display: inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-success"><i class="bi bi-cash me-1"></i> پرداخت</button></form>
+            {% if payslip.status == 'approved' and can_edit %}
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#payModal"><i class="bi bi-cash me-1"></i> پرداخت</button>
+            {% endif %}
+            {% if payslip.status in ('draft', 'approved', 'paid') and can_edit %}
+            <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal"><i class="bi bi-x-circle me-1"></i> ابطال</button>
             {% endif %}
             <button class="btn btn-outline-secondary" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
         </div>
     </div>
-    <div class="card" style="max-width: 700px; margin: 0 auto;">
+
+    {% if payslip.status == 'cancelled' %}
+    <div class="alert alert-danger no-print">
+        <i class="bi bi-ban me-1"></i> این فیش ابطال شده است
+        {%- if payslip.cancel_reason %} — دلیل: {{ payslip.cancel_reason }}{% endif %}
+        {%- if payslip.cancelled_at %} در {{ payslip.cancelled_at|to_jalali }}{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="card" style="max-width: 760px; margin: 0 auto;">
         <div class="card-body-padded">
             <div class="text-center mb-4">
-                <h4>فیش حقوقی</h4>
-                <p style="color: #78909c;">{{ payslip.payslip_number }} | دوره: {{ payslip.period }}</p>
-                <span class="badge-status badge-{{ 'active' if payslip.status == 'paid' else ('pending' if payslip.status == 'approved' else 'inactive') }}">{{ payslip.status }}</span>
+                <h4>{{ settings.academy_name if settings and settings.academy_name else 'فیش حقوقی' }}</h4>
+                <p style="color: var(--clr-text-muted, #455a64); margin-bottom: 4px;">فیش حقوقی — دوره {{ payslip.period }} ({{ payslip.period|jalali_period }})</p>
+                <span class="badge-status badge-{{ status_badge }}">{{ status_label }}</span>
             </div>
-            <table class="table table-borderless" style="border: 1px solid #eee;">
+
+            <table class="table table-borderless" style="border: 1px solid #eceff1;">
+                <tr>
+                    <td style="color: var(--clr-text-muted, #455a64);">دریافت‌کننده</td>
+                    <td style="text-align: left;"><strong>{{ person_name }}</strong></td>
+                </tr>
+                <tr>
+                    <td style="color: var(--clr-text-muted, #455a64);">شماره فیش</td>
+                    <td style="text-align: left;"><code>{{ payslip.payslip_number }}</code></td>
+                </tr>
+
                 <tr style="background: #e8f5e9;"><td colspan="2" style="font-weight: 700; color: #2e7d32;">دریافتی‌ها</td></tr>
-                <tr><td style="color: #78909c;">حقوق پایه</td><td style="text-align: left;">{{ payslip.base_amount|currency }} ت</td></tr>
-                {% if payslip.teaching_hours %}<tr><td style="color: #78909c;">ساعات تدریس ({{ payslip.teaching_hours }} ساعت)</td><td style="text-align: left;">{{ payslip.teaching_amount|currency }} ت</td></tr>{% endif %}
-                {% if payslip.sessions_count %}<tr><td style="color: #78909c;">جلسات ({{ payslip.sessions_count }} جلسه)</td><td style="text-align: left;">{{ payslip.session_amount|currency }} ت</td></tr>{% endif %}
-                {% if payslip.commission_amount %}<tr><td style="color: #78909c;">پورسانت</td><td style="text-align: left;">{{ payslip.commission_amount|currency }} ت</td></tr>{% endif %}
-                {% if payslip.bonus %}<tr><td style="color: #78909c;">پاداش</td><td style="text-align: left;">{{ payslip.bonus|currency }} ت</td></tr>{% endif %}
-                {% if payslip.overtime %}<tr><td style="color: #78909c;">اضافه‌کاری</td><td style="text-align: left;">{{ payslip.overtime|currency }} ت</td></tr>{% endif %}
+                <tr><td style="color: var(--clr-text-muted, #455a64);">حقوق پایه</td><td style="text-align: left;">{{ payslip.base_amount|currency }} ت</td></tr>
+                {% if payslip.teaching_hours %}<tr><td style="color: var(--clr-text-muted, #455a64);">ساعات تدریس ({{ payslip.teaching_hours }} ساعت)</td><td style="text-align: left;">{{ payslip.teaching_amount|currency }} ت</td></tr>{% endif %}
+                {% if payslip.sessions_count %}<tr><td style="color: var(--clr-text-muted, #455a64);">جلسات ({{ payslip.sessions_count }} جلسه)</td><td style="text-align: left;">{{ payslip.session_amount|currency }} ت</td></tr>{% endif %}
+                {% if payslip.commission_amount %}<tr><td style="color: var(--clr-text-muted, #455a64);">پورسانت / درصد شهریه</td><td style="text-align: left;">{{ payslip.commission_amount|currency }} ت</td></tr>{% endif %}
+                {% if payslip.bonus %}<tr><td style="color: var(--clr-text-muted, #455a64);">پاداش</td><td style="text-align: left;">{{ payslip.bonus|currency }} ت</td></tr>{% endif %}
+                {% if payslip.overtime %}<tr><td style="color: var(--clr-text-muted, #455a64);">اضافه‌کاری</td><td style="text-align: left;">{{ payslip.overtime|currency }} ت</td></tr>{% endif %}
                 <tr style="background: #e8f5e9; font-weight: 700;"><td>جمع ناخالص</td><td style="text-align: left;">{{ payslip.gross_amount|currency }} ت</td></tr>
-                
+
                 <tr style="background: #ffebee;"><td colspan="2" style="font-weight: 700; color: #c62828;">کسورات</td></tr>
-                {% if payslip.insurance %}<tr><td style="color: #78909c;">بیمه</td><td style="text-align: left; color: #c62828;">{{ payslip.insurance|currency }} ت</td></tr>{% endif %}
-                {% if payslip.tax %}<tr><td style="color: #78909c;">مالیات</td><td style="text-align: left; color: #c62828;">{{ payslip.tax|currency }} ت</td></tr>{% endif %}
-                {% if payslip.deductions %}<tr><td style="color: #78909c;">مساعده</td><td style="text-align: left; color: #c62828;">{{ payslip.deductions|currency }} ت</td></tr>{% endif %}
-                {% if payslip.penalty %}<tr><td style="color: #78909c;">جریمه</td><td style="text-align: left; color: #c62828;">{{ payslip.penalty|currency }} ت</td></tr>{% endif %}
+                {% if payslip.insurance %}<tr><td style="color: var(--clr-text-muted, #455a64);">حق بیمه (سهم کارمند)</td><td style="text-align: left; color: #c62828;">{{ payslip.insurance|currency }} ت</td></tr>{% endif %}
+                {% if payslip.tax %}<tr><td style="color: var(--clr-text-muted, #455a64);">مالیات بر حقوق</td><td style="text-align: left; color: #c62828;">{{ payslip.tax|currency }} ت</td></tr>{% endif %}
+                {% if payslip.deductions %}<tr><td style="color: var(--clr-text-muted, #455a64);">مساعده</td><td style="text-align: left; color: #c62828;">{{ payslip.deductions|currency }} ت</td></tr>{% endif %}
+                {% if payslip.penalty %}<tr><td style="color: var(--clr-text-muted, #455a64);">جریمه</td><td style="text-align: left; color: #c62828;">{{ payslip.penalty|currency }} ت</td></tr>{% endif %}
                 <tr style="background: #ffebee; font-weight: 700;"><td>جمع کسورات</td><td style="text-align: left; color: #c62828;">{{ payslip.total_deductions|currency }} ت</td></tr>
-                
+
                 <tr style="background: #e3f2fd; font-weight: 900; font-size: 16px;"><td>خالص قابل پرداخت</td><td style="text-align: left; color: #0d47a1;">{{ payslip.net_amount|currency }} ت</td></tr>
             </table>
+
+            {% if payslip.notes %}
+            <div style="font-size: 12px; color: #546e7a; margin-top: 10px;"><i class="bi bi-sticky me-1"></i>{{ payslip.notes }}</div>
+            {% endif %}
+
+            <div class="row g-2" style="font-size: 12px; color: var(--clr-text-muted, #455a64); margin-top: 14px; border-top: 1px dashed #cfd8dc; padding-top: 10px;">
+                <div class="col-6">تاریخ ثبت: {{ payslip.created_at|to_jalali }}</div>
+                <div class="col-6">تأیید: {{ payslip.approved_at|to_jalali if payslip.approved_at else '—' }}</div>
+                <div class="col-6">پرداخت: {{ payslip.paid_date|to_jalali if payslip.paid_date else '—' }}</div>
+                <div class="col-6">صندوق: {{ payslip.cashbox.name if payslip.cashbox else '—' }}</div>
+            </div>
         </div>
     </div>
+
+    {% if can_edit and payslip.status in ('draft', 'approved') %}
+    <div class="modal fade no-print" id="payModal" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+            <form method="POST" action="{{ url_for('payroll.pay_payslip', id=payslip.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header"><h5 class="modal-title">پرداخت فیش {{ payslip.payslip_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="alert alert-warning" style="font-size: 13px;">
+                        مبلغ <strong>{{ payslip.net_amount|currency }} تومان</strong> از موجودی صندوق انتخاب‌شده کسر می‌شود.
+                        این عملیات یک‌بار است و در صورت پرداخت مجدد تکرار نمی‌شود.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="cashboxSelect">صندوق</label>
+                        <select name="cashbox_id" id="cashboxSelect" class="form-select">
+                            {% for box in cashboxes %}
+                            <option value="{{ box.id }}">{{ box.name }} — موجودی {{ box.balance|currency }} ت</option>
+                            {% endfor %}
+                        </select>
+                        {% if not cashboxes %}
+                        <div style="font-size: 11px; color: #c62828; margin-top: 4px;">صندوق فعالی وجود ندارد؛ ابتدا از بخش مالی صندوق بسازید.</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="paidDate">تاریخ پرداخت</label>
+                        <input type="text" name="paid_date" id="paidDate" class="form-control jalali-date" placeholder="{{ today|to_jalali }}">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
+                    <button type="submit" class="btn btn-success"><i class="bi bi-cash me-1"></i> ثبت پرداخت</button>
+                </div>
+            </form>
+        </div></div>
+    </div>
+
+    <div class="modal fade no-print" id="cancelModal" tabindex="-1">
+        <div class="modal-dialog"><div class="modal-content">
+            <form method="POST" action="{{ url_for('payroll.cancel_payslip', id=payslip.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header"><h5 class="modal-title">ابطال فیش {{ payslip.payslip_number }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    {% if payslip.status == 'paid' %}
+                    <div class="alert alert-info" style="font-size: 13px;">
+                        چون فیش پرداخت شده، مبلغ {{ payslip.net_amount|currency }} تومان به صندوق
+                        «{{ payslip.cashbox.name if payslip.cashbox else '—' }}» بازگردانده می‌شود.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning" style="font-size: 13px;">فیش ابطال می‌شود و در فهرست باقی می‌ماند (حذف نمی‌شود تا سابقه از بین نرود).</div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label" for="cancelReason">دلیل ابطال</label>
+                        <input type="text" name="reason" id="cancelReason" class="form-control" placeholder="مثلاً: اشتباه در ساعات تدریس" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">انصراف</button>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-x-circle me-1"></i> ابطال فیش</button>
+                </div>
+            </form>
+        </div></div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

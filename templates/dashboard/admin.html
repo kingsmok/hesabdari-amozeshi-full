@@ -52,7 +52,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="stat-label">درآمد ماه</div>
-                        <div class="stat-val" style="font-size: 18px;">{{ stats.month_income|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div>
+                        <div class="stat-val" style="font-size: 18px;">{{ stats.month_income|currency }} <small style="font-size: 11px; color: var(--clr-text-muted, #455a64);">تومان</small></div>
                     </div>
                     <div class="stat-icon" style="background: #fff3e0; color: #e65100;"><i class="bi bi-cash-stack"></i></div>
                 </div>
@@ -63,7 +63,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="stat-label">صندوق</div>
-                        <div class="stat-val" style="font-size: 18px;">{{ stats.cashbox_balance|currency }} <small style="font-size: 11px; color: #78909c;">تومان</small></div>
+                        <div class="stat-val" style="font-size: 18px;">{{ stats.cashbox_balance|currency }} <small style="font-size: 11px; color: var(--clr-text-muted, #455a64);">تومان</small></div>
                     </div>
                     <div class="stat-icon" style="background: #fce4ec; color: #c62828;"><i class="bi bi-wallet2"></i></div>
                 </div>
@@ -86,7 +86,7 @@
                         </tbody>
                     </table>
                     {% else %}
-                    <div class="text-center py-4" style="color: #b0bec5;"><p>کلاسی برای امروز نیست</p></div>
+                    <div class="text-center py-4" style="color: var(--clr-text-faint, #607d8b);"><p>کلاسی برای امروز نیست</p></div>
                     {% endif %}
                 </div>
             </div>
@@ -102,7 +102,7 @@
                         </div>
                         <div style="flex: 1;">
                             <div style="font-size: 12px;">{{ a.description or a.action }}</div>
-                            <div style="font-size: 10px; color: #b0bec5;">{{ a.created_at|to_jalali }}</div>
+                            <div style="font-size: 10px; color: var(--clr-text-faint, #607d8b);">{{ a.created_at|to_jalali }}</div>
                         </div>
                     </div>
                     {% endfor %}

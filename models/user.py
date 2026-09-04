@@ -69,6 +69,28 @@ class User(UserMixin, db.Model):
     activities = db.relationship('ActivityLog', backref='user', lazy='dynamic')
     sessions = db.relationship('UserSession', backref='user', lazy='dynamic')
     
+    @property
+    def is_blocked(self):
+        """حساب صریحاً غیرفعال شده است؟
+
+        ستون `is_active` در نصب‌های قدیمی (یا بعد از `ALTER TABLE ... ADD COLUMN`
+        بدون default) می‌تواند NULL باشد؛ NULL یعنی «فعال» تا مهاجرت ناقص،
+        کل سیستم را قفل نکند. فقط False/0 صریح مسدود محسوب می‌شود.
+        """
+        return self.is_active is not None and not self.is_active
+
+    @property
+    def is_authenticated(self):
+        """سرابرِ `UserMixin.is_authenticated` — و یک تله مهم.
+
+        در Flask-Login این متد `return self.is_active` است و چون در این مدل
+        `is_active` یک **ستون دیتابیس** است، مقدارش مستقیم به «احراز هویت»
+        تبدیل می‌شد: یعنی هر سطر با `is_active = NULL` (ردیف‌های قدیمی) باعث
+        می‌شد کاربر وسط کار ناشناس شود و بی‌دلیل به صفحه ورود بپرد. پس اینجا
+        وضعیت را خودمان و با قاعده بالا («NULL = فعال») گزارش می‌کنیم.
+        """
+        return not self.is_blocked
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     
@@ -133,6 +155,15 @@ class ActivityLog(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     try:
-        return db.session.get(User, int(user_id))
+        user = db.session.get(User, int(user_id))
     except (ValueError, TypeError):
         return None
+    # حساب غیرفعال/مسدود باید بی‌درنگ از دسترس بیفتد. پیش‌تر `is_active` فقط جلوی
+    # «ورود» را می‌گرفت و کاربرِ غیرفعال‌شده با کوکی Remember-Me تا ۱۴ روز کارش
+    # ادامه می‌داد (بازبینی امنیت، بند A3 — ابطال نشست).
+    # توجه: در نصب‌های قدیمی ستون ممکن است NULL باشد؛ NULL یعنی «فعال» (رفتار
+    # پیش‌فرض ستون) تا کسی به‌خاطر مهاجرت ناقص از سیستم بیرون نیفتد.
+    # حساب غیرفعال باید بی‌درنگ از دسترس بیفتد؛ پیش‌تر `is_active` فقط جلوی
+    # «ورود» را می‌گرفت و کاربر غیرفعال‌شده با کوکی Remember-Me تا ۱۴ روز
+    # کارش ادامه می‌داد (بازبینی امنیت، بند A3 — ابطال نشست)
+    return None if (user is None or user.is_blocked) else user

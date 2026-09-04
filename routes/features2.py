@@ -473,21 +473,24 @@ def process_smart_query(q):
     from models.teacher import Teacher
     from models.classes import ClassGroup
     
+    # «ماه جاری» در این برنامه شمسی است؛ پنجره میلادی عدد را کم/زیاد می‌کرد
+    from utils.jalali import jalali_month_bounds
+    month_start, month_end = jalali_month_bounds()
+    # شاخه «ثبت‌نام‌های امروز» به این متغیر نیاز دارد (بدون آن NameError و ۵۰۰)
     today = datetime.utcnow()
-    month_start = today.replace(day=1)
     
     q_lower = q.lower()
     
     if 'درآمد' in q and ('ماه' in q or 'امروز' in q):
         total = db.session.query(db.func.sum(Payment.amount)).filter(
-            Payment.payment_date >= month_start.date(),
+            Payment.payment_date >= month_start, Payment.payment_date <= month_end,
             Payment.status == 'confirmed'
         ).scalar() or 0
         return f'درآمد ماه جاری: {total:,.0f} تومان'
     
     elif 'هزینه' in q and 'ماه' in q:
         total = db.session.query(db.func.sum(Expense.amount)).filter(
-            Expense.expense_date >= month_start.date(),
+            Expense.expense_date >= month_start, Expense.expense_date <= month_end,
             Expense.status == 'confirmed'
         ).scalar() or 0
         return f'هزینه ماه جاری: {total:,.0f} تومان'
@@ -595,15 +598,16 @@ def staff_rewards():
     """سیستم پیشنهاد پاداش"""
     from models.user import User, ActivityLog
     
-    today = datetime.utcnow().date()
-    month_start = today.replace(day=1)
+    from utils.jalali import jalali_month_bounds
+    month_start, _month_end = jalali_month_bounds()
+    month_start_dt = datetime.combine(month_start, datetime.min.time())
     
     users = User.query.filter_by(is_active=True).all()
     rewards = []
     for u in users:
         activities = ActivityLog.query.filter(
             ActivityLog.user_id == u.id,
-            ActivityLog.created_at >= datetime.combine(month_start, datetime.min.time())
+            ActivityLog.created_at >= month_start_dt
         ).count()
         
         # محاسبه امتیاز
@@ -975,39 +979,45 @@ def customize_dashboard():
 @features2_bp.route('/reports/custom-builder', methods=['GET', 'POST'])
 @login_required
 def custom_report():
-    """گزارش‌ساز سفارشی"""
+    """گزارش‌ساز سفارشی — فقط مدیر کل، و بدون ستون/جدولِ اعتبارنامه.
+
+    پیش‌تر همین مسیر با `login_required` خالی باز بود و چون فرم انتخاب ستون
+    نداشت، «همهٔ ستون‌ها» را برمی‌داشت ⇒ هر کاربر واردشده با `table=users`
+    هشِ رمز حساب‌ها را می‌دید. منطق گارد در `utils/report_builder.py` است.
+    """
+    from utils import report_builder
+
+    if not current_user.is_admin:
+        flash('گزارش‌ساز سفارشی فقط برای مدیر کل است؛ از گزارش‌های آماده استفاده کنید',
+              'danger')
+        return redirect(url_for('dashboard.index'))
+
+    chosen = (request.form.get('table') or request.args.get('table') or '').strip()
     results = None
-    
+
     if request.method == 'POST':
-        table_name = request.form.get('table', '')
-        requested_columns = request.form.getlist('columns')
-        try:
-            limit = max(1, min(int(request.form.get('limit', 50)), 500))
-        except (TypeError, ValueError):
-            limit = 50
-
-        try:
-            table = db.metadata.tables.get(table_name)
-            if table is None:
-                raise ValueError('جدول انتخاب‌شده معتبر نیست')
-
-            allowed_columns = {column.name: column for column in table.columns}
-            selected_names = [name for name in requested_columns if name in allowed_columns]
-            if not selected_names:
-                selected_names = list(allowed_columns.keys())
-            selected_columns = [allowed_columns[name] for name in selected_names]
-
-            statement = db.select(*selected_columns).limit(limit)
+        built, note = report_builder.build_query(
+            chosen, request.form.getlist('columns'), request.form.get('limit'))
+        if built is None:
+            flash(note, 'error')
+        else:
+            names, statement = built
             rows = [tuple(row) for row in db.session.execute(statement).all()]
             results = {
-                'columns': selected_names,
+                'columns': names,
                 'rows': rows,
-                'query': f'{table_name} — حداکثر {limit} رکورد'
+                'query': f'{chosen} — {len(rows)} رکورد '
+                         f'(سقف {report_builder.clamp_limit(request.form.get("limit"))})',
             }
-        except Exception as e:
-            flash(f'خطا در گزارش‌ساز: {str(e)}', 'error')
-    
-    # لیست جداول
-    tables = list(db.metadata.tables.keys())
-    
-    return render_template('reports/custom_builder.html', tables=tables, results=results)
+            if note:
+                flash(note, 'warning')
+
+    table_obj = report_builder.resolve_table(chosen)
+    return render_template(
+        'reports/custom_builder.html',
+        tables=report_builder.table_names(),
+        selected_table=chosen,
+        columns=report_builder.visible_columns(table_obj) if table_obj is not None else [],
+        columns_by_table={name: report_builder.visible_columns(db.metadata.tables[name])
+                          for name in report_builder.table_names()},
+        results=results)

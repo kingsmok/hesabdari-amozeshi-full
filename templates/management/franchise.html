@@ -10,7 +10,7 @@
             <div class="card"><div class="card-body-padded text-center">
                 <i class="bi bi-building" style="font-size: 36px; color: #1565c0;"></i>
                 <h6 class="mt-2">{{ b.name }}</h6>
-                <p style="font-size: 12px; color: #78909c;">{{ b.address or '-' }}</p>
+                <p style="font-size: 12px; color: var(--clr-text-muted, #455a64);">{{ b.address or '-' }}</p>
                 <span class="badge-status badge-{{ 'active' if b.is_main else 'completed' }}">{{ 'مرکزی' if b.is_main else 'نمایندگی' }}</span>
             </div></div>
         </div>

@@ -1,0 +1,104 @@
+{% extends "base/layout.html" %}
+{% block title %}فیش‌های حقوقی{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('payroll.dashboard') }}">حقوق</a></li><li class="active">فیش‌ها</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-receipt-cutoff"></i> فیش‌های حقوقی<small>جستجو و غربال‌گری بر اساس دوره و وضعیت</small></h1>
+        <a href="{{ url_for('payroll.calculate') }}" class="btn btn-primary"><i class="bi bi-calculator me-1"></i> محاسبه حقوق</a>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body-padded">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label" for="periodFilter">دوره</label>
+                    <select name="period" id="periodFilter" class="form-select">
+                        <option value="">همه دوره‌ها</option>
+                        {% for value in period_choices %}
+                        <option value="{{ value }}" {{ 'selected' if value == period }}>{{ value }} — {{ value|jalali_period }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="statusFilter">وضعیت</label>
+                    <select name="status" id="statusFilter" class="form-select">
+                        <option value="">همه وضعیت‌ها</option>
+                        {% for key, label in [('draft', 'پیش‌نویس'), ('approved', 'تأییدشده'), ('paid', 'پرداخت‌شده'), ('cancelled', 'ابطال‌شده')] %}
+                        <option value="{{ key }}" {{ 'selected' if status == key }}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="personFilter">شناسه شخص</label>
+                    <input type="text" id="personFilter" name="person" class="form-control" inputmode="numeric" value="{{ person }}" placeholder="مثلاً ۱۲">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button class="btn btn-primary flex-grow-1"><i class="bi bi-funnel me-1"></i> اعمال</button>
+                    <a href="{{ url_for('payroll.payslips') }}" class="btn btn-outline-secondary">پاک کردن</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">جمع ناخالص (صفحه)</div><div class="stat-val" style="font-size: 17px;">{{ totals.gross|currency }} ت</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">جمع کسورات</div><div class="stat-val" style="font-size: 17px; color: #c62828;">{{ totals.deductions|currency }} ت</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">جمع خالص</div><div class="stat-val" style="font-size: 17px; color: #2e7d32;">{{ totals.net|currency }} ت</div></div></div>
+    </div>
+
+    <div class="card">
+        <div class="card-body-padded" style="padding: 0;">
+            {% if payslips.items %}
+            <div class="table-responsive">
+            <table class="table mb-0">
+                <thead>
+                    <tr>
+                        <th>شماره فیش</th><th>شخص</th><th>دوره</th>
+                        <th>ناخالص</th><th>کسورات</th><th>خالص</th>
+                        <th>وضعیت</th><th>تاریخ پرداخت</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in payslips.items %}
+                    <tr>
+                        <td><code>{{ p.payslip_number }}</code></td>
+                        <td>{{ person_name(p.person_type, p.person_id) }}</td>
+                        <td>{{ p.period }} <span style="color: var(--clr-text-muted, #455a64);font-size:11px;">{{ p.period|jalali_period }}</span></td>
+                        <td>{{ p.gross_amount|currency }} ت</td>
+                        <td style="color: #c62828;">{{ p.total_deductions|currency }} ت</td>
+                        <td style="font-weight: 700;">{{ p.net_amount|currency }} ت</td>
+                        <td>
+                            <span class="badge-status badge-{{ 'active' if p.status == 'paid' else ('pending' if p.status == 'approved' else ('inactive' if p.status == 'cancelled' else 'completed')) }}">
+                                {{ {'paid': 'پرداخت‌شده', 'approved': 'تأییدشده', 'cancelled': 'ابطال‌شده'}.get(p.status, 'پیش‌نویس') }}
+                            </span>
+                        </td>
+                        <td>{{ p.paid_date|to_jalali or '-' }}</td>
+                        <td><a href="{{ url_for('payroll.view_payslip', id=p.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+
+            {% if payslips.pages > 1 %}
+            <div class="card-body-padded d-flex justify-content-center gap-1" style="border-top: 1px solid #eceff1;">
+                {% for page_no in payslips.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_no %}
+                    <a href="{{ url_for('payroll.payslips', page=page_no, period=period, status=status) }}"
+                       class="btn btn-sm {{ 'btn-primary' if page_no == payslips.page else 'btn-outline-secondary' }}">{{ page_no }}</a>
+                    {% else %}
+                    <span style="padding: 0 6px; color: var(--clr-text-faint, #607d8b);">…</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5" style="color: var(--clr-text-faint, #607d8b);">
+                <p class="mb-0">فیشی با این شرایط پیدا نشد</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

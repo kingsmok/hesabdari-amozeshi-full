@@ -259,6 +259,19 @@ def backup_stats() -> dict:
 # ══════════════════════════════════════════════════════════════
 #  بازیابی
 # ══════════════════════════════════════════════════════════════
+def _drop_sidecars(paths) -> None:
+    """حذف فایل‌های کمکی SQLite (WAL/journal)؛ نبودنشان خطا نیست."""
+    for item in paths:
+        try:
+            os.remove(item)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise BackupError(
+                f'فایل {os.path.basename(item)} قفل است. برای بازیابی، برنامه را '
+                'بندازید (یا سرویس/پشتیبان‌گیر خودکار متوقف شود) و دوباره تلاش کنید.') from exc
+
+
 def _validate_members(archive: zipfile.ZipFile) -> None:
     """دفاع در برابر Zip-Slip روی همه‌ی ورودی‌های بسته."""
     for member in archive.namelist():
@@ -321,9 +334,15 @@ def restore_backup(name: str, restore_uploads: bool = True) -> dict:
                                    prefix=SAFETY_PREFIX)
 
             # ── جایگزینی دیتابیس ──
+            # با حالت WAL کنار دیتابیس فایل‌های `-wal`/`-shm` می‌ماند؛ اگر بعد از
+            # جایگزینی، آن‌ها پاک نشوند SQLite آن‌ها را روی دیتابیسِ بازگردانده‌شده
+            # اعمال می‌کند ⇒ داده‌های تازهٔ بی‌ربط روی فایل قدیمی سوار می‌شود.
             db.session.remove()
             db.engine.dispose()
+            sidecars = tuple(db_path + suffix for suffix in ('-wal', '-shm', '-journal'))
+            _drop_sidecars(sidecars)
             shutil.copy2(temp_db, db_path)
+            _drop_sidecars(sidecars)
 
             # ── بازگرداندن فایل‌های آپلودی ──
             restored_uploads = 0
@@ -358,14 +377,17 @@ def import_backup(file_storage) -> dict:
     ذخیره‌ی امن یک بسته‌ی پشتیبان آپلودشده در پوشه پشتیبان‌ها.
     فایل پیش از پذیرش اعتبارسنجی می‌شود.
     """
-    filename = os.path.basename(getattr(file_storage, 'filename', '') or '')
-    if not filename.lower().endswith('.zip'):
-        raise BackupError('فقط فایل ZIP پشتیبان پذیرفته می‌شود.')
+    from utils.uploads import UnsafeUpload, store_upload
 
     folder = backup_folder()
-    name = f'{BACKUP_PREFIX}imported_{_timestamp()}.zip'
+    try:
+        # پسوند/حجم/امضا و نام بی‌خطر — همان منطق مشترکِ همهٔ اَپلودها؛
+        # نام uuid می‌گیرد تا دو ورود در یک ثانیه همدیگر را پوشانده نشوند
+        name = store_upload(file_storage, folder, kind='backup',
+                            prefix=f'{BACKUP_PREFIX}imported_{_timestamp()}_')
+    except UnsafeUpload as exc:
+        raise BackupError(str(exc)) from exc
     target = os.path.join(folder, name)
-    file_storage.save(target)
 
     try:
         with zipfile.ZipFile(target) as archive:

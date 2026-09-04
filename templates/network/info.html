@@ -2,15 +2,15 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{ system_settings.academy_name if system_settings else 'آموزشگاه رهسا' }} — اطلاعات شبکه</title>
-    <link rel="stylesheet" href="/static/fonts/Vazirmatn-font-face.css">
-    <link rel="stylesheet" href="/static/css/bootstrap.rtl.min.css">
-    <link rel="stylesheet" href="/static/css/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="{{ asset('fonts/Vazirmatn-font-face.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/bootstrap.rtl.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/bootstrap-icons.min.css') }}">
     <style>
         * { font-family: Vazirmatn, Tahoma, sans-serif; box-sizing: border-box; }
         body {
-            min-height: 100vh;
+            min-height: 100vh; min-height: 100dvh;
             background: linear-gradient(135deg, #0a1628 0%, #0d47a1 50%, #1565c0 100%);
             display: flex;
             align-items: center;
@@ -55,7 +55,7 @@
         }
         .url-box .label {
             font-size: 12px;
-            color: #78909c;
+            color: var(--clr-text-muted, #455a64);
             margin-bottom: 2px;
         }
         .url-box .url {
@@ -89,7 +89,7 @@
             font-size: 13px;
         }
         .info-row:last-child { border: none; }
-        .info-label { color: #78909c; }
+        .info-label { color: var(--clr-text-muted, #455a64); }
         .info-value { font-weight: 700; color: #263238; direction: ltr; }
         .status-dot {
             width: 10px; height: 10px;
