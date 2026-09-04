@@ -548,12 +548,23 @@ class MainWindow(QMainWindow):
         self.page = CustomPage(self.web)
         self.web.setPage(self.page)
         settings = self.web.settings()
-        for attribute in (QWebEngineSettings.WebAttribute.JavascriptEnabled,
-                          QWebEngineSettings.WebAttribute.LocalStorageEnabled,
-                          QWebEngineSettings.WebAttribute.PluginsEnabled,
-                          QWebEngineSettings.WebAttribute.PrintPreviewEnabled,
-                          QWebEngineSettings.WebAttribute.FullScreenSupportEnabled):
-            settings.setAttribute(attribute, True)
+        # PrintPreviewEnabled از Qt WebEngine (حدود Qt 6.5+) حذف شده است؛
+        # بنابراین فقط attributeهایی را فعال می‌کنیم که در نسخه نصب‌شده وجود دارند.
+        web_attribute = getattr(QWebEngineSettings, 'WebAttribute', None)
+        for name in (
+                'JavascriptEnabled',
+                'LocalStorageEnabled',
+                'PluginsEnabled',
+                'PrintPreviewEnabled',  # فقط در نسخه‌های قدیمی وجود دارد
+                'FullScreenSupportEnabled',
+        ):
+            attribute = getattr(web_attribute, name, None) if web_attribute is not None else None
+            if attribute is None:
+                continue
+            try:
+                settings.setAttribute(attribute, True)
+            except Exception:
+                pass
         box.addWidget(self.web)
 
         status = QStatusBar()
