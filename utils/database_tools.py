@@ -213,17 +213,25 @@ def ensure_payroll_columns() -> dict:
         db.session.rollback()
         result['error'] = f'dedupe: {exc}'
 
-    # ۲) ایندکس یکتای جزئی — فقط فیش‌های غیرمبتل به ابطال
-    try:
-        db.session.execute(text(
-            "CREATE UNIQUE INDEX IF NOT EXISTS ux_payslip_person_period "
-            "ON payslips (person_type, person_id, period) WHERE status != 'cancelled'"
-        ))
-        db.session.commit()
-        result['unique_index'] = True
-    except Exception as exc:                                  # pragma: no cover
-        db.session.rollback()
-        result['error'] = (result['error'] or '') + f' index: {exc}'
+    # ۲) ایندکس یکتای جزئی — فقط فیش‌های غیرمبتل به ابطال.
+    #    `WHERE` فقط در SQLite/PostgreSQL معتبر است؛ در MySQL ایندکس جزئی
+    #    وجود ندارد، پس همان‌جا به گاردِ برنامه‌ای (dedupe در بوت + بررسی
+    #    تکراری قبل از صدور) بسنده می‌کنیم و پیام روشنی لاگ می‌شود.
+    backend = database_backend()
+    if backend in ('sqlite', 'postgresql'):
+        try:
+            db.session.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_payslip_person_period "
+                "ON payslips (person_type, person_id, period) WHERE status != 'cancelled'"
+            ))
+            db.session.commit()
+            result['unique_index'] = True
+        except Exception as exc:                              # pragma: no cover
+            db.session.rollback()
+            result['error'] = (result['error'] or '') + f' index: {exc}'
+    else:
+        result['error'] = (result['error'] or '') + \
+            ' index: MySQL — ایندکس جزئی پشتیبانی نمی‌شود؛ گارد برنامه‌ای فعال است'
     return result
 
 

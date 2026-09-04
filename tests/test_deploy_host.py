@@ -70,7 +70,7 @@ class TestRequiredHostFiles:
                     local.append(alias.name.split(".")[0])
         third_party = {
             "os", "sys", "flask", "json", "secrets", "datetime",
-            "threading", "apscheduler", "jdatetime",
+            "threading", "apscheduler", "jdatetime", "time",
         }
         missing = []
         for name in local:

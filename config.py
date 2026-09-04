@@ -72,13 +72,26 @@ def load_config():
 
 
 def save_config(config):
-    """ذخیره تنظیمات"""
-    with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+    """ذخیره اتمی تنظیمات: اول فایل موقت، بعد جایگزینی (crash وسط نوشتن،
+    settings.json را خراب نمی‌کند)."""
+    tmp_path = CONFIG_FILE + '.tmp'
+    with open(tmp_path, 'w', encoding='utf-8') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, CONFIG_FILE)
+    try:
+        # تنظیمات می‌تواند کلید لایسنس/توکن داشته باشد؛ فقط کاربر جاری بخواند
+        os.chmod(CONFIG_FILE, 0o600)
+    except OSError:
+        pass  # ویندوز/سیستم‌عامل‌هایی که chmod را محدود می‌کنند
 
 
 def get_database_uri(config=None):
-    """ساخت URI اتصال دیتابیس"""
+    """ساخت URI اتصال دیتابیس — نام کاربری/رمز با quote_plus کد می‌شود تا
+    کاراکترهای خاص (@ / : و...) URI را نشکنند (باگ قبلی)."""
+    from urllib.parse import quote_plus
+
     if config is None:
         config = load_config()
     
@@ -86,10 +99,14 @@ def get_database_uri(config=None):
     db_type = db.get('type', 'sqlite')
     
     if db_type == 'postgresql':
-        return f"postgresql://{db['postgresql_user']}:{db['postgresql_password']}@{db['postgresql_host']}:{db['postgresql_port']}/{db['postgresql_database']}"
+        return (f"postgresql://{quote_plus(db['postgresql_user'])}:"
+                f"{quote_plus(db['postgresql_password'])}@{db['postgresql_host']}:"
+                f"{db['postgresql_port']}/{db['postgresql_database']}")
     
     elif db_type == 'mysql':
-        return f"mysql+pymysql://{db['mysql_user']}:{db['mysql_password']}@{db['mysql_host']}:{db['mysql_port']}/{db['mysql_database']}?charset=utf8mb4"
+        return (f"mysql+pymysql://{quote_plus(db['mysql_user'])}:"
+                f"{quote_plus(db['mysql_password'])}@{db['mysql_host']}:"
+                f"{db['mysql_port']}/{db['mysql_database']}?charset=utf8mb4")
     
     else:  # sqlite
         db_path = db.get('sqlite_path', 'instance/academy.db')

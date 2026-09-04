@@ -214,6 +214,19 @@ def cancel_payment(id):
     want_refund = request.form.get('refund') == 'on'
     refund_amount = cash_portion(payment) if want_refund else 0.0
 
+    # قفل اتمیک وضعیت: دو درخواست هم‌زمان/کلیک دوباره فقط یک‌بار ابطال می‌کند
+    from utils.money_guard import atomic_transition
+    transitioned = atomic_transition(
+        Payment, payment.id, ('confirmed', 'pending'), 'cancelled',
+        {'cancelled_by': current_user.id,
+         'cancelled_at': datetime.utcnow(),
+         'cancel_reason': reason,
+         'refunded_amount': refund_amount})
+    if not transitioned:
+        flash('این پرداخت هم‌زمان توسط درخواست دیگری باطل شده است؛ عملیات تکرار نشد.',
+              'warning')
+        return redirect(url_for('finance.view_payment', id=payment.id))
+
     # اول مرجوعی صندوق؛ اگر موجودی کافی نبود کل عملیات ول می‌شود
     ok, message = settle_cashbox(
         payment, refund_amount, f'مرجوعی ابطال پرداخت {payment.receipt_no}',
@@ -224,11 +237,6 @@ def cancel_payment(id):
         return redirect(url_for('finance.view_payment', id=payment.id))
 
     apply_payment_to_targets(payment, sign=-1)
-    payment.status = 'cancelled'
-    payment.cancelled_by = current_user.id
-    payment.cancelled_at = datetime.utcnow()
-    payment.cancel_reason = reason
-    payment.refunded_amount = refund_amount
     _log_payment_action('payment-cancel', payment,
                         f'ابطال {payment.receipt_no}: {reason}')
     db.session.commit()
@@ -254,7 +262,20 @@ def restore_payment(id):
         flash('فقط پرداخت باطل‌شده قابل بازگردانی است', 'warning')
         return redirect(url_for('finance.view_payment', id=payment.id))
 
+    # مبلغ مرجوع‌شده را قبل از transition بخوان؛ transition آن را صفر می‌کند
     repay = float(payment.refunded_amount or 0)
+
+    # قفل اتمیک: بازگردانی دوباره (کلیک دوباره) فقط یک‌بار اعمال می‌شود
+    from utils.money_guard import atomic_transition
+    transitioned = atomic_transition(
+        Payment, payment.id, ('cancelled',), 'confirmed',
+        {'cancelled_by': None, 'cancelled_at': None,
+         'cancel_reason': None, 'refunded_amount': 0})
+    if not transitioned:
+        flash('این پرداخت هم‌زمان توسط درخواست دیگری بازگردانی شده است؛ عملیات تکرار نشد.',
+              'warning')
+        return redirect(url_for('finance.view_payment', id=payment.id))
+
     if repay > 0:
         ok, message = settle_cashbox(
             payment, repay, f'بازگشت مرجوعی پرداخت {payment.receipt_no}',
@@ -265,11 +286,6 @@ def restore_payment(id):
             return redirect(url_for('finance.view_payment', id=payment.id))
 
     apply_payment_to_targets(payment, sign=+1, date_hint=payment.payment_date)
-    payment.status = 'confirmed'
-    payment.cancelled_by = None
-    payment.cancelled_at = None
-    payment.cancel_reason = None
-    payment.refunded_amount = 0
     _log_payment_action('payment-restore', payment,
                         f'بازگردانی پرداخت {payment.receipt_no}')
     db.session.commit()
@@ -307,12 +323,17 @@ def cashbox_transaction(id):
             return redirect(url_for('finance.cashbox'))
         cashbox.balance = (cashbox.balance or 0) - amount
     
+    # نوع مرجع فقط از مقادیر شناخته‌شده پذیرفته می‌شود (ورودی آزاد حذف شد)
+    reference_type = request.form.get('reference_type', 'manual')
+    if reference_type not in ('manual', 'payment', 'expense', 'salary', 'transfer'):
+        reference_type = 'manual'
+
     tx = CashboxTransaction(
         cashbox_id=id,
         trans_type=trans_type,
         amount=amount,
         description=request.form.get('description'),
-        reference_type=request.form.get('reference_type', 'manual'),
+        reference_type=reference_type,
         balance_after=cashbox.balance,
         created_by=current_user.id
     )

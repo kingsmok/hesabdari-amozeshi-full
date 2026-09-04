@@ -139,7 +139,11 @@ class ActivityLog(db.Model):
     __tablename__ = 'activity_logs'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    # باگ: ستون nullable=False بود ولی رویدادهای امنیتیِ «کاربر ناشناس»
+    # (مثل قفل شدن بعد از تلاش ناموفق ورود با نام کاربری اشتباه) با
+    # user_id=None ثبت می‌شدند و به IntegrityError می‌خوردند؛ حالا
+    # برای رویدادهای سیستمی/ناشناس مجاز است.
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     action = db.Column(db.String(50), nullable=False)  # create, edit, delete, view, login, logout
     module = db.Column(db.String(50))
     entity_type = db.Column(db.String(50))
@@ -163,7 +167,4 @@ def load_user(user_id):
     # ادامه می‌داد (بازبینی امنیت، بند A3 — ابطال نشست).
     # توجه: در نصب‌های قدیمی ستون ممکن است NULL باشد؛ NULL یعنی «فعال» (رفتار
     # پیش‌فرض ستون) تا کسی به‌خاطر مهاجرت ناقص از سیستم بیرون نیفتد.
-    # حساب غیرفعال باید بی‌درنگ از دسترس بیفتد؛ پیش‌تر `is_active` فقط جلوی
-    # «ورود» را می‌گرفت و کاربر غیرفعال‌شده با کوکی Remember-Me تا ۱۴ روز
-    # کارش ادامه می‌داد (بازبینی امنیت، بند A3 — ابطال نشست)
     return None if (user is None or user.is_blocked) else user

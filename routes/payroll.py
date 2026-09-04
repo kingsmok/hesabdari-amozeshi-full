@@ -652,6 +652,15 @@ def edit_payslip(id):
     if payslip.status == 'paid':
         flash('فیش پرداخت‌شده قابل ویرایش نیست؛ ابتدا آن را ابطال کنید', 'danger')
         return redirect(url_for('payroll.view_payslip', id=id))
+    if payslip.status == 'approved':
+        # باگ قبلی: فیش «تأییدشده» قابل ویرایش بود؛ یعنی می‌شد بعد از تأیید،
+        # مبلغ را عوض کرد و همان فیشِ تأییدشده را پرداخت کرد.
+        flash('فیش تأییدشده قابل ویرایش نیست؛ ابتدا آن را ابطال و دوباره صادر کنید',
+              'warning')
+        return redirect(url_for('payroll.view_payslip', id=id))
+    if payslip.status == 'cancelled':
+        flash('فیش ابطال‌شده قابل ویرایش نیست', 'warning')
+        return redirect(url_for('payroll.view_payslip', id=id))
 
     if request.method == 'POST':
         payslip.base_amount = safe_float(request.form.get('base_amount'))
@@ -738,11 +747,19 @@ def pay_payslip(id):
               f'(موجودی: {(cashbox.balance or 0):,.0f})', 'danger')
         return redirect(url_for('payroll.view_payslip', id=id))
 
-    payslip.status = 'paid'
-    payslip.paid_date = (get_jalali_date(request.form, 'paid_date')
-                         or get_jalali_date(request.form, 'payment_date')
-                         or date.today())
-    payslip.paid_by = current_user.id
+    # تغییر وضعیت اتمیک (CAS): کلیک دوباره یا دو درخواست هم‌زمان فقط یک‌بار
+    # اجازه پرداخت می‌گیرد؛ پیش‌تر هر دو درخواست «دوبار حقوق» می‌پرداختند!
+    from utils.money_guard import atomic_transition
+    transitioned = atomic_transition(
+        Payslip, payslip.id, ('approved',), 'paid',
+        {'paid_date': (get_jalali_date(request.form, 'paid_date')
+                       or get_jalali_date(request.form, 'payment_date')
+                       or date.today()),
+         'paid_by': current_user.id})
+    if not transitioned:
+        flash('این فیش هم‌زمان توسط درخواست دیگری پرداخت شده است؛ عملیات تکرار نشد.',
+              'warning')
+        return redirect(url_for('payroll.view_payslip', id=id))
 
     if cashbox is not None:
         cashbox.balance = (cashbox.balance or 0) - amount
@@ -776,25 +793,32 @@ def cancel_payslip(id):
 
     reason = (request.form.get('reason') or '').strip() or 'بدون دلیل'
     reversed_amount = 0
-    if payslip.status == 'paid' and payslip.cashbox_id:
-        amount = payslip.net_amount or 0
-        cashbox = Cashbox.query.get(payslip.cashbox_id)
+    was_paid = payslip.status == 'paid'
+    paid_amount = payslip.net_amount or 0
+    paid_cashbox_id = payslip.cashbox_id
+
+    # تغییر وضعیت اتمیک (CAS) — جلوگیری از ابطال دوباره و مرجوعیِ دوباره
+    from utils.money_guard import atomic_transition
+    transitioned = atomic_transition(
+        Payslip, payslip.id, ('draft', 'approved', 'paid'), 'cancelled',
+        {'cancel_reason': reason, 'cancelled_at': datetime.utcnow(),
+         'cancelled_by': current_user.id, 'cashbox_id': None, 'paid_date': None})
+    if not transitioned:
+        flash('این فیش هم‌زمان توسط درخواست دیگری ابطال شده است؛ عملیات تکرار نشد.',
+              'warning')
+        return redirect(url_for('payroll.view_payslip', id=id))
+
+    if was_paid and paid_cashbox_id:
+        cashbox = Cashbox.query.get(paid_cashbox_id)
         if cashbox is not None:
-            cashbox.balance = (cashbox.balance or 0) + amount
+            cashbox.balance = (cashbox.balance or 0) + paid_amount
             db.session.add(CashboxTransaction(
-                cashbox_id=cashbox.id, trans_type='in', amount=amount,
+                cashbox_id=cashbox.id, trans_type='in', amount=paid_amount,
                 description=f'بازگشت پرداخت فیش لغوشده {payslip.payslip_number}',
                 reference_type='salary', reference_id=payslip.id,
                 balance_after=cashbox.balance, created_by=current_user.id,
             ))
-            reversed_amount = amount
-
-    payslip.status = 'cancelled'
-    payslip.cancel_reason = reason
-    payslip.cancelled_at = datetime.utcnow()
-    payslip.cancelled_by = current_user.id
-    payslip.cashbox_id = None
-    payslip.paid_date = None
+            reversed_amount = paid_amount
 
     _log('delete', f'ابطال فیش {payslip.payslip_number} — {reason}'
            + (f' (بازگشت {reversed_amount:,.0f} تومان به صندوق)' if reversed_amount else ''),
@@ -828,6 +852,22 @@ def tax_report():
     rule = get_rule(period.split('/')[0]) if (period and calculate_salary_tax_monthly) else None
     rows = []
     totals = {'gross': 0.0, 'tax': 0.0, 'insurance': 0.0, 'net': 0.0, 'suggested_tax': 0.0}
+
+    # بهینه‌سازی N+1: نام مدرس‌ها یک‌جا load می‌شود (قبلاً به‌ازای هر فیش یک کوئری).
+    # توجه: `full_name` پراپرتی است نه ستون؛ پس first/last جدا انتخاب می‌شوند.
+    from models.teacher import Teacher
+    teacher_names = {
+        row[0]: f'{row[1]} {row[2]}'
+        for row in db.session.query(Teacher.id, Teacher.first_name, Teacher.last_name).all()
+    }
+
+    def _name_of(person_type, person_id):
+        if person_type == 'teacher':
+            return teacher_names.get(person_id, f'مدرس #{person_id}')
+        from models.user import User
+        row = db.session.get(User, person_id)
+        return row.full_name if row else f'{_PERSON_TYPES.get(person_type, person_type)} #{person_id}'
+
     for p in payslips:
         suggested = 0.0
         if calculate_salary_tax_monthly is not None:
@@ -836,7 +876,7 @@ def tax_report():
             suggested, _ = calculate_salary_tax_monthly(max(0.0, taxable_month),
                                                          (p.period or '').split('/')[0])
         diff = suggested - (p.tax or 0)
-        rows.append({'payslip': p, 'name': _person_name(p.person_type, p.person_id),
+        rows.append({'payslip': p, 'name': _name_of(p.person_type, p.person_id),
                      'suggested_tax': suggested, 'difference': diff})
         totals['gross'] += p.gross_amount or 0
         totals['tax'] += p.tax or 0

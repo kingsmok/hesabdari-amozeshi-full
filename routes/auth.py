@@ -83,6 +83,9 @@ def login():
                 db.session.commit()
             if login_guard.is_locked(username, ip):
                 flash(login_guard.lock_message(login_guard.lock_remaining(username, ip)), 'error')
+                # رویداد قفل حتی برای «نام کاربری ناشناس» هم ثبت می‌شود
+                # (باگ قبلی: user_id=None با ستون NOT NULL تداخل داشت و
+                # commit داخل except بی‌صدا نگه داشته می‌شد)
                 try:
                     db.session.add(ActivityLog(
                         user_id=user.id if user else None, action='login_locked', module='security',

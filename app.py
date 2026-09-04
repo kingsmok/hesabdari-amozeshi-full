@@ -11,9 +11,11 @@ from startup_checks import ensure_compatible
 
 ensure_compatible()
 
-from flask import Flask, render_template, url_for
+import time
+
+from flask import Flask, g, render_template, request, url_for
 from extensions import db, login_manager, migrate, csrf
-from utils.jalali import parse_jalali_date, gregorian_to_jalali
+from utils.jalali import parse_jalali_date
 
 
 def create_app():
@@ -57,6 +59,10 @@ def create_app():
     from datetime import timedelta as _td
     app.config['REMEMBER_COOKIE_DURATION'] = _td(days=14)
     app.config['PERMANENT_SESSION_LIFETIME'] = _td(hours=12)
+    # کوکی‌های امن روی HTTPS (میزبانی/هاست)؛ با env روشن می‌شود تا نصب‌های
+    # HTTP داخلی (LAN/دسکتاپ) خراب نشوند.
+    app.config['SESSION_COOKIE_SECURE'] = os.environ.get('ACADEMY_COOKIE_SECURE') == '1'
+    app.config['BASE_DIR'] = base_dir
     # کش استاتیک + نسخه‌دهی فایل (asset())؛ بدون این، بعد از هر آپدیت،
     # مرورگر موبایل کاربر CSS/JS قدیمی را نگه می‌داشت
     # ۱ روز: کش استاتیک؛ فایل‌های آپلودی (عکس هنرجو/پیوست) از همین مسیر سرو
@@ -70,7 +76,41 @@ def create_app():
     login_manager.login_message = 'لطفاً وارد شوید'
     migrate.init_app(app, db)
     csrf.init_app(app)
-    
+
+    # ── لاگ مرکزی (جایگزین print های قبلی) ──────────────────────────────
+    from utils.logging_config import configure_app_logging
+    configure_app_logging(app)
+    _log = app.logger
+
+    # ── هدرهای امنیتی + لاگ درخواست‌ها (هر request: متد/مسیر/کد/زمان) ─────
+    @app.before_request
+    def _request_started():
+        g._request_started = time.monotonic()
+
+    @app.after_request
+    def _security_and_access_log(response):
+        # هدرهای پایهٔ امنیت؛ CSP عمداً اضافه نشده (قالب‌ها استایل inline دارند
+        # و CSP سخت‌گیرانه کل UI را می‌شکند)
+        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+        response.headers.setdefault('X-Frame-Options', 'SAMEORIGIN')
+        response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+        response.headers.setdefault('X-Permitted-Cross-Domain-Policies', 'none')
+        response.headers.setdefault('Permissions-Policy',
+                                    'camera=(), microphone=(), geolocation=()')
+        # لاگ گذر درخواست‌های نوشتنی و خطاها (GET های عادی را شلوغ نمی‌کنیم)
+        if request.method != 'GET' or response.status_code >= 500:
+            duration = None
+            try:
+                started = getattr(g, '_request_started', None)
+                if started is not None:
+                    duration = time.monotonic() - started
+                _log.info('%s %s -> %s%s',
+                          request.method, request.path, response.status_code,
+                          f' ({duration * 1000:.0f}ms)' if duration is not None else '')
+            except Exception:
+                pass
+        return response
+
     # Create upload directories
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['BACKUP_FOLDER'], exist_ok=True)
@@ -167,22 +207,22 @@ def create_app():
                     from license_client import has_feature
                     if not has_feature('backup'):
                         # تسک زمان‌بندی‌شده‌ی یک بخش قفل‌شده اجرا نمی‌شود
-                        print('[BACKUP] Skipped — بخش پشتیبان‌گیری در لایسنس فعال نیست')
+                        app.logger.info('[BACKUP] Skipped — بخش پشتیبان‌گیری در لایسنس فعال نیست')
                         return
                     from utils.backup_service import run_scheduled_backup
-                    print('[BACKUP]', run_scheduled_backup())
-            except Exception as exc:
-                print('[BACKUP] Auto-backup error:', exc)
+                    app.logger.info('[BACKUP] %s', run_scheduled_backup())
+            except Exception as exc:                       # noqa: BLE001
+                app.logger.exception('[BACKUP] Auto-backup error: %s', exc)
 
         scheduler = BackgroundScheduler()
         scheduler.add_job(_scheduled_backup, 'interval', hours=1,
                           id='auto_backup', replace_existing=True)
         scheduler.start()
-        print('[SCHEDULER] Auto-backup scheduler started.')
-      except Exception as exc:
-        print('[SCHEDULER] Scheduler not started:', exc)
+        app.logger.info('[SCHEDULER] Auto-backup scheduler started.')
+      except Exception as exc:                             # noqa: BLE001
+        app.logger.warning('[SCHEDULER] Scheduler not started: %s', exc)
     else:
-        print('[SCHEDULER] Skipped (DISABLE_SCHEDULER) — مناسب آزمون‌ها')
+        app.logger.info('[SCHEDULER] Skipped (DISABLE_SCHEDULER) — مناسب آزمون‌ها')
     
     # فقط خود endpoint تلگرام از CSRF معاف است؛ فرم‌های مالی و مدیریتی
     # داخل new_features باید همچنان محافظت شوند.
@@ -505,6 +545,9 @@ def create_app():
             repaired_dates = repair_legacy_jalali_dates()
             if repaired_dates:
                 app.logger.warning('%s legacy Jalali date values were repaired', repaired_dates)
+            # نگهداری نشست‌ها/لاگ‌های کهنه (رشد بی‌نهایت جدول‌ها متوقف می‌شود)
+            from utils.session_maintenance import run_session_maintenance
+            app.logger.info('session maintenance: %s', run_session_maintenance(app))
             app._db_initialized = True
 
         # ربات بله در حالت Long Polling کار می‌کند و به دامنه عمومی/وب‌هوک نیاز ندارد.

@@ -80,9 +80,11 @@ def calculate_monthly_tax(monthly_income, year=None):
 def dashboard():
     from models.finance import Payslip
     from models.teacher import Teacher
-    
-    year = request.args.get('year', '1405')
-    
+    from utils.jalali import current_jalali_period
+
+    # سال پیش‌فرض دیگر هاردکد «۱۴۰۵» نیست؛ از تقویم جاری می‌آید
+    year = request.args.get('year', '') or current_jalali_period().split('/')[0]
+
     # آمار مالیاتی سال
     payslips = Payslip.query.filter(
         Payslip.period.like(f'{year}%')
@@ -105,14 +107,15 @@ def dashboard():
         person_tax[key]['net'] += p.net_amount or 0
         person_tax[key]['count'] += 1
     
-    # نام افراد
+    # بهینه‌سازی N+1: نام مدرس‌ها یک‌جا load می‌شود
+    # (full_name پراپرتی است؛ first/last جدا انتخاب و ترکیب می‌شوند)
+    teacher_names = {
+        row[0]: f'{row[1]} {row[2]}'
+        for row in db.session.query(Teacher.id, Teacher.first_name, Teacher.last_name).all()
+    }
     persons = []
     for (ptype, pid), data in person_tax.items():
-        name = '-'
-        if ptype == 'teacher':
-            t = Teacher.query.get(pid)
-            if t:
-                name = t.full_name
+        name = teacher_names.get(pid, '-') if ptype == 'teacher' else '-'
         persons.append({'type': ptype, 'id': pid, 'name': name, **data})
     
     persons.sort(key=lambda x: x['tax'], reverse=True)
@@ -224,14 +227,18 @@ def annual_report():
         month_tax, _ = calculate_salary_tax_monthly((p.gross_amount or 0) - (p.insurance or 0), year)
         annual[key]['real_tax'] += month_tax
     
+    # بهینه‌سازی N+1: نام مدرس‌ها یک‌جا load می‌شود
+    teacher_names = {
+        row[0]: f'{row[1]} {row[2]}'
+        for row in db.session.query(Teacher.id, Teacher.first_name, Teacher.last_name).all()
+    }
+
     # تکمیل اطلاعات
     report = []
     for pid, data in annual.items():
         name = '-'
         if data['person_type'] == 'teacher':
-            t = Teacher.query.get(pid)
-            if t:
-                name = t.full_name
+            name = teacher_names.get(pid, '-')
         
         # مالیات واقعی = جمع مالیات پلکانی ماه‌های همان شخص
         # (یک‌بار محاسبه روی جمع سال، ماه‌های معاف را هم مشمول پلکان‌های بالا می‌کرد)

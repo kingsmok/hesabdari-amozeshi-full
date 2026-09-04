@@ -139,7 +139,11 @@ def add():
             # `PAY-<زمان>-<uuid>` بود که هم با بقیه سیستم فرق داشت و هم با ۲۶
             # کاراکتر از طول ستون (String(20)) بیرون می‌زد
             receipt_num = build_receipt_no()
+            # روش پرداخت فقط از مقادیر شناخته‌شده؛ مقدار دلخواه کاربر باعث می‌شد
+            # settle_cashbox سهم نقدی را صفر ببیند و پول به صندوق نرود
             payment_method = request.form.get('payment_method', 'cash')
+            if payment_method not in ('cash', 'card', 'online', 'check', 'combined'):
+                payment_method = 'cash'
             payment = Payment(
                 receipt_no=receipt_num,
                 student_id=reg.student_id,

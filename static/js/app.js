@@ -271,6 +271,11 @@ function initGlobalSearch() {
     });
 }
 
+// شماره‌ی توالی + AbortController: پاسخِ دیرِ جستجوی قبلی، نتیجه‌ی جدید را
+// بازنویسی نمی‌کند (باگ race در ورودی سریع کاربر)
+let searchAbort = null;
+let searchSeq = 0;
+
 function globalSearch(q) {
     clearTimeout(searchTimer);
     const box = document.getElementById('searchResults');
@@ -283,9 +288,17 @@ function globalSearch(q) {
     box.style.display = 'block';
     
     searchTimer = setTimeout(() => {
-        fetch('/api/search?q=' + encodeURIComponent(q))
-            .then(r => r.json())
+        const seq = ++searchSeq;
+        if (searchAbort) searchAbort.abort();
+        searchAbort = new AbortController();
+        fetch('/api/search?q=' + encodeURIComponent(q), { signal: searchAbort.signal })
+            .then(r => {
+                if (!r.ok) throw new Error('search-failed');
+                return r.json();
+            })
             .then(data => {
+                if (seq !== searchSeq) return;   // پاسخ قدیمی است؛ دور ریخته می‌شود
+                if (data.results.length === 0) {
                 if (data.results.length === 0) {
                     box.innerHTML = '<div style="padding: 16px; text-align: center; color: #b0bec5; font-size: 12px;">نتیجه‌ای یافت نشد</div>';
                 } else {
@@ -328,7 +341,18 @@ function toggleDarkMode() {
         } else {
             document.body.classList.remove('dark-mode');
         }
+    })
+    .catch(() => {
+        // خطای شبکه نباید UI را بی‌پاسخ بگذارد؛ حالت محلی را برعکس می‌کنیم
+        const isOn = document.body.classList.toggle('dark-mode');
+        setCookie('dark_mode', isOn ? 'on' : 'off', 365);
     });
+}
+
+// ذخیرهٔ کوکی (برای حالت آفلاینِ dark-mode بدون سرور)
+function setCookie(name, value, days) {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
 }
 
 

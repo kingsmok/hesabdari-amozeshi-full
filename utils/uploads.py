@@ -139,10 +139,7 @@ def _save_then_check(file_storage, abs_path: str, ext: str, limit: int) -> None:
 
 
 def _silent_remove(path: str) -> None:
-    try:
-        os.remove(path)
-    except OSError:
-        pass
+    """حذف بی‌سروصدا؛ خطای «فایل نیست» و قفل موقت نادیده گرفته می‌شود."""
     try:
         os.remove(path)
     except OSError:
