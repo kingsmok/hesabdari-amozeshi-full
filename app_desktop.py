@@ -263,7 +263,9 @@ from PyQt6.QtWidgets import (                                               # no
     QStatusBar, QMessageBox, QFileDialog, QDialog,
 )
 from PyQt6.QtPrintSupport import QPrinter, QPrintDialog                     # noqa: E402
-from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings, QWebEngineProfile   # noqa: E402
+from PyQt6.QtWebEngineCore import (                                         # noqa: E402
+    QWebEnginePage, QWebEngineSettings, QWebEngineProfile, QWebEngineDownloadRequest,
+)
 from PyQt6.QtWebEngineWidgets import QWebEngineView                        # noqa: E402
 
 MIN_ZOOM, MAX_ZOOM = 0.6, 2.2
@@ -578,10 +580,11 @@ class MainWindow(QMainWindow):
         self.web.urlChanged.connect(self._url_changed)
         self.web.loadFinished.connect(self._loaded)
         self.web.printFinished.connect(self._on_print_finished)
-        try:      # interfaceChanged در برخی نسخه‌های Qt6 وجود ندارد
-            self.web.history().currentItemChanged.connect(self._refresh_nav_buttons)
-        except Exception:
-            pass
+        # توجه: QWebEngineHistory در Qt6 هیچ سیگنالی ندارد؛
+        # `history().currentItemChanged` اصلاً وجود ندارد و AttributeError‌اش در
+        # یک try/except قورت می‌رفت (یعنی دکمه‌های جلو/عقب هیچ‌وقت به‌روز نمی‌شدند).
+        # به‌جایش بعد از هر بارگذاری دکمه‌ها را دوباره حساب می‌کنیم.
+        self.web.loadFinished.connect(lambda ok: self._refresh_nav_buttons())
 
         profile = self.page.profile() or QWebEngineProfile.defaultProfile()
         profile.downloadRequested.connect(self._on_download)
@@ -598,7 +601,12 @@ class MainWindow(QMainWindow):
             ("Ctrl+W", self.hide),
         ):
             shortcut = QShortcut(QKeySequence(sequence), self)
-            shortcut.setContext(Qt.ShortcutContext.WindowWithChildrenContext)
+            # PyQt6 فقط این چهار مقدار را دارد: WidgetShortcut / WindowShortcut /
+            # ApplicationShortcut / WidgetWithChildrenShortcut. نام
+            # «WindowWithChildrenContext» اصلاً وجود ندارد (AttributeError هنگام ساخت
+            # پنجره). برای «همه‌جای پنجره، بی‌توجه به ویجت فوکوس» همان WindowShortcut
+            # درست است.
+            shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
             shortcut.activated.connect(slot)
 
         self._grips = {}
@@ -683,7 +691,9 @@ class MainWindow(QMainWindow):
             self._printer = QPrinter(QPrinter.PrinterMode.HighResolution)
         dialog = QPrintDialog(self._printer, self)
         dialog.setWindowTitle("چاپ")
-        if dialog.exec() != int(QDialog.DialogCode.Accepted):
+        # PyQt6 enumها از enum.Enum ارث می‌برند و int() روی آن‌ها TypeError می‌دهد؛
+        # نتیجهٔ exec() را به خود enum برمی‌گردانیم و مقایسه را روی enum انجام می‌دهیم.
+        if QDialog.DialogCode(dialog.exec()) != QDialog.DialogCode.Accepted:
             return
         self.status.showMessage("در حال آماده‌سازی چاپ...")
         try:
@@ -703,6 +713,13 @@ class MainWindow(QMainWindow):
 
     # ══════════════════ دانلود ══════════════════
     def _on_download(self, download):
+        """Qt6: `QWebEngineDownloadRequest` جایگزین `QWebEngineDownloadItem` شده است.
+
+        سه تفاوت که اینجا باعث AttributeError می‌شدند:
+          • `setPath()` حذف شده → `setDownloadDirectory()` + `setDownloadFileName()`
+          • سیگنال `finished()` حذف شده → `stateChanged(state)`
+          • سیگنال `interrupted` نداریم → وضعیت `DownloadInterrupted` + علتش
+        """
         try:
             suggested = (download.suggestedFileName() or download.downloadFileName()
                          or 'download.pdf')
@@ -721,11 +738,11 @@ class MainWindow(QMainWindow):
             if os.path.isdir(path):
                 path = os.path.join(path, suggested)
 
-            download.setPath(path)
+            download.setDownloadDirectory(os.path.dirname(path) or target_dir)
+            download.setDownloadFileName(os.path.basename(path))
+            download.stateChanged.connect(
+                lambda state, saved=path: self._download_done(download, state, saved))
             download.accept()
-            download.finished.connect(lambda state, saved=path: self._download_done(state, saved))
-            download.interrupted.connect(
-                lambda error: self.status.showMessage(f"دانلود ناتمام ماند: {error}", 6000))
         except Exception as exc:
             _report_exception('خطا در دانلود', exc)
             try:
@@ -733,13 +750,28 @@ class MainWindow(QMainWindow):
             except Exception:
                 pass
 
-    def _download_done(self, state, path):
-        # DownloadState.Finished == 0 (در نسخه‌های مختلف Qt نام کلاس فرق می‌کند)
-        finished = int(getattr(state, 'value', state)) == 0
+    def _download_done(self, download, state, path):
+        """فقط وضعیت‌های پایانی را گزارش کن؛ stateChanged برای هر تغییر می‌آید.
+
+        مقدار ۰ یعنی `DownloadRequested` (شروع)، نه پایان — مقایسه با ۰ پیام
+        «ذخیره شد» را همان لحظهٔ شروع دانلود نشان می‌داد.
+        """
+        states = QWebEngineDownloadRequest.DownloadState
+        if state not in (states.DownloadCompleted, states.DownloadCancelled,
+                         states.DownloadInterrupted):
+            return                    # DownloadRequested / DownloadInProgress
+
         name = os.path.basename(path)
-        if not finished:
-            self.status.showMessage("دانلود لغو یا ناتمام ماند", 5000)
+        if state != states.DownloadCompleted:
+            reason = ''
+            try:
+                reason = download.interruptReasonString()
+            except Exception:
+                reason = ''
+            self.status.showMessage(
+                f"دانلود ناتمام ماند{' — ' + reason if reason else ''}", 6000)
             return
+
         self.status.showMessage(f"✓ ذخیره شد: {name}", 8000)
         box = QMessageBox(self)
         box.setIcon(QMessageBox.Icon.Information)
@@ -813,7 +845,9 @@ class MainWindow(QMainWindow):
         log_button = None
         if LOG_PATH:
             log_button = box.addButton("باز کردن لاگ", QMessageBox.ButtonRole.ActionRole)
-        retry = box.addButton("تلاش دوباره", QMessageBox.ButtonRole.RetryRole)
+        # «RetryRole» وجود ندارد؛ ButtonRole فقط تا ApplyRole می‌رود. استانداردترین
+        # دکمه برای این معنا همان StandardButton.Retry است (خودش نقش و آیکون دارد).
+        retry = box.addButton(QMessageBox.StandardButton.Retry)
         box.addButton("خروج", QMessageBox.ButtonRole.RejectRole)
         box.exec()
         clicked = box.clickedButton()
