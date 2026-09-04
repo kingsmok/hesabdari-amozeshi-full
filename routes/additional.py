@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
+from utils.document_numbers import next_document_number
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from models.course import Certificate, CertificateTemplate
 from models.student import Student
@@ -298,8 +299,7 @@ def index():
 @login_required
 def add():
     if request.method == 'POST':
-        last = Complaint.query.order_by(Complaint.id.desc()).first()
-        num = f'CMP-{(last.id + 1) if last else 1:04d}'
+        num = next_document_number('complaint', with_year=False, width=4)
         
         complaint = Complaint(
             complaint_number=num,
@@ -393,8 +393,7 @@ def index():
 @login_required
 def add():
     if request.method == 'POST':
-        last = Ticket.query.order_by(Ticket.id.desc()).first()
-        num = f'TKT-{(last.id + 1) if last else 1:04d}'
+        num = next_document_number('ticket', with_year=False, width=4)
         
         ticket = Ticket(
             ticket_number=num,

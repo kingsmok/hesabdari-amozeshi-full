@@ -17,10 +17,10 @@
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">درآمد ماه</div><div class="stat-val" style="font-size: 18px; color: #2e7d32;">{{ month_income|currency }} <small style="font-size: 11px; color: #78909c;">ت</small></div></div></div>
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">هزینه ماه</div><div class="stat-val" style="font-size: 18px; color: #c62828;">{{ month_expenses|currency }} <small style="font-size: 11px; color: #78909c;">ت</small></div></div></div>
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">سود ماه</div><div class="stat-val" style="font-size: 18px; color: {{ '#2e7d32' if month_profit >= 0 else '#c62828' }};">{{ month_profit|currency }} <small style="font-size: 11px; color: #78909c;">ت</small></div></div></div>
-        <div class="col-md-3"><div class="stat-box"><div class="stat-label">صندوق</div><div class="stat-val" style="font-size: 18px;">{{ cashbox.balance|currency if cashbox else 0 }} <small style="font-size: 11px; color: #78909c;">ت</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">درآمد ماه</div><div class="stat-val" style="font-size: 18px; color: #2e7d32;">{{ month_income|currency }} <small style="font-size: 11px; color: var(--clr-text-muted, #455a64);">ت</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">هزینه ماه</div><div class="stat-val" style="font-size: 18px; color: #c62828;">{{ month_expenses|currency }} <small style="font-size: 11px; color: var(--clr-text-muted, #455a64);">ت</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">سود ماه</div><div class="stat-val" style="font-size: 18px; color: {{ '#2e7d32' if month_profit >= 0 else '#c62828' }};">{{ month_profit|currency }} <small style="font-size: 11px; color: var(--clr-text-muted, #455a64);">ت</small></div></div></div>
+        <div class="col-md-3"><div class="stat-box"><div class="stat-label">صندوق</div><div class="stat-val" style="font-size: 18px;">{{ cashbox.balance|currency if cashbox else 0 }} <small style="font-size: 11px; color: var(--clr-text-muted, #455a64);">ت</small></div></div></div>
     </div>
 
     <div class="row g-3">

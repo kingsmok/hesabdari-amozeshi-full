@@ -473,21 +473,24 @@ def process_smart_query(q):
     from models.teacher import Teacher
     from models.classes import ClassGroup
     
+    # «ماه جاری» در این برنامه شمسی است؛ پنجره میلادی عدد را کم/زیاد می‌کرد
+    from utils.jalali import jalali_month_bounds
+    month_start, month_end = jalali_month_bounds()
+    # شاخه «ثبت‌نام‌های امروز» به این متغیر نیاز دارد (بدون آن NameError و ۵۰۰)
     today = datetime.utcnow()
-    month_start = today.replace(day=1)
     
     q_lower = q.lower()
     
     if 'درآمد' in q and ('ماه' in q or 'امروز' in q):
         total = db.session.query(db.func.sum(Payment.amount)).filter(
-            Payment.payment_date >= month_start.date(),
+            Payment.payment_date >= month_start, Payment.payment_date <= month_end,
             Payment.status == 'confirmed'
         ).scalar() or 0
         return f'درآمد ماه جاری: {total:,.0f} تومان'
     
     elif 'هزینه' in q and 'ماه' in q:
         total = db.session.query(db.func.sum(Expense.amount)).filter(
-            Expense.expense_date >= month_start.date(),
+            Expense.expense_date >= month_start, Expense.expense_date <= month_end,
             Expense.status == 'confirmed'
         ).scalar() or 0
         return f'هزینه ماه جاری: {total:,.0f} تومان'
@@ -595,15 +598,16 @@ def staff_rewards():
     """سیستم پیشنهاد پاداش"""
     from models.user import User, ActivityLog
     
-    today = datetime.utcnow().date()
-    month_start = today.replace(day=1)
+    from utils.jalali import jalali_month_bounds
+    month_start, _month_end = jalali_month_bounds()
+    month_start_dt = datetime.combine(month_start, datetime.min.time())
     
     users = User.query.filter_by(is_active=True).all()
     rewards = []
     for u in users:
         activities = ActivityLog.query.filter(
             ActivityLog.user_id == u.id,
-            ActivityLog.created_at >= datetime.combine(month_start, datetime.min.time())
+            ActivityLog.created_at >= month_start_dt
         ).count()
         
         # محاسبه امتیاز

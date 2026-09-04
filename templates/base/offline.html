@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>آفلاین — {{ system_settings.academy_name if system_settings else 'سیستم مدیریت آموزشگاه' }}</title>
+    <link rel="stylesheet" href="{{ asset('fonts/Vazirmatn-font-face.css') }}">
+    <style>
+        /* صفحه آفلاین PWA: بدونه، «افزودن به صفحه اصلی» روی گوشی فقط یک
+           صفحه سفید مرورگر می‌داد. این فایل عمداً مستقل است و به layout
+           وابسته نیست تا حتی اگر CSS اصلی در کش نباشد، نمایش داده شود. */
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center;
+            font-family: Vazirmatn, Tahoma, sans-serif; background: #0a1628; color: #e0e0e0;
+            padding: 24px; padding-top: calc(24px + env(safe-area-inset-top));
+            padding-bottom: calc(24px + env(safe-area-inset-bottom));
+        }
+        .card {
+            max-width: 480px; width: 100%; background: #0d1f3c; border: 1px solid #1a2940;
+            border-radius: 14px; padding: 28px 26px; text-align: center;
+        }
+        .glyph {
+            width: 62px; height: 62px; margin: 0 auto 16px; border-radius: 16px;
+            background: linear-gradient(135deg, #0d47a1, #00c853);
+            display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff;
+        }
+        h1 { font-size: 19px; margin: 0 0 8px; }
+        p { font-size: 13px; line-height: 2; color: var(--clr-text-soft, #546e7a); margin: 0 0 20px; }
+        button {
+            font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+            background: #1565c0; color: #fff; border: 0; border-radius: 9px;
+            padding: 11px 22px; min-height: 44px;
+        }
+        button.secondary { background: transparent; border: 1px solid #2a3f55; color: var(--clr-text-faint, #607d8b); }
+        .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .hint { margin-top: 18px; font-size: 11.5px; color: #607d8b; line-height: 1.9; }
+        @media (prefers-reduced-motion: no-preference) { .card { animation: pop .3s ease-out; } }
+        @keyframes pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="glyph">⇅</div>
+        <h1>دسترسی به سرور ممکن نیست</h1>
+        <p>
+            نسخه نصب‌شده روی این سیستم در دسترس نیست — احتمالاً برنامه بسته است یا
+            شبکه قطع شده. اطلاعات از دست نمی‌رود؛ همه داده‌ها روی سرور محلی آموزشگاه است.
+        </p>
+        <div class="row">
+            <button onclick="location.reload()">تلاش دوباره</button>
+            <button class="secondary" onclick="location.href='/'">صفحه ورود</button>
+        </div>
+        <div class="hint">
+            اگر برنامه روی سیستم دیگری نصب است، آدرس و پورت درست را وارد کنید
+            (مثلاً <span dir="ltr">http://192.168.1.10:5000</span>).
+        </div>
+    </div>
+</body>
+</html>

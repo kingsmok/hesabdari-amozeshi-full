@@ -11,6 +11,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
+from utils.document_numbers import next_document_number
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 
 features_bp = Blueprint('features', __name__)
@@ -296,8 +297,7 @@ def split_class(id):
         student_ids = request.form.getlist('student_ids')
         
         # ایجاد کلاس جدید
-        last = ClassGroup.query.order_by(ClassGroup.id.desc()).first()
-        new_code = f'SPL-{(last.id + 1) if last else 1:03d}'
+        new_code = next_document_number('class_split', with_year=False, width=3)
         
         new_class = ClassGroup(
             class_code=new_code,
@@ -604,8 +604,8 @@ def staff_ranking():
     
     rankings = []
     for u in users:
-        today = datetime.utcnow().date()
-        month_start = today.replace(day=1)
+        from utils.jalali import jalali_month_bounds
+        month_start, _month_end = jalali_month_bounds()
         
         activities = ActivityLog.query.filter(
             ActivityLog.user_id == u.id,

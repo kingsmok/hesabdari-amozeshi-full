@@ -11,7 +11,7 @@ from startup_checks import ensure_compatible
 
 ensure_compatible()
 
-from flask import Flask
+from flask import Flask, render_template, url_for
 from extensions import db, login_manager, migrate, csrf
 from utils.jalali import parse_jalali_date, gregorian_to_jalali
 
@@ -49,7 +49,19 @@ def create_app():
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
     app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+    app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
     app.config['WTF_CSRF_TIME_LIMIT'] = 3600
+    # «مرا به خاطر بسپار» پیش‌فرض Flask-Login یک سال است؛ برای نرم‌افزاری که
+    # روی چند سیستم اشتراکی نصب می‌شود خطرناک. نشست فعال هم بیش از یک شیفت
+    # نباید زنده بماند.
+    from datetime import timedelta as _td
+    app.config['REMEMBER_COOKIE_DURATION'] = _td(days=14)
+    app.config['PERMANENT_SESSION_LIFETIME'] = _td(hours=12)
+    # کش استاتیک + نسخه‌دهی فایل (asset())؛ بدون این، بعد از هر آپدیت،
+    # مرورگر موبایل کاربر CSS/JS قدیمی را نگه می‌داشت
+    # ۱ روز: کش استاتیک؛ فایل‌های آپلودی (عکس هنرجو/پیوست) از همین مسیر سرو
+    # می‌شوند و ممکن است با نام جایگزین شوند، پس کش طولانی‌تر unsafe است.
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = _td(days=1)
     
     # Initialize extensions
     db.init_app(app)
@@ -132,7 +144,14 @@ def create_app():
     app.register_blueprint(teacher_bp)
     app.register_blueprint(bot_panel_bp)
     app.register_blueprint(backup_center_bp)
-    
+
+    # ══ نگهبان سراسری دسترسی ══
+    # فهرست منو به‌تنهایی کنترل دسترسی نیست؛ هر مسیر نوشتن باید در خود مسیر هم
+    # بررسی شود. این before_request بر اساس پیشوند مسیر، ماژول لازم را تعیین و
+    # در صورت نبود دسترسی، ۴۰۳ (یا redirect با پیام) برمی‌گرداند.
+    from utils.access_policy import init_access_guard
+    init_access_guard(app)
+
     # ══ پشتیبان‌گیری خودکار (Backup Scheduler) ══
     # هر ساعت بررسی می‌شود؛ خودِ سرویس بر اساس تنظیمات سیستم
     # (auto_backup / backup_interval_hours / max_backups) تصمیم می‌گیرد.
@@ -168,6 +187,85 @@ def create_app():
     def favicon():
         from flask import send_from_directory
         return send_from_directory(os.path.join(app.root_path, 'static', 'images'), 'favicon.ico', mimetype='image/x-icon')
+
+    # ─────────── استاتیک نسخه‌دهی‌شده (cache-busting) ───────────
+    from functools import lru_cache as _lru_cache
+
+    @_lru_cache(maxsize=512)
+    def _asset_version(filename):
+        """امضای کوتاه فایل برای ?v= — با تغییر فایل، کش خودبه‌خود می‌سوزد."""
+        try:
+            path = os.path.join(app.root_path, 'static', filename.replace('\\', os.sep))
+            stat = os.stat(path)
+            return f'{int(stat.st_mtime)}-{stat.st_size:x}'
+        except Exception:
+            return str(app.config.get('ASSET_STAMP', '1'))
+
+    @app.template_global()
+    def asset(filename, **extra):
+        """`url_for('static', ...)` با نسخه خودکار؛ برای CSS/JS/آیکون‌ها."""
+        kwargs = {'filename': filename, 'v': _asset_version(filename)}
+        kwargs.update(extra)
+        return url_for('static', **kwargs)
+
+    # ─────────── PWA: manifest از تنظیمات آموزشگاه ───────────
+    @app.route('/manifest.webmanifest')
+    def manifest():
+        """manifest پویا.
+
+        فایل ایستا `static/manifest.json` نام یک مشتری خاص («آموزشگاه رهسا») را
+        هاردکد داشت و فقط یک آیکون SVG معرفی می‌کرد؛ Android برای نصب PNG
+        ۱۹۲/۵۱ می‌خواهد و `orientation: portrait` تبلت/دسکتاپ را قفل می‌کرد.
+        """
+        from flask import jsonify
+        from models.system import SystemSettings
+        settings_obj = SystemSettings.query.first()
+        name = (getattr(settings_obj, 'academy_name', None) or 'سیستم مدیریت آموزشگاه').strip()
+        payload = {
+            'name': name,
+            'short_name': (name[:18] + '…') if len(name) > 18 else name,
+            'description': 'نرم‌افزار حسابداری و مدیریت آموزشگاه',
+            'start_url': '/',
+            'scope': '/',
+            'display': 'standalone',
+            'background_color': '#0a1628',
+            'theme_color': '#0d47a1',
+            'dir': 'rtl',
+            'lang': 'fa',
+            'icons': [
+                {'src': asset('images/icons/icon-192.png'), 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+                {'src': asset('images/icons/icon-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+                {'src': asset('images/icons/icon-maskable-192.png'), 'sizes': '192x192', 'type': 'image/png', 'purpose': 'maskable'},
+                {'src': asset('images/icons/icon-maskable-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
+            ],
+            'shortcuts': [
+                {'name': 'ثبت پرداخت', 'url': '/finance/payments/new', 'description': 'پرداخت شهریه'},
+                {'name': 'جستجوی هنرجو', 'url': '/students', 'description': 'لیست هنرجویان'},
+            ],
+        }
+        response = jsonify(payload)
+        response.mimetype = 'application/manifest+json'
+        response.headers['Cache-Control'] = 'no-cache'
+        return response
+
+    # ─────────── PWA: صفحه آفلاین ───────────
+    @app.route('/offline')
+    def offline():
+        """صفحه‌ای که service worker هنگام نبود سرور نشان می‌دهد."""
+        return render_template('base/offline.html'), 200
+
+    @app.route('/sw.js')
+    def service_worker():
+        """سرویس‌ورکر از ریشه: فایل داخل /static فقط می‌تواند همان پوشه را
+        کنترل کند، مگر هدر `Service-Worker-Allowed` — پس مسیر جدا و بی‌هدر
+        تمیزتر است. همچنین no-cache تا به‌روزرسانی پوسته سریع انجام شود."""
+        from flask import make_response, send_from_directory
+        response = make_response(send_from_directory(
+            os.path.join(app.root_path, 'static'), 'sw.js', mimetype='application/javascript'))
+        response.headers['Service-Worker-Allowed'] = '/'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Content-Type'] = 'application/javascript; charset=utf-8'
+        return response
 
     # Context processors
     @app.context_processor
@@ -211,13 +309,25 @@ def create_app():
         except Exception as e:
             return str(date) if date else ''
     
+    @app.template_filter('jalali_period')
+    def jalali_period_filter(value):
+        """برچسب خوانا برای دوره شمسی: 1405/06 → شهریور 1405"""
+        from utils.jalali import jalali_period_label
+        return jalali_period_label(value)
+
     @app.template_filter('currency')
     def currency_filter(amount):
-        if amount is None:
+        if amount is None or amount == '':
             return '0'
         try:
             return '{:,.0f}'.format(float(amount))
-        except:
+        except (TypeError, ValueError):
+            # بلعیدن خطا و چاپ «۰» باعث می‌شد باگ قالب (مثل فیلد اشتباه در صفحه
+            # قراردادها) بی‌صدا «صفر» نشان بدهد؛ حالا لاگ می‌شود و در حالت DEBUG
+            # همان‌جا استثنا می‌دهد
+            if app.debug:
+                raise
+            app.logger.warning('فیلتر currency: مقدار نامعتبر برای مبلغ: %r', amount)
             return '0'
     
     @app.template_filter('to_jalali_full')
@@ -357,8 +467,19 @@ def create_app():
             db.create_all()
             from utils.attendance_service import ensure_attendance_indexes
             ensure_attendance_indexes()
-            from utils.database_tools import ensure_settings_columns
+            from utils.database_tools import (ensure_accounting_columns, ensure_payroll_columns,
+                                              ensure_settings_columns)
             ensure_settings_columns()
+            ensure_accounting_columns()
+            # ابطال/مرجوعی پرداخت‌ها (فاز B8 بازبینی داده/امنیت)
+            from utils.database_tools import ensure_finance_columns
+            ensure_finance_columns()
+            # ستون‌های گردش‌کار فیش حقوقی + یکتایی «یک فیش برای هر نفر در هر دوره»
+            payroll_patch = ensure_payroll_columns()
+            if payroll_patch.get('added') or payroll_patch.get('cancelled_duplicates'):
+                app.logger.warning(
+                    'payroll schema patched: %s column(s) added, %s duplicate payslip(s) cancelled',
+                    payroll_patch['added'], payroll_patch['cancelled_duplicates'])
             create_default_data()
             # اعمال تنظیمات نصب‌کننده (config.ini): ساخت حساب مدیر و آدرس هاست.
             from utils.installer_config import apply_installer_config

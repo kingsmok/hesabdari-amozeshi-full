@@ -1,0 +1,147 @@
+{% extends "base/layout.html" %}
+{% block title %}ویرایش فیش {{ payslip.payslip_number }}{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('payroll.dashboard') }}">حقوق</a></li><li><a href="{{ url_for('payroll.view_payslip', id=payslip.id) }}">{{ payslip.payslip_number }}</a></li><li class="active">ویرایش</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head">
+        <h1><i class="bi bi-pencil-square"></i> ویرایش فیش حقوقی<small>{{ person_name }} — {{ payslip.period }} ({{ payslip.period|jalali_period }})</small></h1>
+    </div>
+
+    <div class="alert alert-info" style="font-size: 13px;">
+        <i class="bi bi-info-circle me-1"></i>
+        جمع ناخالص، جمع کسورات و مبلغ خالص پس از ذخیره <strong>خودکار</strong> بازمحاسبه می‌شود؛ نیازی به وارد کردن جمع‌ها نیست.
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="card mb-4">
+            <div class="card-head"><h5><i class="bi bi-plus-circle text-success me-1"></i> دریافتی‌ها</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label" for="baseAmount">حقوق پایه (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="base_amount" id="baseAmount"
+                               class="form-control" value="{{ payslip.base_amount or 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="teachingHours">ساعات تدریس</label>
+                        <input type="number" step="0.5" min="0" inputmode="decimal" name="teaching_hours" id="teachingHours"
+                               class="form-control" value="{{ payslip.teaching_hours or 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="teachingAmount">مبلغ تدریس (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="teaching_amount" id="teachingAmount"
+                               class="form-control" value="{{ payslip.teaching_amount or 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="sessionsCount">تعداد جلسه</label>
+                        <input type="number" step="1" min="0" inputmode="numeric" name="sessions_count" id="sessionsCount"
+                               class="form-control" value="{{ payslip.sessions_count or 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="sessionAmount">مبلغ جلسات (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="session_amount" id="sessionAmount"
+                               class="form-control" value="{{ payslip.session_amount or 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="commissionAmount">پورسانت / درصد شهریه (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="commission_amount" id="commissionAmount"
+                               class="form-control" value="{{ payslip.commission_amount or 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="bonus">پاداش (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="bonus" id="bonus"
+                               class="form-control" value="{{ payslip.bonus or 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="overtime">اضافه‌کاری (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="overtime" id="overtime"
+                               class="form-control" value="{{ payslip.overtime or 0 }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-head"><h5><i class="bi bi-dash-circle text-danger me-1"></i> کسورات</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label" for="deductions">مساعده (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="deductions" id="deductions"
+                               class="form-control" value="{{ payslip.deductions or 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="insurance">حق بیمه (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="insurance" id="insurance"
+                               class="form-control" value="{{ payslip.insurance or 0 }}">
+                        <div style="font-size: 11px; color: var(--clr-text-muted, #455a64); margin-top: 3px;">مبنای محاسبه مالیات از این مبلغ کسر می‌شود</div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="tax">مالیات (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="tax" id="tax"
+                               class="form-control" value="{{ payslip.tax or 0 }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="penalty">جریمه (تومان)</label>
+                        <input type="number" step="1000" min="0" inputmode="numeric" name="penalty" id="penalty"
+                               class="form-control" value="{{ payslip.penalty or 0 }}">
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label" for="notes">توضیحات</label>
+                        <input type="text" name="notes" id="notes" class="form-control" value="{{ payslip.notes or '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body-padded">
+                <div class="row g-3 text-center">
+                    <div class="col-4"><div class="stat-label">ناخالص</div><div class="stat-val" style="font-size: 18px;" id="previewGross">—</div></div>
+                    <div class="col-4"><div class="stat-label">کسورات</div><div class="stat-val" style="font-size: 18px; color: #c62828;" id="previewDeductions">—</div></div>
+                    <div class="col-4"><div class="stat-label">خالص قابل پرداخت</div><div class="stat-val" style="font-size: 18px; color: #2e7d32;" id="previewNet">—</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{{ url_for('payroll.view_payslip', id=payslip.id) }}" class="btn btn-outline-secondary">انصراف</a>
+            <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> ذخیره تغییرات</button>
+        </div>
+    </form>
+</div>
+
+<script>
+(function () {
+    var FIELDS_IN = ['base_amount', 'teaching_amount', 'session_amount', 'commission_amount', 'bonus', 'overtime'];
+    var FIELDS_OUT = ['deductions', 'insurance', 'tax', 'penalty'];
+
+    function readNumber(name) {
+        var el = document.querySelector('[name="' + name + '"]');
+        if (!el) return 0;
+        var text = (el.value || '').replace(/[^\d.\-]/g, '');
+        var value = parseFloat(text);
+        return isNaN(value) ? 0 : value;
+    }
+
+    function recalc() {
+        var gross = FIELDS_IN.reduce(function (sum, name) { return sum + readNumber(name); }, 0);
+        var deductions = FIELDS_OUT.reduce(function (sum, name) { return sum + readNumber(name); }, 0);
+        var fmt = function (n) { return n.toLocaleString('fa-IR'); };
+        document.getElementById('previewGross').textContent = fmt(gross) + ' ت';
+        document.getElementById('previewDeductions').textContent = fmt(deductions) + ' ت';
+        var net = gross - deductions;
+        var netEl = document.getElementById('previewNet');
+        netEl.textContent = fmt(net) + ' ت';
+        netEl.style.color = net < 0 ? '#c62828' : '#2e7d32';
+    }
+
+    document.querySelectorAll('input[type="number"]').forEach(function (input) {
+        input.addEventListener('input', recalc);
+    });
+    recalc();
+})();
+</script>
+{% endblock %}

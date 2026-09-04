@@ -17,7 +17,7 @@
                     <tr>
                         <td>
                             {% if loop.index == 1 %}<span style="color: #ffd600; font-size: 20px;">🥇</span>
-                            {% elif loop.index == 2 %}<span style="color: #90a4ae; font-size: 20px;">🥈</span>
+                            {% elif loop.index == 2 %}<span style="color: var(--clr-text-soft, #546e7a); font-size: 20px;">🥈</span>
                             {% elif loop.index == 3 %}<span style="color: #bf360c; font-size: 20px;">🥉</span>
                             {% else %}{{ loop.index }}{% endif %}
                         </td>

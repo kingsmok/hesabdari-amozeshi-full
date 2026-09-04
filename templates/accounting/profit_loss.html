@@ -7,16 +7,52 @@
 
 {% block content %}
 <div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-graph-up-arrow me-2 text-success"></i>صورت سود و زیان</h1></div>
+    <div class="page-header">
+        <h1><i class="bi bi-graph-up-arrow me-2 text-success"></i>صورت سود و زیان<small>بر اساس گردش حساب‌های درآمد و هزینه</small></h1>
+        <button class="btn btn-outline-secondary no-print" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
+    </div>
+
+    <div class="card-custom mb-4 no-print">
+        <div class="card-body-custom">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3"><label class="form-label" for="periodInput">دوره (ماه شمسی)</label>
+                    <input type="text" name="period" id="periodInput" class="form-control" value="{{ period }}" placeholder="۱۴۰۵/۰۶"></div>
+                <div class="col-md-3"><label class="form-label" for="dateFrom">از تاریخ</label>
+                    <input type="text" name="date_from" id="dateFrom" class="form-control jalali-date" value="{{ date_from }}"></div>
+                <div class="col-md-3"><label class="form-label" for="dateTo">تا تاریخ</label>
+                    <input type="text" name="date_to" id="dateTo" class="form-control jalali-date" value="{{ date_to }}"></div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button class="btn btn-primary-custom flex-grow-1"><i class="bi bi-funnel me-1"></i> اعمال</button>
+                    <a href="{{ url_for('accounting.profit_loss') }}" class="btn btn-outline-secondary">پاک</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">جمع درآمدها</div><div style="font-size:20px;font-weight:800;color:#27ae60;">{{ total_revenue|currency }} ت</div></div></div></div>
+        <div class="col-md-4"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">جمع هزینه‌ها</div><div style="font-size:20px;font-weight:800;color:#e74c3c;">{{ total_expense|currency }} ت</div></div></div></div>
+        <div class="col-md-4"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">{{ 'سود خالص' if profit >= 0 else 'زیان خالص' }}</div>
+            <div style="font-size:20px;font-weight:900;color:{{ '#27ae60' if profit >= 0 else '#e74c3c' }};">{{ profit|abs|currency }} ت</div></div></div></div>
+    </div>
+
     <div class="row g-3">
         <div class="col-md-6">
             <div class="card-custom">
                 <div class="card-header-custom"><h5 style="color: #27ae60;">درآمدها</h5></div>
                 <div class="card-body-custom" style="padding: 0;">
                     <table class="table table-custom mb-0">
-                        {% for acc in revenue_accounts %}
-                        <tr><td>{{ acc.name }}</td><td style="color: #27ae60;">{{ acc.balance|currency }} ت</td></tr>
+                        <tbody>
+                        {% for row in revenue_accounts %}
+                        <tr>
+                            <td><code>{{ row.account.code }}</code> {{ row.account.name }}</td>
+                            <td style="color: #27ae60; text-align:left;">{{ row.amount|currency }} ت</td>
+                        </tr>
+                        {% else %}
+                        <tr><td class="text-center" style="color:#aaa;">گردشی برای حساب‌های درآمدی در این بازه ثبت نشده است</td></tr>
                         {% endfor %}
+                        </tbody>
+                        <tfoot><tr style="font-weight:800;background:rgba(128,128,128,.08);"><td>جمع درآمدها</td><td style="text-align:left;">{{ total_revenue|currency }} ت</td></tr></tfoot>
                     </table>
                 </div>
             </div>
@@ -26,13 +62,26 @@
                 <div class="card-header-custom"><h5 style="color: #e74c3c;">هزینه‌ها</h5></div>
                 <div class="card-body-custom" style="padding: 0;">
                     <table class="table table-custom mb-0">
-                        {% for acc in expense_accounts %}
-                        <tr><td>{{ acc.name }}</td><td style="color: #e74c3c;">{{ acc.balance|currency }} ت</td></tr>
+                        <tbody>
+                        {% for row in expense_accounts %}
+                        <tr>
+                            <td><code>{{ row.account.code }}</code> {{ row.account.name }}</td>
+                            <td style="color: #e74c3c; text-align:left;">{{ row.amount|currency }} ت</td>
+                        </tr>
+                        {% else %}
+                        <tr><td class="text-center" style="color:#aaa;">گردشی برای حساب‌های هزینه‌ای در این بازه ثبت نشده است</td></tr>
                         {% endfor %}
+                        </tbody>
+                        <tfoot><tr style="font-weight:800;background:rgba(128,128,128,.08);"><td>جمع هزینه‌ها</td><td style="text-align:left;">{{ total_expense|currency }} ت</td></tr></tfoot>
                     </table>
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="alert alert-light mt-4" style="font-size:12px;color:#546e7a;">
+        ارقام از گردش (بدهکار − بستانکار) حساب‌های نوع درآمد و هزینه در اسناد <strong>تأیید یا تصویب‌شده</strong> محاسبه
+        می‌شود؛ اسناد پیش‌نویس و ابطال‌شده لحاظ نمی‌شوند.
     </div>
 </div>
 {% endblock %}

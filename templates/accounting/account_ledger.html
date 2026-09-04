@@ -1,29 +1,70 @@
 {% extends "base/layout.html" %}
-{% block title %}{{ account.name }}{% endblock %}
+{% block title %}دفتر {{ account.name }}{% endblock %}
 {% block breadcrumb %}
-<li><a href="{{ url_for('accounting.ledger') }}">معین</a></li>
+<li><a href="{{ url_for('accounting.ledger') }}">دفتر کل</a></li>
 <li class="active">{{ account.name }}</li>
 {% endblock %}
 
 {% block content %}
 <div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-book me-2 text-info"></i>{{ account.name }}<small>{{ account.code }}</small></h1></div>
+    <div class="page-header">
+        <h1><i class="bi bi-book me-2 text-info"></i>{{ account.name }}<small>کد {{ account.code }} — {{ 'بدهکار' if account.nature == 'debit' else 'بستانکار' }}</small></h1>
+        <button class="btn btn-outline-secondary no-print" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
+    </div>
+
+    <div class="card-custom mb-4">
+        <div class="card-body-custom">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3"><label class="form-label" for="dateFrom">از تاریخ</label>
+                    <input type="text" name="date_from" id="dateFrom" class="form-control jalali-date" value="{{ date_from }}" placeholder="۱۴۰۵/۰۱/۰۱"></div>
+                <div class="col-md-3"><label class="form-label" for="dateTo">تا تاریخ</label>
+                    <input type="text" name="date_to" id="dateTo" class="form-control jalali-date" value="{{ date_to }}" placeholder="۱۴۰۵/۱۲/۲۹"></div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button class="btn btn-primary-custom flex-grow-1"><i class="bi bi-funnel me-1"></i> اعمال</button>
+                    <a href="{{ url_for('accounting.account_ledger', account_id=account.id) }}" class="btn btn-outline-secondary">پاک</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">گردش بدهکار</div><div style="font-size:18px;font-weight:800;">{{ total_debit|currency }} ت</div></div></div></div>
+        <div class="col-md-4"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">گردش بستانکار</div><div style="font-size:18px;font-weight:800;">{{ total_credit|currency }} ت</div></div></div></div>
+        <div class="col-md-4"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">مانده ({{ 'بدهکار' if balance >= 0 else 'بستانکار' }})</div>
+            <div style="font-size:18px;font-weight:800;color:{{ '#2e7d32' if balance >= 0 else '#c62828' }};">{{ balance|abs|currency }} ت</div></div></div></div>
+    </div>
+
     <div class="card-custom">
         <div class="card-body-custom" style="padding: 0;">
+            {% if items %}
+            <div class="table-responsive">
             <table class="table table-custom mb-0">
-                <thead><tr><th>سند</th><th>تاریخ</th><th>شرح</th><th>بدهکار</th><th>بستانکار</th></tr></thead>
+                <thead><tr><th>سند</th><th>تاریخ</th><th>شرح</th><th>بدهکار</th><th>بستانکار</th><th>مانده</th></tr></thead>
                 <tbody>
-                    {% for item in items %}
+                    {% for row in items %}
                     <tr>
-                        <td>{{ item.entry.entry_number if item.entry else '-' }}</td>
-                        <td>{{ item.entry.entry_date|to_jalali if item.entry else '-' }}</td>
-                        <td>{{ item.description or '-' }}</td>
-                        <td>{{ item.debit|currency }}</td>
-                        <td>{{ item.credit|currency }}</td>
+                        <td><a href="{{ url_for('accounting.view_entry', id=row.entry.id) }}"><code>{{ row.entry.entry_number }}</code></a></td>
+                        <td>{{ row.entry.entry_date|to_jalali }}</td>
+                        <td>{{ row.item.description or row.entry.description or '-' }}</td>
+                        <td>{{ row.item.debit|currency }}</td>
+                        <td>{{ row.item.credit|currency }}</td>
+                        <td style="font-weight:700;">{{ row.running|abs|currency }} {{ 'ب' if row.running >= 0 else 'س' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
+                <tfoot>
+                    <tr style="font-weight:700;background:rgba(128,128,128,.08);">
+                        <td colspan="3">جمع</td>
+                        <td>{{ total_debit|currency }}</td>
+                        <td>{{ total_credit|currency }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">سند تأیید یا تصویب‌شده‌ای برای این حساب در بازه انتخابی وجود ندارد</div>
+            {% endif %}
         </div>
     </div>
 </div>

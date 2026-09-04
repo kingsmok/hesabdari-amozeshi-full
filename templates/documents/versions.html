@@ -7,12 +7,12 @@
     <div class="card"><div class="card-body-padded">
         <div class="stat-box mb-3">
             <table class="table table-borderless mb-0">
-                <tr><td style="color: #78909c;">نوع سند</td><td>{{ doc.doc_type }}</td></tr>
-                <tr><td style="color: #78909c;">فایل</td><td>{{ doc.file_name or '-' }}</td></tr>
-                <tr><td style="color: #78909c;">تاریخ آپلود</td><td>{{ doc.created_at|to_jalali }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">نوع سند</td><td>{{ doc.doc_type }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">فایل</td><td>{{ doc.file_name or '-' }}</td></tr>
+                <tr><td style="color: var(--clr-text-muted, #455a64);">تاریخ آپلود</td><td>{{ doc.created_at|to_jalali }}</td></tr>
             </table>
         </div>
-        <p style="color: #78909c;">نسخه‌بندی اسناد: هر بار آپلود جدید، نسخه قبلی حفظ می‌شود.</p>
+        <p style="color: var(--clr-text-muted, #455a64);">نسخه‌بندی اسناد: هر بار آپلود جدید، نسخه قبلی حفظ می‌شود.</p>
     </div></div>
 </div>
 {% endblock %}

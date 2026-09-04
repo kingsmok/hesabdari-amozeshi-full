@@ -40,8 +40,18 @@ class Payment(db.Model):
     branch_id = db.Column(db.Integer, db.ForeignKey('branches.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    # ابطال/مرجوعی: تا پیش از این فقط وضعیت در مدل بود و هیچ مسیری ابطال
+    # نداشت ⇒ تنها راه اصلاح یک اشتباه، ویرایش دستی دیتابیس بود.
     cancelled_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     cancelled_at = db.Column(db.DateTime)
+    cancel_reason = db.Column(db.Text)
+    # چقدر از این پرداخت واقعاً به صندوق برگشت داده شد (تا بازگردانی پرداخت
+    # بتواند همان مقدار را دوباره از صندوق کم کند، نه کل مبلغ را)
+    refunded_amount = db.Column(db.Float, default=0)
+
+    @property
+    def is_cancelled(self):
+        return self.status == 'cancelled'
     
     # Relationships
     installment = db.relationship('Installment', backref='payments')
@@ -265,10 +275,21 @@ class Payslip(db.Model):
     total_deductions = db.Column(db.Float, default=0)
     
     net_amount = db.Column(db.Float, default=0)
-    status = db.Column(db.String(20), default='draft')  # draft, approved, paid
+    # گردش کار: draft → approved → paid و هر زمان قابل ابطال (cancelled)
+    status = db.Column(db.String(20), default='draft')  # draft, approved, paid, cancelled
     paid_date = db.Column(db.Date)
     notes = db.Column(db.Text)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     approved_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    approved_at = db.Column(db.DateTime)
+    paid_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    cashbox_id = db.Column(db.Integer, db.ForeignKey('cashboxes.id'))  # صندوقی که حقوق از آن کسر شده
+    
+    cashbox = db.relationship('Cashbox')
+
+    # ابطال فیش (قبلاً هیچ راه بازگشت وجهی وجود نداشت)
+    cancel_reason = db.Column(db.String(255))
+    cancelled_at = db.Column(db.DateTime)
+    cancelled_by = db.Column(db.Integer, db.ForeignKey('users.id'))

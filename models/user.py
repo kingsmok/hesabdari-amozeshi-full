@@ -133,6 +133,12 @@ class ActivityLog(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     try:
-        return db.session.get(User, int(user_id))
+        user = db.session.get(User, int(user_id))
     except (ValueError, TypeError):
         return None
+    # حساب غیرفعال/مسدود باید بی‌درنگ از دسترس بیفتد. پیش‌تر `is_active` فقط جلوی
+    # «ورود» را می‌گرفت و کاربرِ غیرفعال‌شده با کوکی Remember-Me تا ۱۴ روز کارش
+    # ادامه می‌داد (بازبینی امنیت، بند A3 — ابطال نشست)
+    if user is None or not getattr(user, 'is_active', True):
+        return None
+    return user

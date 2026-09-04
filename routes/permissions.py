@@ -213,8 +213,12 @@ def edit_user(id):
         user.is_active = 'is_active' in request.form
         user.is_admin = 'is_admin' in request.form
         
-        if request.form.get('password'):
+        password_changed = bool(request.form.get('password'))
+        if password_changed:
             user.set_password(request.form['password'])
+        # رمز تازه یا حساب غیرفعال ⇒ نشست‌های باز باید ببندند (بازبینی امنیت، بند A3)
+        if password_changed or not user.is_active:
+            _close_open_sessions(user.id)
         
         db.session.commit()
         flash('کاربر بروزرسانی شد', 'success')
@@ -234,6 +238,7 @@ def delete_user(id):
         return redirect(url_for('perms.users_list'))
     
     user.is_active = False
+    _close_open_sessions(user.id)
     db.session.commit()
     flash('کاربر غیرفعال شد', 'success')
     return redirect(url_for('perms.users_list'))
@@ -243,8 +248,13 @@ def delete_user(id):
 @login_required
 def reset_password(id):
     user = User.query.get_or_404(id)
-    new_pass = request.form.get('new_password', '123456')
+    new_pass = request.form.get('new_password') or ''
+    # «123456» به‌عنوان مقدار پیش‌فرض، عملاً درِ پشتی همه حساب‌ها بود
+    if len(new_pass) < 8:
+        flash('رمز جدید باید حداقل ۸ نویسه باشد', 'error')
+        return redirect(url_for('perms.edit_user', id=id))
     user.set_password(new_pass)
+    _close_open_sessions(user.id)
     db.session.commit()
     flash(f'رمز کاربر "{user.full_name}" تغییر کرد', 'success')
     return redirect(url_for('perms.edit_user', id=id))
@@ -253,6 +263,21 @@ def reset_password(id):
 # ═══════════════════════════════════════════
 #  بررسی دسترسی (decorator)
 # ═══════════════════════════════════════════
+def _close_open_sessions(user_id):
+    """نشست‌های باز کاربر را می‌بندد.
+
+    `UserSession` پیش‌تر فقط برای «نمایش» نوشته می‌شد؛ پس غیرفعال کردن کاربر یا
+    تغییر رمزش، نشست‌های در جریان را بازنمی‌گرداند و گزارش «نشست‌های فعال»
+    گمراه‌کننده بود. با `is_active=False` ردپای نشست درست می‌شود و چون
+    `load_user` هم حساب غیرفعال را رد می‌کند، دسترسی واقعی قطع می‌شود.
+    """
+    from datetime import datetime
+    from models.user import UserSession
+    closed = UserSession.query.filter_by(user_id=user_id, is_active=True).update(
+        {'is_active': False, 'logout_at': datetime.utcnow()}, synchronize_session=False)
+    return closed or 0
+
+
 def check_permission(module, action):
     """بررسی دسترسی کاربر فعلی"""
     from flask import abort

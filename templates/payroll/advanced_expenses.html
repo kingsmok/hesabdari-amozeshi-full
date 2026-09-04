@@ -1,28 +1,30 @@
 {% extends "base/layout.html" %}
 {% block title %}هزینه‌های پیشرفته{% endblock %}
-{% block breadcrumb %}<li><a href="{{ url_for('payroll.advanced_expenses') }}">هزینه‌ها</a></li><li class="active">پیشرفته</li>{% endblock %}
+{% block breadcrumb %}<li><a href="{{ url_for('payroll.dashboard') }}">حقوق</a></li><li class="active">هزینه‌ها</li>{% endblock %}
 {% block content %}
 <div class="anim-in">
     <div class="page-head">
-        <h1><i class="bi bi-wallet2"></i> مدیریت هزینه‌های پیشرفته<small>فیلتر، تحلیل و گزارش</small></h1>
+        <h1><i class="bi bi-wallet2"></i> مدیریت هزینه‌های پیشرفته<small>فیلتر، تفکیک و فاکتور</small></h1>
         <div class="d-flex gap-2">
             <a href="{{ url_for('settings.expense_categories') }}" class="btn btn-outline-primary"><i class="bi bi-tags"></i> دسته‌بندی‌ها</a>
             <a href="{{ url_for('payroll.add_advanced_expense') }}" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i> هزینه جدید</a>
         </div>
     </div>
-    
+
     <!-- فیلتر -->
     <div class="card mb-4">
         <div class="card-body-padded">
             <form method="GET" class="row g-3 align-items-end">
-                <div class="col-md-3"><label class="form-label">دسته‌بندی</label>
-                    <select name="category_id" class="form-select searchable" data-placeholder="جستجو در دسته‌بندی‌ها...">
+                <div class="col-md-3"><label class="form-label" for="catFilter">دسته‌بندی</label>
+                    <select name="category_id" id="catFilter" class="form-select searchable" data-placeholder="جستجو در دسته‌بندی‌ها...">
                         <option value="">همه دسته‌بندی‌ها</option>
                         {% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if category_id == c.id|string }}>{{ c.name }}</option>{% endfor %}
                     </select>
                 </div>
-                <div class="col-md-2"><label class="form-label">از تاریخ</label><input type="date" name="date_from" class="form-control" value="{{ date_from }}"></div>
-                <div class="col-md-2"><label class="form-label">تا تاریخ</label><input type="date" name="date_to" class="form-control" value="{{ date_to }}"></div>
+                <div class="col-md-2"><label class="form-label" for="dateFrom">از تاریخ</label>
+                    <input type="text" name="date_from" id="dateFrom" class="form-control jalali-date" value="{{ date_from }}" placeholder="۱۴۰۵/۰۱/۰۱"></div>
+                <div class="col-md-2"><label class="form-label" for="dateTo">تا تاریخ</label>
+                    <input type="text" name="date_to" id="dateTo" class="form-control jalali-date" value="{{ date_to }}" placeholder="۱۴۰۵/۱۲/۲۹"></div>
                 <div class="col-md-2"><button class="btn btn-primary w-100"><i class="bi bi-funnel me-1"></i> فیلتر</button></div>
                 <div class="col-md-2"><a href="{{ url_for('payroll.advanced_expenses') }}" class="btn btn-outline-secondary w-100">پاک کردن</a></div>
             </form>
@@ -31,20 +33,24 @@
 
     <!-- آمار -->
     <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="stat-box"><div class="stat-label">جمع هزینه‌ها</div><div class="stat-val" style="font-size: 18px; color: #c62828;">{{ total|currency }} ت</div></div></div>
+        <div class="col-md-4"><div class="stat-box"><div class="stat-label">جمع هزینه‌ها (فیلتر)</div><div class="stat-val" style="font-size: 18px; color: #c62828;">{{ total|currency }} ت</div></div></div>
         <div class="col-md-8">
             <div class="card">
                 <div class="card-body-padded">
                     <h6 style="margin-bottom: 8px;">تفکیک بر اساس دسته‌بندی</h6>
-                    {% for cat, amount in by_category.items() %}
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <span style="font-size: 12px;">{{ cat }}</span>
-                        <span style="font-size: 12px; font-weight: 700; color: #c62828;">{{ amount|currency }} ت</span>
-                    </div>
-                    <div class="progress mb-2" style="height: 6px;">
-                        <div class="progress-bar bg-danger" style="width: {{ (amount / total * 100) if total else 0 }}%;"></div>
-                    </div>
-                    {% endfor %}
+                    {% if by_category %}
+                        {% for item in by_category %}
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span style="font-size: 12px;">{{ item.name }}</span>
+                            <span style="font-size: 12px; font-weight: 700; color: #c62828;">{{ item.amount|currency }} ت</span>
+                        </div>
+                        <div class="progress mb-2" style="height: 6px;">
+                            <div class="progress-bar bg-danger" style="width: {{ (item.amount / total * 100) if total else 0 }}%;"></div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div style="font-size: 12px; color: var(--clr-text-faint, #607d8b);">هزینه‌ای برای نمایش وجود ندارد</div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -52,11 +58,17 @@
 
     <!-- لیست -->
     <div class="card">
+        <div class="card-head">
+            <h5>فهرست هزینه‌ها</h5>
+            <span style="font-size: 12px; color: var(--clr-text-muted, #455a64);">{{ expenses.total }} رکورد</span>
+        </div>
         <div class="card-body-padded" style="padding: 0;">
+            {% if expenses.items %}
+            <div class="table-responsive">
             <table class="table mb-0">
-                <thead><tr><th>شماره</th><th>دسته‌بندی</th><th>مبلغ</th><th>توضیح</th><th>تاریخ</th><th>پرداخت‌کننده</th></tr></thead>
+                <thead><tr><th>شماره</th><th>دسته‌بندی</th><th>مبلغ</th><th>توضیح</th><th>تاریخ</th><th>پرداخت‌کننده</th><th>روش</th><th>فاکتور</th></tr></thead>
                 <tbody>
-                    {% for e in expenses %}
+                    {% for e in expenses.items %}
                     <tr>
                         <td><code>{{ e.expense_number }}</code></td>
                         <td>{{ e.category.name if e.category else '-' }}</td>
@@ -64,10 +76,36 @@
                         <td>{{ (e.description or '-')[:40] }}</td>
                         <td>{{ e.expense_date|to_jalali }}</td>
                         <td>{{ e.paid_to or '-' }}</td>
+                        <td>{{ {'cash': 'نقدی', 'card': 'کارت', 'check': 'چک', 'transfer': 'انتقال'}.get(e.payment_method, e.payment_method or '-') }}</td>
+                        <td>
+                            {% if e.attachment %}
+                            <a href="{{ url_for('payroll.expense_attachment', id=e.id) }}" class="btn btn-sm btn-outline-secondary" title="دانلود فاکتور"><i class="bi bi-paperclip"></i></a>
+                            {% else %}<span style="color: var(--clr-text-faint, #607d8b);">—</span>{% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
+
+            {% if expenses.pages > 1 %}
+            <div class="card-body-padded d-flex justify-content-center gap-1" style="border-top: 1px solid #eceff1;">
+                {% for page_no in expenses.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page_no %}
+                    <a href="{{ url_for('payroll.advanced_expenses', page=page_no, category_id=category_id, date_from=date_from, date_to=date_to) }}"
+                       class="btn btn-sm {{ 'btn-primary' if page_no == expenses.page else 'btn-outline-secondary' }}">{{ page_no }}</a>
+                    {% else %}
+                    <span style="padding: 0 6px; color: var(--clr-text-faint, #607d8b);">…</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5" style="color: var(--clr-text-faint, #607d8b);">
+                <p class="mb-1">هزینه‌ای با این شرایط ثبت نشده است</p>
+                <a href="{{ url_for('payroll.add_advanced_expense') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus me-1"></i> ثبت هزینه</a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

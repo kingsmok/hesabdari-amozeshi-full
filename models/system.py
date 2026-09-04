@@ -273,3 +273,51 @@ class SystemGoal(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     branch = db.relationship('Branch', backref='goals')
+
+
+class DocumentSequence(db.Model):
+    """شماره‌گذار اسناد — جانشین الگوی شکننده «id آخرین رکورد + یک».
+
+    یک ردیف به‌ازای هر (kind, year) و یک شمارنده monotonic که با SELECT … FOR UPDATE
+    (روی SQLite: UPDATE … RETURNING نیست، پس با حلقه retry روی تعارض UNIQUE کار می‌کنیم)
+    افزایش می‌یابد. حذف رکورد، Restore یا دو کاربر همزمان دیگر شماره تکراری نمی‌سازد.
+    """
+    __tablename__ = 'document_sequences'
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(30), nullable=False, index=True)   # payslip, expense, payment, voucher…
+    year = db.Column(db.String(4), nullable=False, default='-')   # سال شمسی؛ '-' برای بدون سال
+    next_no = db.Column(db.Integer, nullable=False, default=1)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint('kind', 'year', name='uq_doc_sequence_kind_year'),
+    )
+
+    def __repr__(self):
+        return f'<DocumentSequence {self.kind}/{self.year} → {self.next_no}>'
+
+
+class TaxRule(db.Model):
+    """قواعد مالیات حقوق و نرخ بیمه، به تفکیک سال.
+
+    طبق قانون بودجه، اعداد هر سال تغییر می‌کند؛ برای اینکه به‌جای ویرایش کد،
+    مدیر از «تنظیمات مالیاتی» سال جدید را ثبت کند. اگر ردیفی برای سالی وجود
+    نداشته باشد، مقادیر پیش‌فرض ۱۴۰۵ (ماده ۱ قانون بودجه ۱۴۰۵) اعمال می‌شود.
+    """
+    __tablename__ = 'tax_rules'
+
+    id = db.Column(db.Integer, primary_key=True)
+    year = db.Column(db.String(4), nullable=False, unique=True)      # '1405'
+    monthly_exemption = db.Column(db.Float, default=40000000)        # معافیت ماهانه (تومان)
+    brackets = db.Column(db.Text)                                     # JSON: [{"from":..,"to":..,"rate":0.10}]
+    insurance_employee_rate = db.Column(db.Float, default=0.07)      # سهم کارمند
+    insurance_employer_rate = db.Column(db.Float, default=0.23)      # سهم کارفرما
+    note = db.Column(db.String(255))
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+    def __repr__(self):
+        return f'<TaxRule {self.year}>'

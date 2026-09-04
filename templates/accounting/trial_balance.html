@@ -1,28 +1,88 @@
 {% extends "base/layout.html" %}
 {% block title %}تراز آزمایشی{% endblock %}
 {% block breadcrumb %}
-<li><a href="{{ url_for('accounting.trial_balance') }}">حسابداری</a></li>
+<li><a href="{{ url_for('accounting.journal') }}">حسابداری</a></li>
 <li class="active">تراز آزمایشی</li>
 {% endblock %}
 
 {% block content %}
 <div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-bar-chart me-2 text-warning"></i>تراز آزمایشی</h1></div>
+    <div class="page-header">
+        <h1><i class="bi bi-bar-chart me-2 text-warning"></i>تراز آزمایشی<small>گردش و مانده حساب‌ها از روی اسناد</small></h1>
+        <button class="btn btn-outline-secondary no-print" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
+    </div>
+
+    <div class="card-custom mb-4 no-print">
+        <div class="card-body-custom">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-3"><label class="form-label" for="periodInput">دوره (ماه شمسی)</label>
+                    <input type="text" name="period" id="periodInput" class="form-control" value="{{ period }}" placeholder="۱۴۰۵/۰۶"></div>
+                <div class="col-md-3"><label class="form-label" for="dateFrom">از تاریخ (جایگزین دوره)</label>
+                    <input type="text" name="date_from" id="dateFrom" class="form-control jalali-date" value="{{ date_from }}"></div>
+                <div class="col-md-3"><label class="form-label" for="dateTo">تا تاریخ</label>
+                    <input type="text" name="date_to" id="dateTo" class="form-control jalali-date" value="{{ date_to }}"></div>
+                <div class="col-md-3 d-flex gap-2 align-items-end">
+                    <button class="btn btn-primary-custom flex-grow-1"><i class="bi bi-funnel me-1"></i> اعمال</button>
+                    <a href="{{ url_for('accounting.trial_balance') }}" class="btn btn-outline-secondary">پاک</a>
+                </div>
+                <div class="col-md-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="include_draft" id="includeDraft" value="1" {{ 'checked' if include_draft }}>
+                        <label class="form-check-label" for="includeDraft" style="font-size:12px;">اسناد پیش‌نویس هم لحاظ شوند (برای بررسی؛ در گزارش رسمی نه)</label>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-3"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">جمع بدهکار</div><div style="font-size:18px;font-weight:800;">{{ total_debit|currency }} ت</div></div></div></div>
+        <div class="col-md-3"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">جمع بستانکار</div><div style="font-size:18px;font-weight:800;">{{ total_credit|currency }} ت</div></div></div></div>
+        <div class="col-md-3"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">وضعیت تراز</div>
+            <div style="font-size:18px;font-weight:800;color:{{ '#2e7d32' if balanced else '#c62828' }};">
+                {% if balanced %}<i class="bi bi-check-circle me-1"></i>تراز است{% else %}<i class="bi bi-x-circle me-1"></i>اختلاف {{ ((total_debit - total_credit)|currency) }} ت{% endif %}
+            </div></div></div></div>
+        <div class="col-md-3"><div class="card-custom"><div class="card-body-custom"><div style="font-size:11px;color: var(--clr-text-muted, #455a64);">حساب‌های دارای گردش</div><div style="font-size:18px;font-weight:800;">{{ count_with_activity }} از {{ count_total }}</div></div></div></div>
+    </div>
+
     <div class="card-custom">
         <div class="card-body-custom" style="padding: 0;">
+            {% if rows %}
+            <div class="table-responsive">
             <table class="table table-custom mb-0">
-                <thead><tr><th>کد</th><th>نام حساب</th><th>بدهکار</th><th>بستانکار</th></tr></thead>
+                <thead><tr><th>کد</th><th>نام حساب</th><th>گروه</th><th>گردش بدهکار</th><th>گردش بستانکار</th><th>مانده بدهکار</th><th>مانده بستانکار</th></tr></thead>
                 <tbody>
-                    {% for acc in accounts %}
+                    {% for row in rows %}
                     <tr>
-                        <td><code>{{ acc.code }}</code></td>
-                        <td>{{ acc.name }}</td>
-                        <td>{{ acc.balance|currency if acc.nature == 'debit' else '-' }}</td>
-                        <td>{{ acc.balance|currency if acc.nature == 'credit' else '-' }}</td>
+                        <td><code>{{ row.account.code }}</code></td>
+                        <td><a href="{{ url_for('accounting.account_ledger', account_id=row.account.id) }}">{{ row.account.name }}</a></td>
+                        <td style="font-size:12px;color: var(--clr-text-muted, #455a64);">{{ row.account.group.name if row.account.group else '-' }}</td>
+                        <td>{{ row.total_debit|currency }}</td>
+                        <td>{{ row.total_credit|currency }}</td>
+                        <td>{{ row.debit|currency if row.debit else '—' }}</td>
+                        <td>{{ row.credit|currency if row.credit else '—' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
+                <tfoot>
+                    <tr style="font-weight:800;background:rgba(128,128,128,.08);">
+                        <td colspan="5">جمع کل</td>
+                        <td>{{ total_debit|currency }}</td>
+                        <td>{{ total_credit|currency }}</td>
+                    </tr>
+                </tfoot>
             </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">
+                {% if count_total == 0 %}
+                <p class="mb-1">کدینگ حسابداری خالی است — برای شروع یک بار سند بزنید</p>
+                <a href="{{ url_for('accounting.chart') }}" class="btn btn-sm-custom btn-outline-primary">ساخت کدینگ پیش‌فرض</a>
+                {% else %}
+                <p class="mb-0">در این بازه، سند تأیید/تصویب‌شده‌ای وجود ندارد</p>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

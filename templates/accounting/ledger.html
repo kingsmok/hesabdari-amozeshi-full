@@ -1,28 +1,45 @@
 {% extends "base/layout.html" %}
-{% block title %}دفتر معین{% endblock %}
+{% block title %}دفتر کل{% endblock %}
 {% block breadcrumb %}
 <li><a href="{{ url_for('accounting.ledger') }}">حسابداری</a></li>
-<li class="active">دفتر معین</li>
+<li class="active">دفتر کل</li>
 {% endblock %}
 
 {% block content %}
 <div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-book me-2 text-info"></i>دفتر معین<small>انتخاب حساب برای مشاهده جزئیات</small></h1></div>
+    <div class="page-header">
+        <h1><i class="bi bi-book me-2 text-info"></i>دفتر کل<small>گردش هر حساب از روی اسناد تأیید/تصویب‌شده</small></h1>
+        <button class="btn btn-outline-secondary no-print" onclick="window.print()"><i class="bi bi-printer me-1"></i> چاپ</button>
+    </div>
+
     <div class="card-custom">
         <div class="card-body-custom" style="padding: 0;">
+            {% if accounts %}
+            <div class="table-responsive">
             <table class="table table-custom mb-0">
-                <thead><tr><th>کد</th><th>نام حساب</th><th>مانده</th><th>عملیات</th></tr></thead>
+                <thead><tr><th>کد</th><th>نام حساب</th><th>گردش بدهکار</th><th>گردش بستانکار</th><th>اختلاف</th><th>عملیات</th></tr></thead>
                 <tbody>
-                    {% for acc in accounts %}
+                    {% for row in accounts %}
                     <tr>
-                        <td><code>{{ acc.code }}</code></td>
-                        <td>{{ acc.name }}</td>
-                        <td>{{ acc.balance|currency }}</td>
-                        <td><a href="{{ url_for('accounting.account_ledger', account_id=acc.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                        <td><code>{{ row.account.code }}</code></td>
+                        <td>{{ row.account.name }}</td>
+                        <td>{{ row.debit|currency }}</td>
+                        <td>{{ row.credit|currency }}</td>
+                        <td style="font-weight:700; {{ 'color:#c62828;' if (row.debit - row.credit)|abs > 1 else 'color:#2e7d32;' }}">
+                            {{ (row.debit - row.credit)|abs|currency }}
+                        </td>
+                        <td><a href="{{ url_for('accounting.account_ledger', account_id=row.account.id) }}" class="btn btn-sm-custom btn-outline-primary"><i class="bi bi-eye"></i> دفتر تفصیلی</a></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">
+                <p class="mb-1">حسابی در کدینگ وجود ندارد</p>
+                <a href="{{ url_for('accounting.chart') }}" class="btn btn-sm-custom btn-outline-primary">ساخت کدینگ</a>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

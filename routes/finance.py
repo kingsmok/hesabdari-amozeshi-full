@@ -13,7 +13,23 @@ from models.finance import (
 from models.registration import Registration, Installment
 from models.student import Student
 from models.user import ActivityLog
+from utils.document_numbers import next_document_number
+from utils.payments import (apply_payment_to_targets, build_receipt_no, cash_portion,
+                            settle_cashbox)
 from datetime import datetime
+
+
+def _log_payment_action(action, payment, description):
+    """ردپای تغییرات مالی دستی (لاگ نباید عملیات را بشکند؛ commit با فراخوان)."""
+    try:
+        db.session.add(ActivityLog(
+            user_id=current_user.id if current_user.is_authenticated else None,
+            action=action, module='finance',
+            entity_type='payment', entity_id=payment.id if payment else None,
+            description=description, ip_address=request.remote_addr,
+        ))
+    except Exception:
+        pass
 
 finance_bp = Blueprint('finance', __name__)
 
@@ -27,17 +43,21 @@ def payments():
     page = request.args.get('page', 1, type=int)
     method = request.args.get('method', '')
     search = request.args.get('search', '')
+    status = request.args.get('status', '')
     
     query = Payment.query
     if method:
         query = query.filter_by(payment_method=method)
+    if status:
+        query = query.filter_by(status=status)
     if search:
         query = query.join(Student).filter(
             db.or_(Student.first_name.contains(search), Payment.receipt_no.contains(search))
         )
     
     payments = query.order_by(Payment.created_at.desc()).paginate(page=page, per_page=20)
-    return render_template('finance/payments.html', payments=payments, method=method, search=search)
+    return render_template('finance/payments.html', payments=payments, method=method,
+                           search=search, status=status)
 
 
 @finance_bp.route('/payments/add', methods=['GET', 'POST'])
@@ -51,6 +71,10 @@ def add_payment():
         student = Student.query.get(student_id) if student_id else None
         registration = Registration.query.get(registration_id) if registration_id else None
         installment = Installment.query.get(installment_id) if installment_id else None
+        if registration is None and installment is not None:
+            # قسط حتماً به یک ثبت‌نام وابسته است؛ بدون این خط، مانده آن ثبت‌نام
+            # به‌روز نمی‌شد و هنرجو بدهکار می‌ماند
+            registration = installment.registration
 
         if not student or amount <= 0:
             flash('هنرجو یا مبلغ پرداخت معتبر نیست', 'danger')
@@ -68,67 +92,190 @@ def add_payment():
             flash('مبلغ پرداخت بیشتر از مانده قسط است', 'danger')
             return redirect(url_for('finance.add_payment'))
 
-        last = Payment.query.order_by(Payment.id.desc()).first()
-        import uuid; receipt_num = f'PAY-{datetime.now().strftime("%Y%m%d%H%M%S")}-{uuid.uuid4().hex[:4].upper()}'
-        
+        # ── اجزای پرداخت ترکیبی ────────────────────────────────────────────
+        # ستون‌های cash_amount/card_amount/check_amount در مدل بود ولی هیچ‌وقت
+        # پر نمی‌شد؛ نتیجه: سهم نقدی به صندوق اضافه نمی‌شد، رسید بدون ریز بود
+        # و ابطال/مرجوعی نمی‌دانست چقدر نقد بیرون بیاید.
+        method = request.form.get('payment_method', 'cash')
+        if method not in ('cash', 'card', 'online', 'check', 'combined'):
+            method = 'cash'
+        cash_part = card_part = check_part = 0.0
+        if method == 'combined':
+            cash_part = safe_float(request.form.get('cash_amount'))
+            card_part = safe_float(request.form.get('card_amount'))
+            check_part = safe_float(request.form.get('check_amount'))
+            if min(cash_part, card_part, check_part) < 0:
+                flash('مبلغ بخش‌های پرداخت نمی‌تواند منفی باشد', 'danger')
+                return redirect(url_for('finance.add_payment'))
+            parts_total = cash_part + card_part + check_part
+            if abs(parts_total - amount) > 1:
+                flash(f'جمع بخش‌ها ({parts_total:,.0f}) با کل مبلغ ({amount:,.0f}) نمی‌خواند؛ '
+                      'اختلاف نباید بیشتر از ۱ تومان باشد', 'danger')
+                return redirect(url_for('finance.add_payment'))
+
+        receipt_num = build_receipt_no()
+
         payment = Payment(
             receipt_no=receipt_num,
             student_id=student.id,
             registration_id=registration.id if registration else None,
+            # قسط باید از ابتدا وصل باشد: اگر بعداً چسبانده شود،
+            # apply_payment_to_targets آن را نمی‌بیند و وضعیت قسط دست‌نخورده
+            # می‌ماند (بدهکاری هنرجو در صفحه اقساط باقی می‌ماند)
+            installment_id=installment.id if installment else None,
             amount=amount,
-            payment_method=request.form['payment_method'],
+            payment_method=method,
             payment_date=get_jalali_date(request.form, 'payment_date') if request.form.get('payment_date') else datetime.utcnow().date(),
             card_number=request.form.get('card_number'),
             tracking_number=request.form.get('tracking_number'),
             bank_name=request.form.get('bank_name'),
+            transaction_id=request.form.get('transaction_id'),
+            cash_amount=cash_part,
+            card_amount=card_part,
+            check_amount=check_part,
             description=request.form.get('description'),
             branch_id=request.form.get('branch_id', 1),
             created_by=current_user.id
         )
         
-        # Update registration
-        if registration:
-            registration.paid_amount = (registration.paid_amount or 0) + payment.amount
-            registration.remaining_amount = max(0, (registration.total_fee or 0) - registration.paid_amount)
-        
-        # Update installment
-        if installment:
-            installment.paid_amount = (installment.paid_amount or 0) + payment.amount
-            installment.paid_date = payment.payment_date
-            installment.status = 'paid' if installment.paid_amount >= installment.amount + (installment.late_fee or 0) else 'partial'
-            payment.installment_id = installment.id
-        
-        # Update cashbox
-        if payment.payment_method == 'cash':
-            cashbox = get_or_create_main_cashbox()
-            if cashbox:
-                cashbox.balance = (cashbox.balance or 0) + payment.amount
-                tx = CashboxTransaction(
-                    cashbox_id=cashbox.id,
-                    trans_type='in',
-                    amount=payment.amount,
-                    description=f'دریافت شهریه {receipt_num}',
-                    reference_type='payment',
-                    balance_after=cashbox.balance,
-                    created_by=current_user.id
-                )
-                db.session.add(tx)
-        
         db.session.add(payment)
+        db.session.flush()          # تا payment.id برای تراکنش صندوق آماده شود
+
+        # ثبت‌نام/قسط و صندوق از یک راه مشترک اعمال می‌شود. قبلاً این‌جا دستی بود:
+        # سهم نقدیِ پرداخت «ترکیبی» به صندوق اضافه نمی‌شد و cashbox_id ثبت
+        # نمی‌شد، پس بعداً معلوم نبود پول کدام صندوق رفته است.
+        apply_payment_to_targets(payment, sign=1, date_hint=payment.payment_date)
+        ok, message = settle_cashbox(
+            payment, cash_portion(payment), f'دریافت شهریه {receipt_num}',
+            user_id=current_user.id, direction='in')
+        if not ok:
+            db.session.rollback()
+            flash(message, 'danger')
+            return redirect(url_for('finance.add_payment'))
+
         db.session.commit()
+        _log_payment_action('payment-create', payment, f'ثبت پرداخت {receipt_num}')
         
         flash(f'پرداخت {receipt_num} ثبت شد', 'success')
         return redirect(url_for('finance.view_payment', id=payment.id))
     
     students = Student.query.filter_by(status='active').all()
-    return render_template('finance/add_payment.html', students=students)
+    # این فرم هیچ‌وقت فیلد ثبت‌نام/قسط نداشت ⇒ پرداخت ثبت می‌شد ولی مانده
+    # هنرجو کم نمی‌شد و در صفحه اقساط هم بدهکاری سر جایش می‌ماند.
+    open_registrations = (Registration.query
+                          .filter(Registration.status == 'active',
+                                  db.func.coalesce(Registration.remaining_amount, 0) > 0)
+                          .order_by(Registration.remaining_amount.desc()).limit(400).all())
+    open_installments = (Installment.query.join(Registration, Installment.registration_id == Registration.id)
+                         .filter(Registration.status == 'active',
+                                 Installment.status.in_(('pending', 'partial')),
+                                 db.func.coalesce(Installment.paid_amount, 0) < Installment.amount
+                                 + db.func.coalesce(Installment.late_fee, 0))
+                         .order_by(Installment.due_date.asc()).limit(400).all())
+    return render_template('finance/add_payment.html', students=students,
+                           open_registrations=open_registrations, open_installments=open_installments)
 
 
 @finance_bp.route('/payments/<int:id>')
 @login_required
 def view_payment(id):
     payment = Payment.query.get_or_404(id)
-    return render_template('finance/view_payment.html', payment=payment)
+    creator_name = None
+    if payment.created_by:
+        from models.user import User
+        author = db.session.get(User, payment.created_by)
+        creator_name = author.full_name if author else None
+    return render_template('finance/view_payment.html', payment=payment,
+                           creator_name=creator_name,
+                           cash_in_part=cash_portion(payment))
+
+
+@finance_bp.route('/payments/<int:id>/cancel', methods=['POST'])
+@license_required
+@login_required
+@licensed_section('finance')
+def cancel_payment(id):
+    """ابطال پرداخت با بازمحاسبه مانده (و در صورت درخواست، مرجوعی صندوق).
+
+    تا پیش از این هیچ مسیر ابطال/مرجوعی برای `Payment` نبود، هرچند مدل
+    `status='cancelled'` + `cancelled_by/cancelled_at` را داشت؛ یعنی تنها راه
+    اصلاح یک اشتباه، ویرایش دستی دیتابیس بود و مانده هنرجو هم بازمحاسبه
+    نمی‌شد. ابطال «حذف» نیست: ردیف می‌ماند، دلیل و کی/کِی ثبت می‌شود.
+    """
+    payment = Payment.query.get_or_404(id)
+    if payment.status == 'cancelled':
+        flash('این پرداخت پیش‌تر باطل شده است', 'warning')
+        return redirect(url_for('finance.view_payment', id=payment.id))
+
+    reason = (request.form.get('reason') or '').strip()
+    if len(reason) < 3:
+        flash('برای ابطال، دلیل را بنویسید (در حسابداری، حذف بی‌دلیل نداریم)', 'danger')
+        return redirect(url_for('finance.view_payment', id=payment.id))
+
+    want_refund = request.form.get('refund') == 'on'
+    refund_amount = cash_portion(payment) if want_refund else 0.0
+
+    # اول مرجوعی صندوق؛ اگر موجودی کافی نبود کل عملیات ول می‌شود
+    ok, message = settle_cashbox(
+        payment, refund_amount, f'مرجوعی ابطال پرداخت {payment.receipt_no}',
+        user_id=current_user.id, direction='out')
+    if not ok:
+        db.session.rollback()
+        flash(message + ' — می‌توانید ابطال را بدون مرجوعی نقدی ثبت کنید', 'danger')
+        return redirect(url_for('finance.view_payment', id=payment.id))
+
+    apply_payment_to_targets(payment, sign=-1)
+    payment.status = 'cancelled'
+    payment.cancelled_by = current_user.id
+    payment.cancelled_at = datetime.utcnow()
+    payment.cancel_reason = reason
+    payment.refunded_amount = refund_amount
+    _log_payment_action('payment-cancel', payment,
+                        f'ابطال {payment.receipt_no}: {reason}')
+    db.session.commit()
+
+    flash(f'پرداخت {payment.receipt_no} باطل شد'
+          + (f' و {refund_amount:,.0f} تومان به صندوق برگشت' if refund_amount else ''),
+          'success')
+    return redirect(url_for('finance.view_payment', id=payment.id))
+
+
+@finance_bp.route('/payments/<int:id>/restore', methods=['POST'])
+@license_required
+@login_required
+@licensed_section('finance')
+def restore_payment(id):
+    """بازگردانی پرداخت باطل‌شده (فقط مدیر/حسابدار؛ دقیقاً برعکس ابطال).
+
+    اگر هنگام ابطال پولی به هنرجو برگشت داده شده بود، همان مقدار دوباره به
+    صندوق برمی‌گردد — نه کل مبلغ، چون ممکن است فقط بخش نقد مرجوع شده باشد.
+    """
+    payment = Payment.query.get_or_404(id)
+    if payment.status != 'cancelled':
+        flash('فقط پرداخت باطل‌شده قابل بازگردانی است', 'warning')
+        return redirect(url_for('finance.view_payment', id=payment.id))
+
+    repay = float(payment.refunded_amount or 0)
+    if repay > 0:
+        ok, message = settle_cashbox(
+            payment, repay, f'بازگشت مرجوعی پرداخت {payment.receipt_no}',
+            user_id=current_user.id, direction='in')
+        if not ok:
+            db.session.rollback()
+            flash(message, 'danger')
+            return redirect(url_for('finance.view_payment', id=payment.id))
+
+    apply_payment_to_targets(payment, sign=+1, date_hint=payment.payment_date)
+    payment.status = 'confirmed'
+    payment.cancelled_by = None
+    payment.cancelled_at = None
+    payment.cancel_reason = None
+    payment.refunded_amount = 0
+    _log_payment_action('payment-restore', payment,
+                        f'بازگردانی پرداخت {payment.receipt_no}')
+    db.session.commit()
+    flash(f'پرداخت {payment.receipt_no} به وضعیت تأییدشده برگشت', 'success')
+    return redirect(url_for('finance.view_payment', id=payment.id))
 
 
 # ===== Cashbox =====
@@ -350,8 +497,7 @@ def add_expense():
             flash('مبلغ هزینه باید بیشتر از صفر باشد', 'danger')
             return render_template('finance/add_expense.html', categories=categories), 400
 
-        last = Expense.query.order_by(Expense.id.desc()).first()
-        exp_num = f'EXP-{current_jalali_year()}-{(last.id + 1) if last else 1:05d}'
+        exp_num = next_document_number('expense')
         
         expense = Expense(
             expense_number=exp_num,
@@ -416,8 +562,26 @@ def salary():
 @login_required
 def create_payslip():
     if request.method == 'POST':
-        last = Payslip.query.order_by(Payslip.id.desc()).first()
-        ps_num = f'PS-{current_jalali_year()}-{(last.id + 1) if last else 1:05d}'
+        # این فرم قدیمی (نسخه موازی `/payroll/calculate`) دو ایراد داشت:
+        # ۱) شماره فیش از MAX(id)+1 ساخته می‌شد ⇒ تصادم هم‌زمان/۵۰۰
+        # ۲) برای یک نفر و یک دوره، فیش دوم هم صادر می‌شد ⇒ پرداخت تکراری
+        from utils.document_numbers import next_document_number
+        from utils.jalali import current_jalali_period, normalize_jalali_period
+        period = normalize_jalali_period(request.form.get('period')) or current_jalali_period()
+        person_type = request.form.get('person_type', 'teacher')
+        person_id = safe_int(request.form.get('person_id'))
+        if not person_id:
+            flash('شخص (مدرس یا کارمند) را انتخاب کنید', 'danger')
+            return redirect(url_for('finance.create_payslip'))
+        clash = Payslip.query.filter_by(person_type=person_type, person_id=person_id,
+                                        period=period).first()
+        if clash is not None:
+            flash(f'برای این نفر در دوره {period} فیش {clash.payslip_number} '
+                  f'(وضعیت {clash.status}) ثبت شده است؛ از بخش حقوق و دستمزد همان فیش را '
+                  'ویرایش یا لغو کنید', 'danger')
+            return redirect(url_for('payroll.payslips', period=period))
+
+        ps_num = next_document_number('payslip')
         
         base = safe_float(request.form.get('base_amount'))
         teaching = safe_float(request.form.get('teaching_amount'))
@@ -436,9 +600,9 @@ def create_payslip():
         
         payslip = Payslip(
             payslip_number=ps_num,
-            person_type=request.form['person_type'],
-            person_id=safe_int(request.form.get('person_id')),
-            period=request.form['period'],
+            person_type=person_type,
+            person_id=person_id,
+            period=period,
             base_amount=base,
             teaching_hours=safe_float(request.form.get('teaching_hours')),
             teaching_amount=teaching,
@@ -473,19 +637,21 @@ def create_payslip():
 @login_required
 def financial_dashboard():
     today = datetime.utcnow()
-    month_start = today.replace(day=1)
+    # پنجره شمسی (میلادی ⇒ ۲۰ روز اول ماه، آمار ماه قبل را می‌شمارد)
+    from utils.jalali import jalali_month_bounds
+    month_start, month_end = jalali_month_bounds()
     
     month_income = db.session.query(db.func.sum(Payment.amount)).filter(
-        Payment.payment_date >= month_start.date(),
+        Payment.payment_date >= month_start, Payment.payment_date <= month_end,
         Payment.status == 'confirmed'
     ).scalar() or 0
     
     month_expenses = db.session.query(db.func.sum(Expense.amount)).filter(
-        Expense.expense_date >= month_start.date(),
+        Expense.expense_date >= month_start, Expense.expense_date <= month_end,
         Expense.status == 'confirmed'
     ).scalar() or 0
     
-    cashbox = Cashbox.query.first()
+    cashbox = get_or_create_main_cashbox()
     
     # Debtors
     debtors = Registration.query.filter(

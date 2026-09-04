@@ -5,612 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="format-detection" content="telephone=no">
     <title>{{ app_name }} | {% block title %}{% endblock %}</title>
-    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="manifest" href="{{ url_for('manifest') }}">
     <meta name="theme-color" content="#0d47a1">
+    <!-- آیکون iOS: بدون این، «افزودن به صفحه اصلی» اسکرین‌شات کج می‌گرفت -->
+    <link rel="apple-touch-icon" href="{{ asset('images/icons/apple-touch-icon.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('images/icons/apple-touch-icon.png') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/favicon.svg') }}">
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
 
-    <!-- فونت وزیرمتن از jsDelivr (CDN مطمئن) -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='fonts/Vazirmatn-font-face.css') }}">
+    <!-- فونت‌ها و CSS، محلی و نسخه‌دار (آفلاین هم کار می‌کند؛ CDN نبود) -->
+    <link rel="stylesheet" href="{{ asset('fonts/Vazirmatn-font-face.css') }}">
+    <!-- preload برای دو وزن پراستفاده؛ بدون ?v= چون خودِ @font-face هم آدرس
+         بدون کوئری را اعلام می‌کند و وگرنه دو بار دانلود می‌شد -->
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+          href="{{ url_for('static', filename='fonts/Vazirmatn-Regular.woff2') }}">
+    <link rel="preload" as="font" type="font/woff2" crossorigin
+          href="{{ url_for('static', filename='fonts/Vazirmatn-Bold.woff2') }}">
 
-    <!-- Bootstrap 5 RTL از jsDelivr -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.rtl.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/bootstrap.rtl.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/bootstrap-icons.min.css') }}">
 
-    <!-- Bootstrap Icons از jsDelivr -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.min.css') }}">
-
-    <!-- Chart.js از jsDelivr -->
-    <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+    <!-- Chart.js (۲۰۶KB) فقط در صفحات نموداردار بارگذاری می‌شود؛ آن‌ها بلوک
+         chart_assets را override می‌کنند. پیش‌تر روی هر ۲۴ صفحه لود می‌شد. -->
+    {% block chart_assets %}{% endblock %}
 
     <!-- انیمیشن‌های سفارشی -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/animations.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/animations.css') }}">
     
     <!-- تقویم شمسی -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/jalali-picker.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/jalali-picker.css') }}">
     
     <!-- انتخاب جستجوپذیر -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/searchable-select.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/searchable-select.css') }}">
 
     <!-- ریسپانسیو موبایل / تبلت -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/responsive.css') }}">
 
-    <style>
-        /* ===== متغیرهای رنگ ===== */
-        :root {
-            --sidebar-w: 265px;
-            --header-h: 58px;
-            --clr-primary: #0d47a1;
-            --clr-primary-light: #1565c0;
-            --clr-primary-dark: #002171;
-            --clr-accent: #00c853;
-            --clr-accent-light: #69f0ae;
-            --clr-danger: #ff1744;
-            --clr-warning: #ff9100;
-            --clr-info: #00b0ff;
-            --clr-sidebar: #0a1628;
-            --clr-sidebar-hover: #132238;
-            --clr-sidebar-active: #0d47a1;
-            --clr-body: #f0f2f5;
-            --clr-card: #ffffff;
-            --clr-border: #e0e4e8;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,.06);
-            --shadow-md: 0 4px 16px rgba(0,0,0,.08);
-            --shadow-lg: 0 8px 32px rgba(0,0,0,.12);
-            --radius: 12px;
-            --radius-sm: 8px;
-            --radius-xs: 6px;
-            --transition: .25s cubic-bezier(.4,0,.2,1);
-        }
+    <!-- قوانین چاپ (منبع یکتا؛ قبلاً در layout و responsive.css تکرار شده بود) -->
+    <link rel="stylesheet" href="{{ asset('css/print.css') }}">
 
-        * { font-family: Vazirmatn, Tahoma, Arial, sans-serif; box-sizing: border-box; }
-        html { scroll-behavior: smooth; }
-
-        body {
-            background: var(--clr-body);
-            font-size: 13px;
-            color: #37474f;
-            overflow-x: hidden;
-            line-height: 1.7;
-        }
-
-        /* ===== اسکرولبار ===== */
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #b0bec5; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #78909c; }
-
-        /* ===== سایدبار ===== */
-        .sidebar {
-            position: fixed; right: 0; top: 0;
-            width: var(--sidebar-w); height: 100vh;
-            background: linear-gradient(180deg, var(--clr-sidebar) 0%, #060d18 100%);
-            color: #cfd8dc; z-index: 1050;
-            overflow-y: auto; overflow-x: hidden;
-            transition: width var(--transition), transform var(--transition);
-            display: flex; flex-direction: column;
-        }
-
-        .sidebar-header {
-            padding: 20px 22px 16px;
-            display: flex; align-items: center; gap: 14px;
-            border-bottom: 1px solid rgba(255,255,255,.06);
-            flex-shrink: 0;
-        }
-
-        .sidebar-logo {
-            width: 42px; height: 42px;
-            background: linear-gradient(135deg, var(--clr-accent), #00e676);
-            border-radius: var(--radius-sm);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; color: #fff; flex-shrink: 0;
-            box-shadow: 0 4px 12px rgba(0,200,83,.3);
-        }
-
-        .sidebar-brand { font-size: 14px; font-weight: 800; color: #fff; line-height: 1.5; }
-        .sidebar-brand small { display: block; font-size: 10px; font-weight: 400; color: rgba(255,255,255,.4); }
-
-        .sidebar-nav { flex: 1; padding: 8px 0; overflow-y: auto; }
-
-        .nav-section-title {
-            padding: 12px 22px 6px;
-            font-size: 10px; font-weight: 700;
-            text-transform: uppercase; letter-spacing: 1.5px;
-            color: rgba(255,255,255,.25);
-        }
-
-        .nav-link-item {
-            display: flex; align-items: center; gap: 12px;
-            padding: 10px 22px; margin: 1px 8px;
-            color: rgba(255,255,255,.6); text-decoration: none;
-            border-radius: var(--radius-sm);
-            font-size: 12.5px; font-weight: 500;
-            transition: all var(--transition);
-            cursor: pointer; position: relative;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        .nav-link-item:hover {
-            background: var(--clr-sidebar-hover);
-            color: #fff;
-        }
-
-        .nav-link-item.active {
-            background: var(--clr-sidebar-active);
-            color: #fff;
-            box-shadow: 0 2px 8px rgba(13,71,161,.3);
-        }
-
-        .nav-link-item.active::before {
-            content: '';
-            position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
-            width: 3px; height: 20px;
-            background: var(--clr-accent);
-            border-radius: 3px 0 0 3px;
-        }
-
-        .nav-link-item i { font-size: 16px; width: 20px; text-align: center; flex-shrink: 0; }
-
-        .nav-link-item .arrow {
-            margin-right: auto; margin-left: 0;
-            font-size: 10px; transition: transform var(--transition);
-        }
-        .nav-link-item.open .arrow { transform: rotate(-90deg); }
-
-        .nav-sub { display: none; padding-right: 12px; }
-        .nav-sub.show { display: block; }
-        .nav-sub .nav-link-item { padding: 8px 22px; font-size: 12px; }
-        .nav-sub .nav-link-item::before { display: none; }
-
-        .sidebar-footer {
-            padding: 14px 22px;
-            border-top: 1px solid rgba(255,255,255,.06);
-            flex-shrink: 0;
-        }
-
-        .sidebar-footer small { color: rgba(255,255,255,.25); font-size: 10px; }
-
-        /* ===== محتوای اصلی ===== */
-        .main-wrap {
-            margin-right: var(--sidebar-w);
-            min-height: 100vh;
-            transition: margin var(--transition);
-        }
-
-        /* ===== هدر بالا ===== */
-        .top-bar {
-            height: var(--header-h);
-            background: #fff;
-            border-bottom: 1px solid var(--clr-border);
-            display: flex; align-items: center; flex-wrap: wrap;
-            justify-content: space-between;
-            padding: 0 28px;
-            position: sticky; top: 0; z-index: 1040;
-            box-shadow: var(--shadow-sm); gap: 6px 12px;
-        }
-
-        .top-bar-right { display: flex; align-items: center; gap: 18px; }
-
-        .btn-toggle-sidebar {
-            width: 38px; height: 38px;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--clr-border);
-            background: #fff; color: #546e7a;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: all var(--transition);
-            font-size: 18px; touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .btn-toggle-sidebar:hover { background: #eceff1; color: var(--clr-primary); }
-
-        .breadcrumb-nav { margin: 0; padding: 0; list-style: none; display: flex; gap: 6px; font-size: 12px; }
-        .breadcrumb-nav li a { color: #90a4ae; text-decoration: none; transition: color var(--transition); }
-        .breadcrumb-nav li a:hover { color: var(--clr-primary); }
-        .breadcrumb-nav li.active { color: var(--clr-primary); font-weight: 700; }
-        .breadcrumb-nav li + li::before { content: '‹'; color: #b0bec5; margin-left: 6px; }
-
-        .top-bar-left { display: flex; align-items: center; gap: 10px; }
-
-        .top-icon-btn {
-            width: 38px; height: 38px;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--clr-border);
-            background: #fff; color: #546e7a;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; position: relative;
-            transition: all var(--transition);
-            font-size: 16px;
-        }
-        .top-icon-btn:hover { background: #eceff1; color: var(--clr-primary); }
-
-        .notif-badge {
-            position: absolute; top: 5px; left: 5px;
-            width: 9px; height: 9px;
-            background: var(--clr-danger); border-radius: 50%;
-            border: 2px solid #fff;
-        }
-
-        .user-chip {
-            display: flex; align-items: center; gap: 10px;
-            padding: 4px 14px; border-radius: var(--radius);
-            cursor: pointer; transition: background var(--transition);
-            position: relative;
-        }
-        .user-chip:hover { background: #f5f5f5; }
-
-        .user-avatar {
-            width: 34px; height: 34px;
-            border-radius: var(--radius-sm);
-            background: linear-gradient(135deg, var(--clr-primary), var(--clr-primary-light));
-            color: #fff; display: flex; align-items: center; justify-content: center;
-            font-weight: 800; font-size: 14px;
-        }
-
-        .user-meta .name { font-size: 12px; font-weight: 700; color: #263238; }
-        .user-meta .role { font-size: 10px; color: #90a4ae; }
-
-        .user-dropdown {
-            display: none; position: absolute;
-            top: 100%; left: 0; min-width: 200px;
-            background: #fff; border-radius: var(--radius);
-            box-shadow: var(--shadow-lg); border: 1px solid var(--clr-border);
-            z-index: 1060; overflow: hidden;
-        }
-        .user-chip:hover .user-dropdown,
-        .user-chip.show-menu .user-dropdown,
-        .user-chip .user-dropdown:hover { display: block; }
-
-        .user-dropdown a {
-            display: flex; align-items: center; gap: 10px;
-            padding: 10px 16px; color: #37474f; text-decoration: none;
-            font-size: 12.5px; transition: background var(--transition);
-        }
-        .user-dropdown a:hover { background: #f5f5f5; }
-        .user-dropdown a.danger { color: var(--clr-danger); }
-        .user-dropdown hr { margin: 4px 0; border-color: #eee; }
-
-        /* ===== محتوای صفحه ===== */
-        .page-wrap { padding: 24px 28px 40px; }
-
-        .page-head {
-            display: flex; justify-content: space-between;
-            align-items: center; margin-bottom: 24px;
-            flex-wrap: wrap; gap: 16px;
-        }
-
-        .page-head h1 {
-            font-size: 18px; font-weight: 800;
-            color: #1a237e; margin: 0;
-            display: flex; align-items: center; gap: 10px;
-        }
-        .page-head h1 i { color: var(--clr-primary); font-size: 22px; }
-        .page-head h1 small {
-            display: block; font-size: 12px; font-weight: 400;
-            color: #90a4ae; margin-top: 2px;
-        }
-
-        /* ===== کارت‌ها ===== */
-        .card {
-            border: none; border-radius: var(--radius);
-            box-shadow: var(--shadow-sm);
-            transition: box-shadow var(--transition), transform var(--transition);
-            background: var(--clr-card);
-        }
-        .card:hover { box-shadow: var(--shadow-md); }
-
-        .stat-box {
-            background: #fff; border-radius: var(--radius);
-            padding: 22px; box-shadow: var(--shadow-sm);
-            transition: all var(--transition);
-            border: 1px solid var(--clr-border);
-        }
-        .stat-box:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .stat-icon {
-            width: 50px; height: 50px;
-            border-radius: var(--radius-sm);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px;
-        }
-
-        .stat-val {
-            font-size: 24px; font-weight: 900;
-            color: #1a237e; margin-top: 10px;
-            letter-spacing: -.5px;
-        }
-
-        .stat-label { font-size: 12px; color: #78909c; font-weight: 500; }
-
-        .stat-trend { font-size: 11px; margin-top: 6px; font-weight: 600; }
-        .stat-trend.up { color: var(--clr-accent); }
-        .stat-trend.down { color: var(--clr-danger); }
-
-        /* ===== جداول ===== */
-        .table { font-size: 12.5px; margin-bottom: 0; }
-
-        .table thead th {
-            background: #eceff1;
-            border-bottom: 2px solid var(--clr-border);
-            font-weight: 700; color: #546e7a;
-            padding: 11px 14px; white-space: nowrap;
-            font-size: 11.5px;
-        }
-
-        .table tbody td {
-            padding: 11px 14px;
-            vertical-align: middle;
-            border-bottom: 1px solid #f5f5f5;
-            color: #37474f;
-        }
-
-        .table tbody tr { transition: background var(--transition); }
-        .table tbody tr:hover { background: #f8f9ff; }
-
-        /* ===== دکمه‌ها ===== */
-        .btn {
-            border-radius: var(--radius-sm);
-            font-weight: 600; font-size: 12.5px;
-            transition: all var(--transition);
-            display: inline-flex; align-items: center; gap: 6px;
-        }
-
-        .btn-primary {
-            background: var(--clr-primary);
-            border-color: var(--clr-primary);
-            color: #fff;
-        }
-        .btn-primary:hover {
-            background: var(--clr-primary-light);
-            border-color: var(--clr-primary-light);
-            box-shadow: 0 4px 12px rgba(13,71,161,.25);
-            transform: translateY(-1px);
-            color: #fff;
-        }
-
-        .btn-success {
-            background: var(--clr-accent);
-            border-color: var(--clr-accent);
-            color: #fff;
-        }
-        .btn-success:hover {
-            background: #00e676;
-            border-color: #00e676;
-            box-shadow: 0 4px 12px rgba(0,200,83,.25);
-            transform: translateY(-1px);
-            color: #fff;
-        }
-
-        .btn-outline-primary {
-            color: var(--clr-primary);
-            border-color: var(--clr-primary);
-        }
-        .btn-outline-primary:hover {
-            background: var(--clr-primary);
-            color: #fff;
-        }
-
-        .btn-sm { padding: 5px 14px; font-size: 11.5px; border-radius: var(--radius-xs); }
-
-        /* ===== فرم‌ها ===== */
-        .form-control, .form-select {
-            border-radius: var(--radius-sm);
-            border: 1.5px solid var(--clr-border);
-            padding: 9px 14px; font-size: 13px;
-            transition: all var(--transition);
-            background: #fff;
-        }
-        .form-control:focus, .form-select:focus {
-            border-color: var(--clr-primary);
-            box-shadow: 0 0 0 3px rgba(13,71,161,.08);
-        }
-
-        .form-label {
-            font-weight: 700; font-size: 12px;
-            color: #546e7a; margin-bottom: 6px;
-        }
-
-        /* ===== بج‌ها ===== */
-        .badge-status {
-            padding: 4px 12px; border-radius: 20px;
-            font-size: 11px; font-weight: 700;
-            display: inline-block;
-        }
-        .badge-active { background: #e8f5e9; color: #2e7d32; }
-        .badge-inactive { background: #ffebee; color: #c62828; }
-        .badge-pending { background: #fff8e1; color: #f57f17; }
-        .badge-completed { background: #e3f2fd; color: #1565c0; }
-
-        /* ===== سرچ باکس ===== */
-        .search-box { position: relative; }
-        .search-box input { padding-right: 42px; }
-        .search-box i {
-            position: absolute; right: 14px; top: 50%;
-            transform: translateY(-50%); color: #b0bec5;
-        }
-
-        /* ===== انیمیشن ورود ===== */
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(16px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .anim-in { animation: slideUp .35s ease-out; }
-
-        /* ===== پوشش موبایل ===== */
-        .mobile-overlay { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1045; backdrop-filter: blur(2px); opacity: 0; pointer-events: none; transition: opacity .2s ease; }
-        .mobile-overlay.visible { opacity: 1; pointer-events: all; }
-
-        /* ===== پرینت ===== */
-        @media print {
-            .sidebar, .top-bar, .no-print { display: none !important; }
-            .main-wrap { margin: 0 !important; }
-        }
-
-        /* ===== ریسپانسیو ===== */
-        @media (max-width: 992px) {
-            .sidebar { transform: translateX(100%); }
-            .sidebar.open { transform: translateX(0); }
-            .main-wrap { margin-right: 0; }
-        }
-
-        /* ===== اسپینر لودینگ ===== */
-        .page-loader {
-            position: fixed; inset: 0;
-            background: rgba(255,255,255,.8);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 9999;
-        }
-        .spinner-grow { width: 2rem; height: 2rem; }
-
-        /* ===== تب‌ها ===== */
-        .nav-tabs .nav-link {
-            border: none; padding: 10px 20px;
-            font-size: 13px; font-weight: 700;
-            color: #90a4ae;
-            border-bottom: 2px solid transparent;
-            transition: all var(--transition);
-        }
-        .nav-tabs .nav-link:hover { color: var(--clr-primary); }
-        .nav-tabs .nav-link.active {
-            color: var(--clr-primary);
-            border-bottom-color: var(--clr-primary);
-            background: transparent;
-        }
-
-        /* ===== پروگرس بار ===== */
-        .progress {
-            height: 22px; border-radius: 11px;
-            background: #eceff1; overflow: hidden;
-        }
-        .progress-bar {
-            border-radius: 11px;
-            font-size: 11px; font-weight: 700;
-            display: flex; align-items: center; justify-content: center;
-        }
-
-        /* ===== تولتیپ و پاپ‌آور ===== */
-        .popover { border-radius: var(--radius); box-shadow: var(--shadow-lg); }
-
-        /* ===== ویجت‌های داشبورد ===== */
-        .welcome-banner {
-            background: linear-gradient(135deg, #0d47a1 0%, #1565c0 50%, #1976d2 100%);
-            border-radius: var(--radius); padding: 28px 32px;
-            color: #fff; position: relative; overflow: hidden;
-        }
-        .welcome-banner::before {
-            content: '';
-            position: absolute; top: -50%; left: -20%;
-            width: 300px; height: 300px;
-            background: rgba(255,255,255,.05);
-            border-radius: 50%;
-        }
-        .welcome-banner::after {
-            content: '';
-            position: absolute; bottom: -60%; right: -10%;
-            width: 400px; height: 400px;
-            background: rgba(255,255,255,.03);
-            border-radius: 50%;
-        }
-        .welcome-banner h2 { font-size: 20px; font-weight: 800; margin: 0; position: relative; z-index: 1; }
-        .welcome-banner p { font-size: 13px; opacity: .7; margin-top: 6px; position: relative; z-index: 1; }
-
-        .quick-btn {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 8px 18px; background: rgba(255,255,255,.15);
-            border: 1px solid rgba(255,255,255,.25);
-            border-radius: var(--radius-sm);
-            color: #fff; text-decoration: none;
-            font-size: 12px; font-weight: 600;
-            transition: all var(--transition);
-            position: relative; z-index: 1;
-        }
-        .quick-btn:hover {
-            background: rgba(255,255,255,.25);
-            color: #fff; transform: translateY(-2px);
-        }
-
-        /* ===== کارت هدر سفارشی ===== */
-        .card-head {
-            padding: 16px 22px;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex; justify-content: space-between;
-            align-items: center;
-        }
-        .card-head h5 {
-            font-size: 14px; font-weight: 800;
-            margin: 0; color: #1a237e;
-            display: flex; align-items: center; gap: 8px;
-        }
-        .card-body-padded { padding: 18px 22px; }
-
-        /* ===== سایه‌های کارت ===== */
-        .card-header-custom {
-            padding: 14px 20px;
-            border-bottom: 1px solid #f0f0f0;
-            display: flex; justify-content: space-between;
-            align-items: center;
-        }
-        .card-header-custom h5 {
-            font-size: 14px; font-weight: 700; margin: 0; color: #2c3e50;
-        }
-        .card-body-custom { padding: 16px 20px; }
-        .card-custom {
-            background: #fff; border-radius: var(--radius);
-            box-shadow: var(--shadow-sm); border: 1px solid var(--clr-border);
-            overflow: hidden;
-        }
-
-        /* ===== مودال ===== */
-        .modal-content { border-radius: var(--radius); border: none; }
-        .modal-header { border-bottom: 1px solid #f0f0f0; }
-        .modal-footer { border-top: 1px solid #f0f0f0; }
-        
-        /* ===== ریسپانسیو ===== */
-        @media (max-width: 1200px) {
-            .stat-box .stat-val { font-size: 20px; }
-        }
-        @media (max-width: 992px) {
-            .btn-mobile-close { display: block !important; }
-            .sidebar { transform: translateX(100%); width: var(--sidebar-w); }
-            .sidebar.open { transform: translateX(0); box-shadow: 0 0 30px rgba(0,0,0,.3); }
-            .main-wrap { margin-right: 0; }
-            .page-wrap { padding: 16px; }
-            .page-head { flex-direction: column; align-items: flex-start; }
-            .top-bar { padding: 0 16px; flex-wrap: wrap; height: auto; min-height: var(--header-h); gap: 6px 12px; }
-            .welcome-banner { padding: 20px; }
-            .welcome-banner h2 { font-size: 16px; }
-            .quick-btn { padding: 6px 12px; font-size: 11px; }
-        }
-        @media (max-width: 768px) {
-            .stat-val { font-size: 20px; }
-            .page-wrap { padding: 12px; }
-            .row.g-3 { gap: 8px; }
-            .card-body-padded { padding: 12px; }
-            .table { font-size: 11px; }
-            .table thead th { padding: 8px; font-size: 10px; }
-            .table tbody td { padding: 8px; }
-            .btn { padding: 6px 12px; font-size: 11px; }
-            .breadcrumb-nav { font-size: 11px; }
-            #globalSearch { width: 150px !important; }
-        }
-        @media (max-width: 576px) {
-            :root { --sidebar-w: 240px; }
-            .stat-box { padding: 14px; }
-            .stat-val { font-size: 18px; }
-            .welcome-banner { padding: 16px; }
-            .quick-btn { padding: 5px 10px; font-size: 10px; }
-            .table-responsive { font-size: 10px; }
-        }
-    </style>
+    <link rel="stylesheet" href="{{ asset('css/main.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/theme-dark.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body{% if request.cookies.get('dark_mode') == 'on' %} class="dark-mode"{% endif %}>
-    <!-- پوشش موبایل برای بستن منو -->
-    <div id="mobileOverlay" onclick="toggleSidebar()" class="mobile-overlay"></div>
+    {# سربرگ/پابرگ چاپ — از «تنظیمات → چاپ»؛ فقط در چاپ دیده می‌شود #}
+    <div id="printHeader" class="print-brand">
+        <div>
+            <div class="title">{{ system_settings.academy_name if system_settings else app_name }}</div>
+            {% if system_settings and system_settings.print_header %}
+            <div style="white-space: pre-line;">{{ system_settings.print_header }}</div>
+            {% endif %}
+        </div>
+        {% if system_settings and system_settings.logo %}
+        <img src="{{ url_for('static', filename='uploads/' ~ system_settings.logo) }}" alt=""
+             onerror="this.style.display='none';">
+        {% endif %}
+    </div>
 
     <!-- ===== سایدبار ===== -->
     {% include 'base/sidebar.html' %}
@@ -635,7 +89,7 @@
             <div class="live-datetime" style="display: flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #e3f2fd, #f3e5f5); padding: 6px 14px; border-radius: 20px; font-size: 11.5px; font-weight: 600; color: #1a237e;">
                 <i class="bi bi-calendar-event" style="color: #1565c0; font-size: 14px;"></i>
                 <span id="liveJalaliDate" style="min-width: 90px;"></span>
-                <span style="color: #b0bec5;">|</span>
+                <span style="color: var(--clr-text-faint, #607d8b);">|</span>
                 <i class="bi bi-clock" style="color: #7b1fa2; font-size: 13px;"></i>
                 <span id="liveClock" style="font-family: monospace; min-width: 60px;"></span>
             </div>
@@ -646,8 +100,8 @@
             <!-- جستجوی سراسری -->
             <div class="search-wrap" style="position: relative;">
                 <input type="text" id="globalSearch" class="form-control" placeholder="جستجو..." inputmode="search" autocomplete="off" style="width: 240px; height: 38px; font-size: 12px; border-radius: var(--radius-sm); padding-right: 36px;" onkeyup="globalSearch(this.value)">
-                <i class="bi bi-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #b0bec5; font-size: 14px;"></i>
-                <div id="searchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); border: 1px solid var(--clr-border); z-index: 1060; max-height: 300px; overflow-y: auto;"></div>
+                <i class="bi bi-search" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--clr-text-faint, #607d8b); font-size: 14px;"></i>
+                <div id="searchResults" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: #fff; border-radius: var(--radius-sm); box-shadow: var(--shadow-lg); border: 1px solid var(--clr-border); z-index: 1040; max-height: 300px; overflow-y: auto;"></div>
             </div>
 
             <button class="top-icon-btn" onclick="location.href='{{ url_for('messaging.notifications') }}'">
@@ -699,17 +153,27 @@
     </div>
 
     <!-- Bootstrap JS از jsDelivr -->
-    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
 
     <!-- فایل JS اصلی -->
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ asset('js/app.js') }}"></script>
     
     <!-- تقویم شمسی -->
-    <script src="{{ url_for('static', filename='js/jalali-picker.js') }}"></script>
+    <script src="{{ asset('js/jalali-picker.js') }}"></script>
     
     <!-- انتخاب جستجوپذیر -->
-    <script src="{{ url_for('static', filename='js/searchable-select.js') }}"></script>
+    <script src="{{ asset('js/searchable-select.js') }}"></script>
 
     {% block extra_js %}{% endblock %}
+
+    <div id="printFooter" class="print-brand is-footer">
+        <div>{{ system_settings.phone if system_settings and system_settings.phone else '' }}</div>
+        <div style="text-align: center;">
+            {% if system_settings and system_settings.print_footer %}
+            <span style="white-space: pre-line;">{{ system_settings.print_footer }}</span>
+            {% endif %}
+        </div>
+        <div>{{ system_settings.address if system_settings and system_settings.address else '' }}</div>
+    </div>
 </body>
 </html>

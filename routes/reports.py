@@ -49,32 +49,27 @@ def student_report():
 @reports_bp.route('/financial')
 @login_required
 def financial_report():
-    today = datetime.utcnow()
-    
-    # Monthly data for last 12 months
+    # دوازده ماه اخیر — با تقویم شمسیِ خودِ سیستم.
+    # پیش‌تر `today - timedelta(days=30*i)` بود: هم ماه‌ها جابه‌جا می‌شدند
+    # (۳۰×۱۲ ≠ ۳۶۵)، هم برش‌ها میلادی بود و هم برچسب نمودار `2026-09` — یعنی
+    # کاربر ۱۲ سبد می‌دید که به ماه‌های خودش نمی‌خورد.
+    from utils.jalali import jalali_months_back
     monthly_data = []
-    for i in range(11, -1, -1):
-        d = today - timedelta(days=30*i)
-        month_start = d.replace(day=1)
-        if d.month == 12:
-            month_end = d.replace(year=d.year+1, month=1, day=1)
-        else:
-            month_end = d.replace(month=d.month+1, day=1)
-        
+    for period, month_start, month_end in jalali_months_back(12):
         income = db.session.query(db.func.sum(Payment.amount)).filter(
-            Payment.payment_date >= month_start.date(),
-            Payment.payment_date < month_end.date(),
+            Payment.payment_date >= month_start,
+            Payment.payment_date <= month_end,
             Payment.status == 'confirmed'
         ).scalar() or 0
         
         expense = db.session.query(db.func.sum(Expense.amount)).filter(
-            Expense.expense_date >= month_start.date(),
-            Expense.expense_date < month_end.date(),
+            Expense.expense_date >= month_start,
+            Expense.expense_date <= month_end,
             Expense.status == 'confirmed'
         ).scalar() or 0
         
         monthly_data.append({
-            'month': d.strftime('%Y-%m'),
+            'month': period,
             'income': income,
             'expense': expense,
             'profit': income - expense

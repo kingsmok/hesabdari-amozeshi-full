@@ -14,29 +14,148 @@
             <div class="card-body-custom">
                 <div class="row g-3">
                     <div class="col-md-4"><label class="form-label">هنرجو <span class="text-danger">*</span></label>
-                        <select name="student_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
+                        <select name="student_id" id="payStudent" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
                             <option value="">انتخاب...</option>
                             {% for s in students %}<option value="{{ s.id }}">{{ s.full_name }}</option>{% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-3"><label class="form-label">مبلغ <span class="text-danger">*</span></label><input type="number" name="amount" class="form-control" required></div>
+                    <div class="col-md-4"><label class="form-label">ثبت‌نام (برای کسر از مانده)</label>
+                        <select name="registration_id" id="payRegistration" class="form-select searchable" data-placeholder="— انتخاب کنید —">
+                            <option value="">بدون اتصال به ثبت‌نام</option>
+                            {% for r in open_registrations %}
+                            <option value="{{ r.id }}" data-student="{{ r.student_id }}">
+                                {{ r.student.full_name }} — {{ r.reg_code }} — مانده {{ r.remaining_amount|currency }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">اگر انتخاب نشود و قسطی انتخاب شده باشد، ثبت‌نام از روی قسط پیدا می‌شود.</div>
+                    </div>
+                    <div class="col-md-4"><label class="form-label">قسط (اختیاری)</label>
+                        <select name="installment_id" id="payInstallment" class="form-select searchable" data-placeholder="— اقساط باز —">
+                            <option value="">بدون قسط مشخص</option>
+                            {% for i in open_installments %}
+                            <option value="{{ i.id }}" data-student="{{ i.registration.student_id }}"
+                                    data-registration="{{ i.registration_id }}">
+                                قسط {{ i.installment_number }} — {{ i.registration.student.full_name }} — مانده {{ i.remaining|currency }}{% if i.due_date %} (سررسید {{ i.due_date|to_jalali }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-custom mb-4">
+            <div class="card-body-custom">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">مبلغ <span class="text-danger">*</span></label><input type="number" name="amount" id="payAmount" class="form-control" required></div>
                     <div class="col-md-3"><label class="form-label">روش پرداخت</label>
-                        <select name="payment_method" class="form-select">
+                        <select name="payment_method" id="payMethod" class="form-select">
                             <option value="cash">نقدی</option>
                             <option value="card">کارت بانکی</option>
                             <option value="online">آنلاین</option>
                             <option value="check">چک</option>
+                            <option value="combined">ترکیبی</option>
                         </select>
                     </div>
-                    <div class="col-md-2"><label class="form-label">تاریخ</label><input type="date" name="payment_date" class="form-control"></div>
+                    <div class="col-md-2"><label class="form-label">تاریخ</label><input type="date" name="payment_date" class="form-control jalali-date"></div>
                     <div class="col-md-4"><label class="form-label">توضیحات</label><input type="text" name="description" class="form-control"></div>
+                </div>
+
+                <div class="row g-3 mt-1" id="payCardFields" hidden>
+                    <div class="col-md-4"><label class="form-label">شماره کارت</label><input type="text" name="card_number" dir="ltr" class="form-control"></div>
+                    <div class="col-md-4"><label class="form-label">کد پیگیری</label><input type="text" name="tracking_number" dir="ltr" class="form-control"></div>
+                    <div class="col-md-4"><label class="form-label">نام بانک</label><input type="text" name="bank_name" class="form-control"></div>
+                </div>
+                <div class="row g-3 mt-1" id="payOnlineFields" hidden>
+                    <div class="col-md-6"><label class="form-label">کد پیگیری / تراکنش</label><input type="text" name="transaction_id" dir="ltr" class="form-control"></div>
+                    <div class="col-md-6"><label class="form-label">کد مرجع کارت</label><input type="text" name="tracking_number" dir="ltr" class="form-control"></div>
+                </div>
+                <div class="row g-3 mt-1" id="payCombinedFields" hidden>
+                    <div class="col-md-3"><label class="form-label">سهم نقدی (به صندوق)</label><input type="number" name="cash_amount" class="form-control pay-part" data-part="cash"></div>
+                    <div class="col-md-3"><label class="form-label">سهم کارت</label><input type="number" name="card_amount" class="form-control pay-part" data-part="card"></div>
+                    <div class="col-md-3"><label class="form-label">سهم چک</label><input type="number" name="check_amount" class="form-control pay-part" data-part="check"></div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="small text-muted no-print" id="payPartsSum">جمع بخش‌ها: ۰</div>
+                    </div>
+                    <div class="col-12"><div class="form-text">در روش ترکیبی، جمع سه بخش باید با مبلغ کل بخواند؛ فقط «سهم نقدی» به صندوق اضافه می‌شود.</div></div>
                 </div>
             </div>
         </div>
+
         <div class="d-flex justify-content-end gap-2 mb-4">
             <a href="{{ url_for('finance.payments') }}" class="btn btn-outline-secondary">انصراف</a>
             <button type="submit" class="btn btn-success-custom"><i class="bi bi-check-circle me-2"></i>ثبت پرداخت</button>
         </div>
     </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// نمایش/پنهان‌کردن فیلدهای هر روش + هم‌تراز کردن فهرست ثبت‌نام و اقساط با هنرجوی انتخابی
+(function () {
+    var method = document.getElementById('payMethod');
+    var amount = document.getElementById('payAmount');
+    var parts = Array.prototype.slice.call(document.querySelectorAll('.pay-part'));
+    var sum = document.getElementById('payPartsSum');
+    var student = document.getElementById('payStudent');
+
+    function groups() {
+        return {
+            payCardFields: ['card'],
+            payOnlineFields: ['online'],
+            payCombinedFields: ['combined']
+        };
+    }
+
+    function toggle() {
+        var map = groups();
+        Object.keys(map).forEach(function (id) {
+            var box = document.getElementById(id);
+            if (!box) return;
+            var on = map[id].indexOf(method.value) !== -1;
+            box.hidden = !on;
+            // ورودی پنهان حتماً مقدار را می‌فرستد؛ بدون disabled دو فیلد
+            // «کد پیگیری» (کارت و آنلاین) همدیگر را صفر می‌کردند
+            Array.prototype.forEach.call(box.querySelectorAll('input, select'), function (input) {
+                input.disabled = !on;
+            });
+        });
+        echo();
+    }
+
+    function value(input) { return parseFloat(input.value || '0') || 0; }
+
+    function echo() {
+        if (!sum) return;
+        if (!parts.length) return;
+        var total = parts.reduce(function (acc, input) { return acc + value(input); }, 0);
+        var target = value(amount);
+        var diff = Math.round((target - total) * 100) / 100;
+        sum.textContent = 'جمع بخش‌ها: ' + total.toLocaleString('fa-IR') +
+            (target ? (diff === 0 ? ' ✓' : ' — اختلاف ' + diff.toLocaleString('fa-IR')) : '');
+        sum.className = 'small no-print ' + (target && diff !== 0 ? 'text-danger' : 'text-success');
+    }
+
+    function filterByStudent() {
+        var chosen = student ? student.value : '';
+        [document.getElementById('payRegistration'), document.getElementById('payInstallment')]
+            .forEach(function (select) {
+                if (!select) return;
+                Array.prototype.forEach.call(select.options, function (option) {
+                    if (!option.value) return;
+                    option.disabled = !!chosen && option.getAttribute('data-student') !== chosen;
+                });
+            });
+    }
+
+    if (method) method.addEventListener('change', toggle);
+    if (amount) amount.addEventListener('input', echo);
+    parts.forEach(function (input) { input.addEventListener('input', echo); });
+    if (student) student.addEventListener('change', filterByStudent);
+    toggle();
+    filterByStudent();
+})();
+</script>
 {% endblock %}

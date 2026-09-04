@@ -1,5 +1,9 @@
 {% extends "base/layout.html" %}
 
+{% block chart_assets %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+{% endblock %}
+
 {% block title %}داشبورد{% endblock %}
 {% block breadcrumb %}
 <li class="active">داشبورد</li>
@@ -71,7 +75,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="stat-label">درآمد ماه جاری</div>
-                        <div class="stat-val" style="font-size: 20px;">{{ stats.month_income|currency }} <small style="font-size: 11px; color: #90a4ae; font-weight: 400;">تومان</small></div>
+                        <div class="stat-val" style="font-size: 20px;">{{ stats.month_income|currency }} <small style="font-size: 11px; color: var(--clr-text-soft, #546e7a); font-weight: 400;">تومان</small></div>
                         <div class="stat-trend up"><i class="bi bi-graph-up"></i> درآمد</div>
                     </div>
                     <div class="stat-icon" style="background: #fff3e0; color: #e65100;">
@@ -85,7 +89,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="stat-label">موجودی صندوق</div>
-                        <div class="stat-val" style="font-size: 20px;">{{ stats.cashbox_balance|currency }} <small style="font-size: 11px; color: #90a4ae; font-weight: 400;">تومان</small></div>
+                        <div class="stat-val" style="font-size: 20px;">{{ stats.cashbox_balance|currency }} <small style="font-size: 11px; color: var(--clr-text-soft, #546e7a); font-weight: 400;">تومان</small></div>
                         <div class="stat-trend"><i class="bi bi-box2"></i> نقدی</div>
                     </div>
                     <div class="stat-icon" style="background: #fce4ec; color: #c62828;">
@@ -129,7 +133,7 @@
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <div class="stat-label">هزینه ماه جاری</div>
-                        <div class="stat-val" style="font-size: 20px; color: #c62828;">{{ stats.month_expenses|currency }} <small style="font-size: 11px; color: #90a4ae; font-weight: 400;">تومان</small></div>
+                        <div class="stat-val" style="font-size: 20px; color: #c62828;">{{ stats.month_expenses|currency }} <small style="font-size: 11px; color: var(--clr-text-soft, #546e7a); font-weight: 400;">تومان</small></div>
                     </div>
                     <div class="stat-icon" style="background: #ffebee; color: #c62828;">
                         <i class="bi bi-wallet2"></i>
@@ -182,7 +186,7 @@
                         </tbody>
                     </table>
                     {% else %}
-                    <div class="text-center py-5" style="color: #b0bec5;">
+                    <div class="text-center py-5" style="color: var(--clr-text-faint, #607d8b);">
                         <i class="bi bi-calendar-x" style="font-size: 40px;"></i>
                         <p class="mt-2">کلاسی برای امروز برنامه‌ریزی نشده</p>
                     </div>
@@ -210,13 +214,13 @@
                                 <td><code style="background: #eceff1; padding: 2px 8px; border-radius: 4px; font-size: 11px;">{{ reg.reg_code }}</code></td>
                                 <td>{{ reg.student.full_name if reg.student else '-' }}</td>
                                 <td>{{ reg.course.title if reg.course else '-' }}</td>
-                                <td style="color: #90a4ae;">{{ reg.created_at|to_jalali }}</td>
+                                <td style="color: var(--clr-text-soft, #546e7a);">{{ reg.created_at|to_jalali }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                     {% else %}
-                    <div class="text-center py-5" style="color: #b0bec5;">
+                    <div class="text-center py-5" style="color: var(--clr-text-faint, #607d8b);">
                         <i class="bi bi-inbox" style="font-size: 40px;"></i>
                         <p class="mt-2">هنوز ثبت‌نامی انجام نشده</p>
                     </div>
@@ -252,7 +256,7 @@
                         </div>
                         <div style="flex: 1; min-width: 0;">
                             <div style="font-size: 12px; font-weight: 600; color: #37474f;">{{ activity.description or activity.action }}</div>
-                            <div style="font-size: 10px; color: #b0bec5;">{{ activity.created_at|to_jalali }}</div>
+                            <div style="font-size: 10px; color: var(--clr-text-faint, #607d8b);">{{ activity.created_at|to_jalali }}</div>
                         </div>
                     </div>
                     {% endfor %}

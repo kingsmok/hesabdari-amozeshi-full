@@ -1,4 +1,8 @@
 {% extends "base/layout.html" %}
+
+{% block chart_assets %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+{% endblock %}
 {% block title %}آمار حضور و غیاب{% endblock %}
 {% block breadcrumb %}<li><a href="{{ url_for('attendance.index') }}">حضور</a></li><li class="active">آمار</li>{% endblock %}
 {% block content %}

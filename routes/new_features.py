@@ -13,6 +13,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db, csrf
+from utils.document_numbers import next_document_number
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 
 new_features_bp = Blueprint('new_features', __name__)
@@ -59,9 +60,7 @@ def course_add():
             flash('انتخاب رشته آموزشی الزامی است', 'danger')
             fields = Field.query.filter_by(is_active=True).all()
             return render_template('new/course_add.html', fields=fields), 400
-        last = Course.query.order_by(Course.id.desc()).first()
-        next_num = (last.id + 1) if last else 1
-        code = f'CRS-{next_num:04d}'
+        code = next_document_number('course', with_year=False, width=4)
         
         course = Course(
             title=request.form['title'],
@@ -687,7 +686,7 @@ def installment_dashboard():
 def pay_installment(id):
     """پرداخت قسط"""
     from models.registration import Installment, Registration
-    from models.finance import Payment, Cashbox, CashboxTransaction
+    from models.finance import Payment
     
     inst = Installment.query.get_or_404(id)
     amount = safe_float(request.form.get('amount'))
@@ -700,23 +699,16 @@ def pay_installment(id):
         flash('قسط تسویه شده یا مبلغ بیشتر از مانده قسط است', 'danger')
         return redirect(url_for('new_features.installment_dashboard'))
     
-    # بروزرسانی قسط
-    inst.paid_amount = (inst.paid_amount or 0) + amount
-    inst.paid_date = date.today()
-    inst.late_fee = safe_float(request.form.get('late_fee')) if request.form.get('late_fee') else 0
-    
-    if inst.paid_amount >= inst.amount + inst.late_fee:
-        inst.status = 'paid'
-    else:
-        inst.status = 'partial'
-    
-    # ثبت پرداخت
-    last = Payment.query.order_by(Payment.id.desc()).first()
-    receipt = f'PAY-{(last.id + 1) if last else 1:06d}'
+    # جریمه دیرکرد فقط اگر در فرم آمده باشد عوض می‌شود؛ قبلاً نبودِ فیلد آن را
+    # صفر می‌کرد و جریمه‌ای که حسابدار ثبت کرده بود بی‌صدا پاک می‌شد
+    if request.form.get('late_fee') not in (None, ''):
+        inst.late_fee = safe_float(request.form.get('late_fee'))
     
     reg = inst.registration
+    from utils.payments import (apply_payment_to_targets, build_receipt_no, cash_portion,
+                                settle_cashbox)
     payment = Payment(
-        receipt_no=receipt,
+        receipt_no=build_receipt_no(),     # توالی استاندارد (بی‌ریسک تصادم)
         student_id=reg.student_id,
         registration_id=reg.id,
         installment_id=inst.id,
@@ -724,31 +716,36 @@ def pay_installment(id):
         payment_method=method,
         payment_date=date.today(),
         description=f'پرداخت قسط شماره {inst.installment_number}',
+        status='confirmed',
         branch_id=reg.branch_id,
-        created_by=current_user.id
+        created_by=current_user.id,
     )
     db.session.add(payment)
+    db.session.flush()
     
-    # بروزرسانی ثبت‌نام
-    reg.paid_amount = (reg.paid_amount or 0) + amount
-    reg.remaining_amount = max(0, (reg.total_fee or 0) - reg.paid_amount)
+    # قسط/ثبت‌نام/صندوق از همان مسیر مشترک «ثبت پرداخت» رد می‌شوند تا
+    # وضعیت قسط بر اساس remaining (شامل جریمه) تعیین شود
+    apply_payment_to_targets(payment, sign=1, date_hint=payment.payment_date)
+    ok, message = settle_cashbox(
+        payment, cash_portion(payment),
+        f'قسط {inst.installment_number} - {reg.student.full_name if reg.student else ""}',
+        user_id=current_user.id, direction='in')
+    if not ok:
+        db.session.rollback()
+        flash(message, 'danger')
+        return redirect(url_for('new_features.installment_dashboard'))
     
-    # بروزرسانی صندوق
-    if method == 'cash':
-        from models.finance import get_or_create_main_cashbox
-        cashbox = get_or_create_main_cashbox()
-        if cashbox:
-            cashbox.balance = (cashbox.balance or 0) + amount
-            tx = CashboxTransaction(
-                cashbox_id=cashbox.id, trans_type='in', amount=amount,
-                description=f'قسط {inst.installment_number} - {reg.student.full_name}',
-                reference_type='installment', balance_after=cashbox.balance,
-                created_by=current_user.id
-            )
-            db.session.add(tx)
-    
+    from models.user import ActivityLog
+    try:
+        db.session.add(ActivityLog(user_id=current_user.id, action='payment-create',
+                                   module='finance', entity_type='installment', entity_id=inst.id,
+                                   description=f'پرداخت قسط {inst.installment_number} — {payment.receipt_no}',
+                                   ip_address=request.remote_addr))
+    except Exception:
+        pass
     db.session.commit()
-    flash(f'پرداخت قسط {inst.installment_number} ثبت شد ({amount:,.0f} تومان)', 'success')
+    flash(f'پرداخت قسط {inst.installment_number} ثبت شد ({amount:,.0f} تومان) — رسید {payment.receipt_no}',
+          'success')
     return redirect(url_for('new_features.installment_dashboard'))
 
 

@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
+from utils.document_numbers import next_sequence_number
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from utils.jalali import current_jalali_year
 from models.classes import ClassGroup, ClassSession, Holiday
@@ -38,8 +39,6 @@ def index():
 @login_required
 def add():
     if request.method == 'POST':
-        last = ClassGroup.query.order_by(ClassGroup.id.desc()).first()
-        next_num = (last.id + 1) if last else 1
         
         class_name = (request.form.get('name') or '').strip()
         course_id = request.form.get('course_id', type=int)
@@ -52,8 +51,9 @@ def add():
             flash('ظرفیت کلاس باید بیشتر از صفر باشد', 'danger')
             return redirect(url_for('classes.add'))
 
+        # پیشوند از کد دوره می‌آید ⇒ قالب ثابت نیست؛ فقط عدد از شمارنده پایدار
         prefix = course.code[:2].upper() if course.code else 'CL'
-        code = f'{prefix}-{current_jalali_year()}-{next_num:02d}'
+        code = f'{prefix}-{current_jalali_year()}-{next_sequence_number("class"):02d}'
         
         days = [int(day) for day in request.form.getlist('days') if day.isdigit() and 0 <= int(day) <= 6]
         if not days:

@@ -3,6 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
+from utils.document_numbers import next_document_number
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from utils.jalali import current_jalali_year
 from models.exam import Exam, QuestionBank, ExamResult, Grade
@@ -48,9 +49,7 @@ def add():
             flash('نمره قبولی نمی‌تواند بیشتر از نمره کل باشد', 'danger')
             return redirect(url_for('exams.add'))
 
-        last = Exam.query.order_by(Exam.id.desc()).first()
-        next_num = (last.id + 1) if last else 1
-        code = f'EXM-{current_jalali_year()}-{next_num:03d}'
+        code = next_document_number('exam', width=3)
         
         exam = Exam(
             title=request.form['title'],

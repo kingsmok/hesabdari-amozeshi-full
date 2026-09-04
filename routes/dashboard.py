@@ -34,11 +34,14 @@ def admin_dashboard():
     from models.teacher import Teacher
     from models.classes import ClassGroup
     from models.registration import Registration
-    from models.finance import Payment, Expense, Cashbox
+    from models.finance import Payment, Expense, Cashbox, get_or_create_main_cashbox
     from models.user import ActivityLog
     
+    # پنجره «ماه جاری» باید شمسی باشد؛ today.replace(day=1) ماه میلادی را
+    # می‌بَرَد و ~۲۰ روز اول هر ماه، آمار ماه قبل را هم داخل ماه جاری می‌آورد
     today = datetime.utcnow()
-    month_start = today.replace(day=1)
+    from utils.jalali import jalali_month_bounds
+    month_start, month_end = jalali_month_bounds()
     
     stats = {
         'total_students': Student.query.filter_by(status='active').count(),
@@ -48,14 +51,16 @@ def admin_dashboard():
     }
     
     month_income = db.session.query(db.func.sum(Payment.amount)).filter(
-        Payment.payment_date >= month_start.date(), Payment.status == 'confirmed'
+        Payment.payment_date >= month_start, Payment.payment_date <= month_end,
+        Payment.status == 'confirmed'
     ).scalar() or 0
     
     month_expenses = db.session.query(db.func.sum(Expense.amount)).filter(
-        Expense.expense_date >= month_start.date(), Expense.status == 'confirmed'
+        Expense.expense_date >= month_start, Expense.expense_date <= month_end,
+        Expense.status == 'confirmed'
     ).scalar() or 0
     
-    cashbox = Cashbox.query.first()
+    cashbox = get_or_create_main_cashbox()
     stats['month_income'] = month_income
     stats['month_expenses'] = month_expenses
     stats['month_profit'] = month_income - month_expenses
@@ -118,15 +123,17 @@ def secretary_dashboard():
     from models.registration import Registration
     from models.classes import ClassGroup
     
+    from utils.jalali import jalali_month_bounds
     today = datetime.utcnow()
-    month_start = today.replace(day=1)
+    month_start, _month_end = jalali_month_bounds()
+    month_start_dt = datetime.combine(month_start, datetime.min.time())
     
     today_regs = Registration.query.filter(
         db.func.date(Registration.created_at) == today.date()
     ).count()
     
     month_regs = Registration.query.filter(
-        Registration.created_at >= month_start
+        Registration.created_at >= month_start_dt
     ).count()
     
     active_students = Student.query.filter_by(status='active').count()
@@ -142,20 +149,22 @@ def secretary_dashboard():
 
 def accountant_dashboard():
     """داشبورد حسابدار"""
-    from models.finance import Payment, Expense, Cashbox
+    from models.finance import Payment, Expense, Cashbox, get_or_create_main_cashbox
     
-    today = datetime.utcnow()
-    month_start = today.replace(day=1)
+    from utils.jalali import jalali_month_bounds
+    month_start, month_end = jalali_month_bounds()
     
     month_income = db.session.query(db.func.sum(Payment.amount)).filter(
-        Payment.payment_date >= month_start.date(), Payment.status == 'confirmed'
+        Payment.payment_date >= month_start, Payment.payment_date <= month_end,
+        Payment.status == 'confirmed'
     ).scalar() or 0
     
     month_expenses = db.session.query(db.func.sum(Expense.amount)).filter(
-        Expense.expense_date >= month_start.date(), Expense.status == 'confirmed'
+        Expense.expense_date >= month_start, Expense.expense_date <= month_end,
+        Expense.status == 'confirmed'
     ).scalar() or 0
     
-    cashbox = Cashbox.query.first()
+    cashbox = get_or_create_main_cashbox()
     
     recent_payments = Payment.query.order_by(Payment.created_at.desc()).limit(10).all()
     

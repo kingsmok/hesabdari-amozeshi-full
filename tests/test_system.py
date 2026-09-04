@@ -69,6 +69,32 @@ def test_client(test_app):
     return test_app.test_client()
 
 
+@pytest.fixture
+def admin_user(test_app):
+    """حساب مدیر کل — در نصب تازه هیچ مدیری وجود ندارد (ویزارد `/setup` آن را
+    می‌سازد)؛ اگر نبود موقتاً ساخته و در پایان حذف می‌شود تا دیتابیس توسعه با
+    ردیف آزمونی آلوده نماند. (پیش‌تر تست‌ها فرض می‌کردند مدیر هست و روی دیتابیس
+    تازه با `NoneType.id` می‌شکستند.)"""
+    with test_app.app_context():
+        admin = User.query.filter_by(is_admin=True, is_active=True).first()
+        created_id = None
+        if admin is None:
+            admin = User(username='test_system_admin', full_name='مدیر آزمون',
+                         is_admin=True, is_active=True)
+            admin.set_password('Test@123')
+            db.session.add(admin)
+            db.session.commit()
+            created_id = admin.id
+        yield admin
+    if created_id is not None:
+        with test_app.app_context():
+            row = db.session.get(User, created_id)
+            if row is not None:
+                db.session.delete(row)
+                db.session.commit()
+
+
+
 # ==============================================================================
 # 1. Jalali Date Engine Tests (ISO & Edge Cases)
 # ==============================================================================
@@ -187,15 +213,8 @@ class TestAccountingInvariants:
 # 4. RBAC & Permissions Integrity
 # ==============================================================================
 class TestAccessControl:
-    def test_admin_has_full_access(self, test_app):
+    def test_admin_has_full_access(self, test_app, admin_user):
         with test_app.app_context():
-            admin_user = User.query.filter_by(is_admin=True).first()
-            if not admin_user:
-                admin_user = User(username='test_admin', is_admin=True, is_active=True)
-                admin_user.set_password('Admin@123')
-                db.session.add(admin_user)
-                db.session.commit()
-
             assert admin_user.is_admin is True
             assert admin_user.has_permission('accounting', 'delete') is True
             assert admin_user.has_permission('finance', 'create') is True
@@ -251,9 +270,9 @@ class TestEndpoints:
         assert response.status_code in (302, 301)
         assert '/login' in response.headers.get('Location', '')
 
-    def test_authenticated_dashboard_renders_200(self, test_app, test_client):
+    def test_authenticated_dashboard_renders_200(self, test_app, test_client, admin_user):
         with test_app.app_context():
-            admin = User.query.filter_by(is_admin=True, is_active=True).first()
+            admin = admin_user
             with test_client.session_transaction() as sess:
                 sess['_user_id'] = str(admin.id)
                 sess['_fresh'] = True

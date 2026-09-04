@@ -3,8 +3,10 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
+from utils.document_numbers import next_document_number
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
 from utils.jalali import current_jalali_year
+from utils.payments import build_receipt_no
 from models.registration import Registration, Installment
 from models.student import Student
 from models.course import Course
@@ -68,9 +70,7 @@ def add():
             flash(f'این هنرجو قبلاً ثبت‌نام فعال {duplicate.reg_code} را در این دوره دارد', 'warning')
             return redirect(url_for('registration.view', id=duplicate.id))
 
-        last = Registration.query.order_by(Registration.id.desc()).first()
-        next_num = (last.id + 1) if last else 1
-        code = f'REG-{current_jalali_year()}-{next_num:05d}'
+        code = next_document_number('registration')
         base_fee = safe_float(request.form.get('base_fee')) or course.total_fee
         
         reg = Registration(
@@ -135,8 +135,10 @@ def add():
             reg.paid_amount = initial_payment
             reg.remaining_amount = reg.total_fee - initial_payment
             
-            import uuid
-            receipt_num = f'PAY-{datetime.now().strftime("%Y%m%d%H%M%S")}-{uuid.uuid4().hex[:4].upper()}'
+            # شماره رسید از همان توالی مستندات (`PAY-1405-00042`)؛ قالب قدیمی
+            # `PAY-<زمان>-<uuid>` بود که هم با بقیه سیستم فرق داشت و هم با ۲۶
+            # کاراکتر از طول ستون (String(20)) بیرون می‌زد
+            receipt_num = build_receipt_no()
             payment_method = request.form.get('payment_method', 'cash')
             payment = Payment(
                 receipt_no=receipt_num,
@@ -152,22 +154,18 @@ def add():
             )
             db.session.add(payment)
 
-            # اتصال پرداخت نقدی به صندوق نیز هم‌زمان ثبت می‌شود.
-            if payment_method == 'cash':
-                from models.finance import CashboxTransaction, get_or_create_main_cashbox
-                cashbox = get_or_create_main_cashbox()
-                if cashbox:
-                    cashbox.balance = (cashbox.balance or 0) + initial_payment
-                    db.session.add(CashboxTransaction(
-                        cashbox_id=cashbox.id,
-                        trans_type='in',
-                        amount=initial_payment,
-                        description=f'پرداخت اولیه {code}',
-                        reference_type='registration',
-                        reference_id=reg.id,
-                        balance_after=cashbox.balance,
-                        created_by=current_user.id
-                    ))
+            # اتصال پرداخت به صندوق از همان یارد مشترک: سهم نقدی (شامل
+            # پرداخت ترکیبی) + ثبت `cashbox_id` تا ابطال/مرجوعی بعداً قابل
+            # محاسبه باشد.
+            from utils.payments import cash_portion, settle_cashbox
+            db.session.flush()
+            ok, message = settle_cashbox(
+                payment, cash_portion(payment), f'پرداخت اولیه {code}',
+                user_id=current_user.id, direction='in')
+            if not ok:
+                db.session.rollback()
+                flash(message, 'danger')
+                return redirect(url_for('registration.add'))
 
         if class_group:
             class_group.current_count = Registration.query.filter_by(

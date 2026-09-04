@@ -1,28 +1,169 @@
 {% extends "base/layout.html" %}
-{% block title %}دفتر کل{% endblock %}
+{% block title %}کدینگ حساب‌ها{% endblock %}
 {% block breadcrumb %}
 <li><a href="{{ url_for('accounting.chart') }}">حسابداری</a></li>
-<li class="active">دفتر کل</li>
+<li class="active">کدینگ حساب‌ها</li>
 {% endblock %}
 
 {% block content %}
 <div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-diagram-3 me-2 text-primary"></i>دفتر کل<small>جدول حساب‌ها</small></h1></div>
+    <div class="page-header">
+        <h1><i class="bi bi-diagram-3 me-2 text-primary"></i>کدینگ حساب‌ها<small>گروه، حساب کل، معین و تفصیلی</small></h1>
+        {% if is_empty %}
+        <form method="POST" action="{{ url_for('accounting.seed_chart') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-primary-custom"><i class="bi bi-magic me-1"></i> ساخت کدینگ پیش‌فرض آموزشگاه</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if is_empty %}
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        هنوز هیچ حسابی ساخته نشده؛ بدون کدینگ نمی‌توان سند زد و تراز آزمایشی و سود و زیان خالی می‌ماند.
+        با دکمه بالا یک ساختار استاندارد (۵ گروه و ۲۶ حساب کل) ساخته می‌شود و بعد از آن قابل ویرایش است.
+    </div>
+    {% endif %}
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <div class="card-custom h-100">
+                <div class="card-header-custom"><h5>گروه جدید</h5></div>
+                <div class="card-body-custom">
+                    <form method="POST" action="{{ url_for('accounting.add_group') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-2">
+                            <div class="col-4"><label class="form-label" for="groupCode">کد</label>
+                                <input type="text" name="code" id="groupCode" class="form-control form-control-sm" required></div>
+                            <div class="col-8"><label class="form-label" for="groupName">نام</label>
+                                <input type="text" name="name" id="groupName" class="form-control form-control-sm" required></div>
+                            <div class="col-6"><label class="form-label" for="groupType">نوع</label>
+                                <select name="account_type" id="groupType" class="form-select form-select-sm">
+                                    {% for key, label in [('asset','دارایی'),('liability','بدهی'),('equity','سرمایه'),('revenue','درآمد'),('expense','هزینه')] %}
+                                    <option value="{{ key }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6 d-flex align-items-end"><button class="btn btn-sm btn-success-custom w-100">افزودن گروه</button></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card-custom h-100">
+                <div class="card-header-custom"><h5>حساب کل جدید</h5></div>
+                <div class="card-body-custom">
+                    <form method="POST" action="{{ url_for('accounting.add_account') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-2">
+                            <div class="col-4"><label class="form-label" for="accCode">کد</label>
+                                <input type="text" name="code" id="accCode" class="form-control form-control-sm" required></div>
+                            <div class="col-8"><label class="form-label" for="accName">نام</label>
+                                <input type="text" name="name" id="accName" class="form-control form-control-sm" required></div>
+                            <div class="col-6"><label class="form-label" for="accGroup">گروه</label>
+                                <select name="group_id" id="accGroup" class="form-select form-select-sm" required>
+                                    {% for g in groups %}<option value="{{ g.id }}">{{ g.code }} — {{ g.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6"><label class="form-label" for="accNature">ماهیت</label>
+                                <select name="nature" id="accNature" class="form-select form-select-sm">
+                                    <option value="">خودکار از نوع گروه</option>
+                                    <option value="debit">بدهکار</option>
+                                    <option value="credit">بستانکار</option>
+                                </select>
+                            </div>
+                            <div class="col-12 d-flex align-items-end"><button class="btn btn-sm btn-success-custom w-100">افزودن حساب کل</button></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card-custom h-100">
+                <div class="card-header-custom"><h5>حساب معین / تفصیلی</h5></div>
+                <div class="card-body-custom">
+                    <form method="POST" action="{{ url_for('accounting.add_sub') }}" class="mb-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-2">
+                            <div class="col-4"><label class="form-label" for="subCode">کد معین</label>
+                                <input type="text" name="code" id="subCode" class="form-control form-control-sm" required></div>
+                            <div class="col-8"><label class="form-label" for="subName">نام</label>
+                                <input type="text" name="name" id="subName" class="form-control form-control-sm" required></div>
+                            <div class="col-8"><label class="form-label" for="subAccount">حساب کل</label>
+                                <select name="account_id" id="subAccount" class="form-select form-select-sm searchable" data-placeholder="انتخاب حساب کل" required>
+                                    {% for a in accounts %}<option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-4 d-flex align-items-end"><button class="btn btn-sm btn-outline-success w-100">افزودن</button></div>
+                        </div>
+                    </form>
+                    <form method="POST" action="{{ url_for('accounting.add_detail') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="row g-2">
+                            <div class="col-4"><label class="form-label" for="detCode">کد تفصیلی</label>
+                                <input type="text" name="code" id="detCode" class="form-control form-control-sm" required></div>
+                            <div class="col-8"><label class="form-label" for="detName">نام</label>
+                                <input type="text" name="name" id="detName" class="form-control form-control-sm" required></div>
+                            <div class="col-8"><label class="form-label" for="detSub">حساب معین</label>
+                                <select name="sub_account_id" id="detSub" class="form-select form-select-sm" required>
+                                    {% for s in sub_accounts %}<option value="{{ s.id }}">{{ s.code }} — {{ s.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-4 d-flex align-items-end"><button class="btn btn-sm btn-outline-success w-100">افزودن</button></div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card-custom">
         <div class="card-body-custom" style="padding: 0;">
+            {% if accounts %}
+            <div class="table-responsive">
             <table class="table table-custom mb-0">
-                <thead><tr><th>کد</th><th>نام حساب</th><th>گروه</th><th>مانده</th></tr></thead>
+                <thead><tr><th>کد</th><th>نام حساب</th><th>گروه</th><th>ماهیت</th><th>گردش بدهکار</th><th>گردش بستانکار</th><th>مانده</th><th>وضعیت</th><th></th></tr></thead>
                 <tbody>
-                    {% for acc in accounts %}
-                    <tr>
-                        <td><code>{{ acc.code }}</code></td>
-                        <td><a href="{{ url_for('accounting.account_ledger', account_id=acc.id) }}">{{ acc.name }}</a></td>
-                        <td>{{ acc.group.name if acc.group else '-' }}</td>
-                        <td>{{ acc.balance|currency }}</td>
+                    {% for row in rows %}
+                    <tr style="{{ 'opacity:.55;' if not row.account.is_active }}">
+                        <td><code>{{ row.account.code }}</code></td>
+                        <td><a href="{{ url_for('accounting.account_ledger', account_id=row.account.id) }}">{{ row.account.name }}</a></td>
+                        <td>{{ row.account.group.name if row.account.group else '-' }}</td>
+                        <td>{{ 'بدهکار' if row.account.nature == 'debit' else 'بستانکار' }}</td>
+                        <td>{{ row.debit|currency }}</td>
+                        <td>{{ row.credit|currency }}</td>
+                        <td style="font-weight:700;">{{ row.balance|currency }} ت</td>
+                        <td>
+                            <span class="badge-status badge-{{ 'active' if row.account.is_active else 'inactive' }}">
+                                {{ 'فعال' if row.account.is_active else 'غیرفعال' }}
+                            </span>
+                            {% if row.entries %}<div style="font-size:11px;color: var(--clr-text-muted, #455a64);">{{ row.entries }} سند</div>{% endif %}
+                        </td>
+                        <td>
+                            {% if can_edit %}
+                            <form method="POST" action="{{ url_for('accounting.toggle_account', id=row.account.id) }}" style="display:inline;"
+                                  onsubmit="return confirm('{{ 'این حساب غیرفعال شود؟' if row.account.is_active else 'این حساب دوباره فعال شود؟' }}');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button class="btn btn-sm-custom btn-outline-{{ 'warning' if row.account.is_active else 'success' }}"
+                                        title="{{ 'غیرفعال کردن' if row.account.is_active else 'فعال کردن' }}">
+                                    <i class="bi bi-{{ 'pause' if row.account.is_active else 'play' }}-circle"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
+            <div class="card-body-custom" style="font-size:12px;color: var(--clr-text-muted, #455a64);border-top:1px solid rgba(128,128,128,.15);">
+                ستون‌های گردش و مانده از جمع اقلام اسناد تأیید/تصویب‌شده به‌دست می‌آید (نه از فیلد `balance` جدول).
+                برای حذف حساب، آن را غیرفعال کنید تا سابقه اسناد حفظ شود.
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">حسابی ثبت نشده</div>
+            {% endif %}
         </div>
     </div>
 </div>

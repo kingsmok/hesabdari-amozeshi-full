@@ -1,5 +1,5 @@
 {% extends "base/layout.html" %}
-{% block title %}دوره مالی{% endblock %}
+{% block title %}دوره‌های مالی{% endblock %}
 {% block breadcrumb %}
 <li><a href="{{ url_for('accounting.fiscal') }}">حسابداری</a></li>
 <li class="active">دوره مالی</li>
@@ -7,23 +7,101 @@
 
 {% block content %}
 <div class="animate-in">
-    <div class="page-header"><h1><i class="bi bi-calendar-range me-2 text-primary"></i>دوره‌های مالی</h1></div>
+    <div class="page-header">
+        <h1><i class="bi bi-calendar-range me-2 text-primary"></i>دوره‌های مالی<small>با بستن دوره، ثبت و ویرایش و تأیید سند در بازه آن قفل می‌شود</small></h1>
+    </div>
+
+    {% if can_edit %}
+    <div class="card-custom mb-4">
+        <div class="card-header-custom"><h5>دوره جدید</h5></div>
+        <div class="card-body-custom">
+            <form method="POST" action="{{ url_for('accounting.add_fiscal') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4"><label class="form-label" for="pName">نام دوره</label>
+                        <input type="text" name="name" id="pName" class="form-control" required placeholder="مالی ۱۴۰۵"></div>
+                    <div class="col-md-2"><label class="form-label" for="pStart">از تاریخ</label>
+                        <input type="text" name="start_date" id="pStart" class="form-control jalali-date" required placeholder="۱۴۰۵/۰۱/۰۱"></div>
+                    <div class="col-md-2"><label class="form-label" for="pEnd">تا تاریخ</label>
+                        <input type="text" name="end_date" id="pEnd" class="form-control jalali-date" required placeholder="۱۴۰۵/۱۲/۲۹"></div>
+                    <div class="col-md-2"><label class="form-label" for="pYear">سال</label>
+                        <input type="text" name="fiscal_year" id="pYear" class="form-control" inputmode="numeric" placeholder="۱۴۰۵"></div>
+                    <div class="col-md-2"><button class="btn btn-success-custom w-100"><i class="bi bi-plus-lg me-1"></i> افزودن</button></div>
+                </div>
+                <div class="d-none">
+                    <input type="checkbox" name="is_active" id="pActive" checked>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="card-custom">
         <div class="card-body-custom" style="padding: 0;">
+            {% if periods %}
+            <div class="table-responsive">
             <table class="table table-custom mb-0">
-                <thead><tr><th>نام</th><th>از</th><th>تا</th><th>وضعیت</th><th>عملیات</th></tr></thead>
+                <thead><tr><th>نام</th><th>از</th><th>تا</th><th>اسناد</th><th>پیش‌نویس</th><th>وضعیت</th><th>بستن</th><th>عملیات</th></tr></thead>
                 <tbody>
                     {% for p in periods %}
                     <tr>
-                        <td>{{ p.name }}</td>
+                        <td style="font-weight:700;">{{ p.name }}
+                            {% if p.fiscal_year %}<div style="font-size:11px;color: var(--clr-text-muted, #455a64);">سال {{ p.fiscal_year }}</div>{% endif %}
+                        </td>
                         <td>{{ p.start_date|to_jalali }}</td>
                         <td>{{ p.end_date|to_jalali }}</td>
-                        <td><span class="badge-status badge-{{ 'completed' if p.is_closed else 'active' }}">{{ 'بسته' if p.is_closed else 'باز' }}</span></td>
-                        <td>{% if not p.is_closed %}<form method="POST" action="{{ url_for('accounting.close_fiscal', id=p.id) }}" style="display: inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm-custom btn-outline-danger">بستن</button></form>{% endif %}</td>
+                        <td>{{ p.entry_count }}</td>
+                        <td>
+                            {% if p.draft_count %}<span style="color:#e65100;font-weight:700;">{{ p.draft_count }}</span>{% else %}۰{% endif %}
+                        </td>
+                        <td>
+                            <span class="badge-status badge-{{ 'inactive' if p.is_closed else 'active' }}">
+                                {{ 'بسته' if p.is_closed else 'باز' }}
+                            </span>
+                            {% if p.closed_at %}<div style="font-size:11px;color: var(--clr-text-muted, #455a64);">{{ p.closed_at|to_jalali }}</div>{% endif %}
+                        </td>
+                        <td>
+                            {% if p.is_closed %}
+                            <span style="color:#c62828;font-size:12px;"><i class="bi bi-lock me-1"></i>ثبت قفل</span>
+                            {% elif p.draft_count %}
+                            <span style="color:#e65100;font-size:12px;" title="ابتدا اسناد پیش‌نویس را تأیید یا ابطال کنید"><i class="bi bi-exclamation-triangle me-1"></i>{{ p.draft_count }} سند باز</span>
+                            {% elif p.end_date and p.end_date > today %}
+                            <span style="color: var(--clr-text-muted, #455a64);font-size:12px;" title="پایان دوره از امروز جلوتر است">نرسیده به پایان</span>
+                            {% else %}
+                            <span style="color:#2e7d32;font-size:12px;"><i class="bi bi-check-circle me-1"></i>آماده بستن</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-nowrap">
+                            {% if can_edit %}
+                                {% if not p.is_closed %}
+                                <form method="POST" action="{{ url_for('accounting.close_fiscal', id=p.id) }}" style="display:inline;"
+                                      onsubmit="return confirm('دوره «{{ p.name }}» بسته شود؟ از این پس ثبت، ویرایش و تأیید سند در این بازه قفل می‌شود.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-sm-custom btn-outline-danger"><i class="bi bi-lock me-1"></i> بستن دوره</button>
+                                </form>
+                                {% else %}
+                                <form method="POST" action="{{ url_for('accounting.reopen_fiscal', id=p.id) }}" style="display:inline;"
+                                      onsubmit="return confirm('دوره «{{ p.name }}» دوباره باز شود؟');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button class="btn btn-sm-custom btn-outline-warning"><i class="bi bi-unlock me-1"></i> باز کردن</button>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
+            <div class="card-body-custom" style="font-size:12px;color: var(--clr-text-muted, #455a64);border-top:1px solid rgba(128,128,128,.15);">
+                برای بستن دوره، همه اسناد بازه باید تأیید/تصویب یا ابطال شده باشند. اسناد بدون دوره (مثلاً ثبت‌شده پیش از
+                ساخت این دوره) هنگام بستن به همان دوره می‌چسبند. بستن دوره ابطال اسناد را برای مدیر مسدود نمی‌کند.
+            </div>
+            {% else %}
+            <div class="text-center py-5" style="color:#aaa;">
+                <p class="mb-1">دوره مالی تعریف نشده — تا تعریف دوره، قفل پایان دوره فعال نیست</p>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

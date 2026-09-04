@@ -4,102 +4,14 @@
 {% block content %}
 <div class="anim-in">
     <div class="page-head"><h1><i class="bi bi-file-earmark-plus"></i> ثبت قرارداد حقوقی جدید</h1></div>
+
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="card mb-4">
-            <div class="card-head"><h5>اطلاعات شخص</h5></div>
-            <div class="card-body-padded">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <label class="form-label">نوع شخص</label>
-                        <select name="person_type" class="form-select">
-                            <option value="teacher">مدرس</option>
-                            <option value="employee">کارمند</option>
-                            <option value="manager">مدیر</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">شخص</label>
-                        <select name="person_id" class="form-select searchable" data-placeholder="جستجو و انتخاب کنید..." required>
-                            {% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label">نوع قرارداد</label>
-                        <select name="contract_type" class="form-select" id="contractType" onchange="showFields()">
-                            <option value="fixed">ثابت (ماهانه)</option>
-                            <option value="hourly">ساعتی</option>
-                            <option value="session">جلسه‌ای</option>
-                            <option value="percentage">درصدی (از شهریه)</option>
-                            <option value="combined">ترکیبی (ساعتی + درصدی)</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-4">
-            <div class="card-head"><h5>مبالغ قرارداد</h5></div>
-            <div class="card-body-padded">
-                <div class="row g-3">
-                    <div class="col-md-3" id="baseField">
-                        <label class="form-label">حقوق پایه (ماهانه)</label>
-                        <input type="number" name="base_salary" class="form-control" value="0">
-                    </div>
-                    <div class="col-md-3" id="hourlyField">
-                        <label class="form-label">نرخ ساعتی</label>
-                        <input type="number" name="hourly_rate" class="form-control" value="0">
-                    </div>
-                    <div class="col-md-3" id="sessionField">
-                        <label class="form-label">نرخ هر جلسه</label>
-                        <input type="number" name="session_rate" class="form-control" value="0">
-                    </div>
-                    <div class="col-md-3" id="percentField">
-                        <label class="form-label">درصد از شهریه (%)</label>
-                        <input type="number" name="percentage_rate" class="form-control" value="0" step="0.1">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">پورسانت فروش (%)</label>
-                        <input type="number" name="commission_rate" class="form-control" value="0" step="0.1">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">حق بیمه (ماهانه)</label>
-                        <input type="number" name="insurance_amount" class="form-control" value="0">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">مالیات (ماهانه)</label>
-                        <input type="number" name="tax_amount" class="form-control" value="0">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-4">
-            <div class="card-head"><h5>تاریخ و توضیحات</h5></div>
-            <div class="card-body-padded">
-                <div class="row g-3">
-                    <div class="col-md-3"><label class="form-label">تاریخ شروع</label><input type="date" name="start_date" class="form-control"></div>
-                    <div class="col-md-3"><label class="form-label">تاریخ پایان</label><input type="date" name="end_date" class="form-control"></div>
-                    <div class="col-md-6"><label class="form-label">توضیحات</label><input type="text" name="notes" class="form-control"></div>
-                </div>
-            </div>
-        </div>
-
+        {% include "payroll/_contract_form.html" %}
         <div class="d-flex justify-content-end gap-2 mb-4">
             <a href="{{ url_for('payroll.contracts') }}" class="btn btn-outline-secondary">انصراف</a>
             <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-2"></i> ثبت قرارداد</button>
         </div>
     </form>
 </div>
-
-<script>
-function showFields() {
-    const type = document.getElementById('contractType').value;
-    document.getElementById('baseField').style.display = (type === 'fixed' || type === 'combined') ? 'block' : 'none';
-    document.getElementById('hourlyField').style.display = (type === 'hourly' || type === 'combined') ? 'block' : 'none';
-    document.getElementById('sessionField').style.display = (type === 'session') ? 'block' : 'none';
-    document.getElementById('percentField').style.display = (type === 'percentage' || type === 'combined') ? 'block' : 'none';
-}
-showFields();
-</script>
 {% endblock %}

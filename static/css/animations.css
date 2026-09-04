@@ -329,123 +329,40 @@ canvas {
     transform: scale(1.2) rotate(5deg);
 }
 
-/* ===== انیمیشن اسکرولبار ===== */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+/* ===== اسکرولبار =====
+   اندازه/رنگ اسکرولبار یک منبع دارد: static/css/main.css (اینجا ۶px و آنجا
+   ۵px بود و چون main.css بعدتر می‌آمد، این بلوک هیچ‌وقت اثر نمی‌کرد).
+   فقط پشتیبانی فایرفاکس اینجاست: */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #b0bec5 transparent;
 }
 
-::-webkit-scrollbar-track {
-    background: transparent;
-}
+/* ===== انیمیشن چاپ =====
+   بازنشانی انیمیشن در چاپ هم در print.css انجام می‌شود (منبع یکتا). */
+/* ===== حالت تاریک به theme-dark.css منتقل شد ===== */
 
-::-webkit-scrollbar-thumb {
-    background: #b0bec5;
-    border-radius: 10px;
-    transition: background 0.3s;
-}
+/* ═══════════════ احترام به تنظیم «کاهش حرکت» سیستم ═══════════════
+   انیمیشن‌های این فایل همیشه فعال بودند؛ برای کاربرانی که
+   prefers-reduced-motion دارند (سرگیجه/حساسیت به حرکت) باید خاموش شوند.
+   ترنزیشن‌های کوتاه رنگ حفظ می‌شوند تا UI «شکسته» به نظر نرسد. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+    }
 
-::-webkit-scrollbar-thumb:hover {
-    background: #78909c;
-}
-
-/* ===== انیمیشن چاپ ===== */
-@media print {
-    .anim-fade-up, .anim-fade-in, .anim-scale-in {
+    .animate-in,
+    .anim-in,
+    [class*="fade-in"],
+    [class*="slide-up"],
+    [class*="float"],
+    [class*="pulse"],
+    [class*="spin-slow"] {
         animation: none !important;
         opacity: 1 !important;
         transform: none !important;
     }
-}
-
-/* ===== Dark Mode ===== */
-body.dark-mode {
-    --clr-body: #121212;
-    --clr-card: #1e1e1e;
-    --clr-border: #333;
-}
-
-body.dark-mode .top-bar {
-    background: #1e1e1e;
-    border-bottom-color: #333;
-}
-
-body.dark-mode .stat-box {
-    background: #1e1e1e;
-    border-color: #333;
-}
-
-body.dark-mode .table thead th {
-    background: #252525;
-    color: #aaa;
-}
-
-body.dark-mode .table tbody td {
-    color: #ccc;
-    border-bottom-color: #333;
-}
-
-body.dark-mode .form-control, body.dark-mode .form-select {
-    background: #252525;
-    border-color: #444;
-    color: #eee;
-}
-
-body.dark-mode .page-head h1 {
-    color: #e0e0e0;
-}
-
-body.dark-mode .card-head {
-    border-bottom-color: #333;
-}
-
-body.dark-mode .stat-val {
-    color: #e0e0e0;
-}
-
-body.dark-mode .stat-label {
-    color: #888;
-}
-
-body.dark-mode .user-meta .name {
-    color: #e0e0e0;
-}
-
-body.dark-mode .btn-toggle-sidebar {
-    background: #252525;
-    border-color: #444;
-    color: #aaa;
-}
-
-body.dark-mode .top-icon-btn {
-    background: #252525;
-    border-color: #444;
-    color: #aaa;
-}
-
-body.dark-mode .alert {
-    background: #252525;
-    color: #eee;
-}
-
-body.dark-mode .welcome-banner {
-    background: linear-gradient(135deg, #1a237e, #0d47a1);
-}
-
-body.dark-mode .modal-content {
-    background: #1e1e1e;
-    color: #eee;
-}
-
-body.dark-mode .user-dropdown {
-    background: #1e1e1e;
-    border-color: #333;
-}
-
-body.dark-mode .user-dropdown a {
-    color: #ccc;
-}
-
-body.dark-mode .user-dropdown a:hover {
-    background: #252525;
 }

@@ -41,10 +41,13 @@ def my_dashboard():
     total_students = sum(c.current_count or 0 for c in my_classes)
     total_sessions = sum(c.completed_sessions_count for c in my_classes)
     
-    month_start = today.replace(day=1)
+    # ساعت تدریس «این ماه» — پنجره شمسی
+    from utils.jalali import jalali_month_bounds
+    month_start, month_end = jalali_month_bounds()
     month_hours = db.session.query(db.func.sum(TeacherAttendance.teaching_hours)).filter(
         TeacherAttendance.teacher_id == teacher.id,
-        TeacherAttendance.created_at >= month_start
+        TeacherAttendance.created_at >= datetime.combine(month_start, datetime.min.time()),
+        TeacherAttendance.created_at <= datetime.combine(month_end, datetime.max.time())
     ).scalar() or 0
     
     return render_template('teacher_portal/dashboard.html',

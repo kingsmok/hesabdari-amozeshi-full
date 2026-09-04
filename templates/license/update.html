@@ -24,13 +24,13 @@
                     <i class="bi bi-info-circle"></i> وضعیت فعلی
                 </h2>
                 <table class="table table-sm" style="font-size:12.5px;">
-                    <tr><td style="color:#78909c;">نرم‌افزار</td><td>{{ product_name }}</td></tr>
-                    <tr><td style="color:#78909c;">نسخه نصب‌شده</td>
+                    <tr><td style="color: var(--clr-text-muted, #455a64);">نرم‌افزار</td><td>{{ product_name }}</td></tr>
+                    <tr><td style="color: var(--clr-text-muted, #455a64);">نسخه نصب‌شده</td>
                         <td><span class="badge bg-primary" style="direction:ltr;">{{ version }}</span></td></tr>
-                    <tr><td style="color:#78909c;">کانال</td><td style="direction:ltr;">{{ channel }}</td></tr>
-                    <tr><td style="color:#78909c;">سرور</td>
+                    <tr><td style="color: var(--clr-text-muted, #455a64);">کانال</td><td style="direction:ltr;">{{ channel }}</td></tr>
+                    <tr><td style="color: var(--clr-text-muted, #455a64);">سرور</td>
                         <td style="direction:ltr;font-size:11px;">{{ server_url }}</td></tr>
-                    <tr><td style="color:#78909c;">لایسنس</td>
+                    <tr><td style="color: var(--clr-text-muted, #455a64);">لایسنس</td>
                         <td>
                             {% if state.valid %}<span class="badge bg-success">معتبر</span>
                             {% else %}<span class="badge bg-danger">نامعتبر</span>{% endif %}
@@ -70,7 +70,7 @@
                 <h2 style="font-size:14px;font-weight:700;margin-bottom:6px;">
                     <i class="bi bi-file-earmark-zip"></i> نصب بسته به‌روزرسانی (فایل ZIP)
                 </h2>
-                <p style="font-size:12px;color:#78909c;line-height:2;">
+                <p style="font-size:12px;color: var(--clr-text-muted, #455a64);line-height:2;">
                     اگر بسته‌ی نسخه‌ی جدید را از پشتیبانی دریافت کرده‌اید، همین‌جا آن را نصب کنید.
                     پیش از نصب یک پشتیبان از دیتابیس گرفته می‌شود و اگر نصب نیمه‌کاره بماند،
                     فایل‌های قبلی به‌صورت خودکار برگردانده می‌شوند. اطلاعات شما
@@ -108,7 +108,7 @@
                 </form>
 
                 <hr>
-                <div style="font-size:11.5px;color:#78909c;line-height:2;">
+                <div style="font-size:11.5px;color: var(--clr-text-muted, #455a64);line-height:2;">
                     <div><i class="bi bi-check2-circle"></i> ساختار بسته: یا کل پوشه‌ی برنامه، یا فایل‌های تغییر‌یافته به‌همراه <code>manifest.json</code>.</div>
                     <div><i class="bi bi-check2-circle"></i> اگر بسته فایل <code>VERSION</code> یا <code>update.json</code> داشته باشد، شماره نسخه خودکار خوانده می‌شود.</div>
                     <div><i class="bi bi-check2-circle"></i> مسیرهای خطرناک (Zip-Slip) و بسته‌های خراب پیش از باز شدن رد می‌شوند.</div>

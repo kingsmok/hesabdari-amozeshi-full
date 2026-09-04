@@ -1,0 +1,208 @@
+/* ═══════════════════════════════════════════════════════════════
+   چاپ — Academy Manager Pro
+   ───────────────────────────────────────────────────────────────
+   ۱۱ قالب window.print() صدا می‌زنند و ۳۴ جای «چاپ» در UI هست، ولی:
+   • @page هیچ‌جا تعریف نشده بود ⇒ هدر/فوتر مرورگر (URL و تاریخ) روی فیش
+     و رسید چاپ می‌شد؛
+   • no-print فقط یک بار استفاده شده بود ⇒ دکمه‌های «تأیید/پرداخت/انصراف» و
+     فرم فیلترها داخل چاپ می‌آمدند؛
+   • print-color-adjust نبود ⇒ رنگ سبز/قرمز «دریافتی‌ها/کسورات» فیش در چاپ
+     سفید می‌شد؛
+   • print_header / print_footer در تنظیمات ذخیره می‌شدند ولی هیچ قالبی
+     آن‌ها را نمی‌خواند (تنظیم مرده) — اینجا با #printHeader/#printFooter
+     زنده شده‌اند.
+   پیش‌تر همین قوانین به‌صورت تکه‌ای در layout.html (بعد از این فایل) و در
+   responsive.css تکرار شده بودند و به همین دلیل تغییرشان اثر نمی‌کرد؛
+   اکنون تنها منبع همین فایل است.
+   ═══════════════════════════════════════════════════════════════ */
+
+@page {
+    size: A4;
+    margin: 12mm 10mm;
+}
+
+@page :first {
+    margin-top: 10mm;
+}
+
+/* حالت افقی برای کارنامه/فیش‌های ستونی زیاد */
+@page landscape {
+    size: A4 landscape;
+}
+
+html, body {
+    background: #fff !important;
+}
+
+.print-only {
+    display: none !important;
+}
+
+/* سربرگ/پابرگ آموزشگاه: روی صفحه پنهان، فقط در چاپ */
+#printHeader, #printFooter, .print-brand {
+    display: none;
+}
+
+@media print {
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    html, body {
+        width: 100%;
+        background: #fff !important;
+        color: #000 !important;
+        font-size: 12pt;
+        overflow: visible !important;
+    }
+
+    /* پوسته و کنترل‌ها */
+    .sidebar,
+    .top-bar,
+    .mobile-overlay,
+    .page-loader,
+    .toast-container,
+    .btn,
+    button,
+    input, select, textarea,
+    .form-label,
+    .pagination,
+    .no-print,
+    .d-print-none,
+    form[method="GET"],
+    .filters, .filter-bar,
+    .page-header .btn-group,
+    .dropdown-menu, .modal, .modal-backdrop {
+        display: none !important;
+    }
+
+    /* چیدمان: بدون حاشیه سایدبار */
+    .main-wrap,
+    .page-wrap,
+    .content {
+        margin: 0 !important;
+        padding: 0 !important;
+        min-height: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .card-custom, .card {
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    .card-body-custom, .card-body {
+        padding: 8px 10px !important;
+    }
+
+    /* جدول‌ها: سرتیتر در هر صفحه تکرار و ردیف نصفه نشود */
+    .table-responsive {
+        overflow: visible !important;
+    }
+
+    table {
+        width: 100% !important;
+        font-size: 10.5pt !important;
+        border-collapse: collapse !important;
+    }
+
+    table thead {
+        display: table-header-group;
+    }
+
+    table tr,
+    .table tbody tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    table th, table td {
+        border: 1px solid #ccc !important;
+        padding: 5px 7px !important;
+        white-space: normal !important;
+        color: #000 !important;
+        background: #fff !important;
+    }
+
+    table thead th {
+        background: #f2f2f2 !important;
+        font-weight: 700;
+    }
+
+    /* رنگ‌های معنایی (دریافتی/کسورات، وضعیت‌ها) باید در چاپ بمانند */
+    .text-success, .badge-active, .text-price, .clr-in, [data-print-color] {
+        color: #14651f !important;
+    }
+
+    .text-danger, .badge-inactive, .text-due, .clr-out {
+        color: #a01616 !important;
+    }
+
+    .badge, .badge-status {
+        border: 1px solid #999 !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    /* هدر/فوتر آموزشگاه از تنظیمات */
+    .print-brand {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 9pt;
+        color: #000;
+        border-bottom: 1px solid #000;
+        padding-bottom: 4px;
+        margin-bottom: 10px;
+    }
+
+    .print-brand.is-footer {
+        border-bottom: 0;
+        border-top: 1px solid #000;
+        padding-bottom: 0;
+        padding-top: 4px;
+        margin-bottom: 0;
+        margin-top: 10px;
+        color: #333;
+    }
+
+    .print-brand .title {
+        font-size: 12pt;
+        font-weight: 700;
+    }
+
+    .print-brand img {
+        height: 34px;
+    }
+
+    a {
+        color: #000 !important;
+        text-decoration: none !important;
+    }
+
+    .page-header h1 {
+        font-size: 15pt !important;
+    }
+
+    /* انیمیشن‌ها در چاپ مزاحم‌اند (عنصر وسط animate-in شفاف است) */
+    .animate-in, .anim-in, [class*="anim-"], [class*="fade-in"], [class*="slide-up"] {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+
+    /* صفحه‌بندیِ دستی برای برگه‌های مستقل (فیش، امضا) */
+    .print-break {
+        break-before: page;
+        page-break-before: always;
+    }
+
+    .no-print-override,
+    .print-only {
+        display: block !important;
+    }
+}
