@@ -259,6 +259,19 @@ def backup_stats() -> dict:
 # ══════════════════════════════════════════════════════════════
 #  بازیابی
 # ══════════════════════════════════════════════════════════════
+def _drop_sidecars(paths) -> None:
+    """حذف فایل‌های کمکی SQLite (WAL/journal)؛ نبودنشان خطا نیست."""
+    for item in paths:
+        try:
+            os.remove(item)
+        except FileNotFoundError:
+            continue
+        except OSError as exc:
+            raise BackupError(
+                f'فایل {os.path.basename(item)} قفل است. برای بازیابی، برنامه را '
+                'بندازید (یا سرویس/پشتیبان‌گیر خودکار متوقف شود) و دوباره تلاش کنید.') from exc
+
+
 def _validate_members(archive: zipfile.ZipFile) -> None:
     """دفاع در برابر Zip-Slip روی همه‌ی ورودی‌های بسته."""
     for member in archive.namelist():
@@ -321,9 +334,15 @@ def restore_backup(name: str, restore_uploads: bool = True) -> dict:
                                    prefix=SAFETY_PREFIX)
 
             # ── جایگزینی دیتابیس ──
+            # با حالت WAL کنار دیتابیس فایل‌های `-wal`/`-shm` می‌ماند؛ اگر بعد از
+            # جایگزینی، آن‌ها پاک نشوند SQLite آن‌ها را روی دیتابیسِ بازگردانده‌شده
+            # اعمال می‌کند ⇒ داده‌های تازهٔ بی‌ربط روی فایل قدیمی سوار می‌شود.
             db.session.remove()
             db.engine.dispose()
+            sidecars = tuple(db_path + suffix for suffix in ('-wal', '-shm', '-journal'))
+            _drop_sidecars(sidecars)
             shutil.copy2(temp_db, db_path)
+            _drop_sidecars(sidecars)
 
             # ── بازگرداندن فایل‌های آپلودی ──
             restored_uploads = 0

@@ -220,28 +220,35 @@ class TestAccessControl:
             assert admin_user.has_permission('finance', 'create') is True
 
     def test_role_based_permission_check(self, test_app):
+        """نقش → مجوز → کاربر؛ هرچه این آزمون ساختن است در پایان پاک می‌کند تا
+        دیتابیس توسعه با ردیف آزمونی آلوده نماند (ردیف از پیش موجود دست‌نخورده)."""
+        created = []
         with test_app.app_context():
             role = Role.query.filter_by(name='تست منشی').first()
             if not role:
                 role = Role(name='تست منشی', description='نقش آزمایشی', is_admin=False)
                 db.session.add(role)
                 db.session.commit()
+                created.append(role)
 
             perm = Permission.query.filter_by(module='students', action='view').first()
             if not perm:
                 perm = Permission(module='students', action='view', description='مشاهده هنرجویان')
                 db.session.add(perm)
                 db.session.commit()
+                created.append(perm)
 
             rp = RolePermission.query.filter_by(role_id=role.id, permission_id=perm.id).first()
             if not rp:
                 rp = RolePermission(role_id=role.id, permission_id=perm.id)
                 db.session.add(rp)
                 db.session.commit()
+                created.append(rp)
 
             user = User.query.filter_by(username='test_secretary').first()
+            created_user = None
             if not user:
-                user = User(
+                user = created_user = User(
                     username='test_secretary',
                     full_name='منشی آزمایشی',
                     is_admin=False,
@@ -254,6 +261,13 @@ class TestAccessControl:
 
             assert user.has_permission('students', 'view') is True
             assert user.has_permission('accounting', 'delete') is False
+
+            # ترتیب حذف مهم است: اول وابسته‌ها (کاربر و نقش-مجوز)، بعد خود نقش/مجوز
+            if created_user is not None:
+                db.session.delete(created_user)
+            for row in reversed(created):
+                db.session.delete(row)
+            db.session.commit()
 
 
 # ==============================================================================

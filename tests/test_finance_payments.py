@@ -13,6 +13,7 @@ B7: آمار «ماه جاری» با `today.replace(day=1)` پنجره میلا
 دیتابیس توسعه؛ همه ردیف‌های آزمونی در پایان پاک می‌شوند.
 """
 import os
+import re
 import sys
 from datetime import date, datetime, timedelta
 
@@ -58,29 +59,38 @@ def licensed_state(test_app):
 
 @pytest.fixture(scope='module')
 def admin_id(test_app):
-    """مدیر کل؛ در نصب تازه مدیری نیست پس موقتاً ساخته می‌شود."""
+    """شناسه یک حساب مدیر کل — در دیتابیس تازه‌نصب مدیری نیست (ویزارد /setup
+    آن را می‌سازد)، پس در صورت نبود موقتاً ساخته و در پایان پاک می‌شود.
+
+    نکته‌ای که ارزش دانستن دارد: `yield` باید بیرون از `app_context()` باشد.
+    اگر context باز بماند، همان SELECT اول یک تراکنشِ خواندن SQLite را باز
+    نگه می‌دارد و نوشتنِ بقیهٔ تست‌ها (با اتصال دیگر) تا انقضای مهلت شلوغی،
+    «database is locked» می‌شود — فقط روی دیتابیسی که مدیر دارد، چون شاخهٔ
+    «ساخت کاربر جدید» با commit اتصال را آزاد می‌کند.
+    """
     from models.user import User, Role
     with test_app.app_context():
         admin = User.query.filter_by(is_admin=True, is_active=True).first()
-        if admin is not None:
-            yield admin.id
-            return
-        role = Role.query.filter_by(is_admin=True).first() or Role.query.first()
-        created = User(username='test_root_admin_fin', full_name='مدیر آزمون مالی',
-                       is_admin=True, is_active=True, role_id=role.id if role else None)
-        created.set_password('Test-Only-Strong-123!')
-        db.session.add(created)
-        db.session.commit()
-        new_id = created.id
-    yield new_id
-    with test_app.app_context():
-        row = db.session.get(User, new_id)
-        if row is not None:
-            from models.user import ActivityLog
-            ActivityLog.query.filter_by(user_id=new_id).delete(synchronize_session=False)
-            db.session.delete(row)
+        existing_id = admin.id if admin is not None else None
+        created_id = None
+        if existing_id is None:
+            role = Role.query.filter_by(is_admin=True).first() or Role.query.first()
+            created = User(username='test_root_admin_fin', full_name='مدیر آزمون مالی',
+                           is_admin=True, is_active=True,
+                           role_id=role.id if role else None)
+            created.set_password('Test-Only-Strong-123!')
+            db.session.add(created)
             db.session.commit()
-
+            created_id = created.id
+    yield existing_id or created_id
+    if created_id is not None:
+        with test_app.app_context():
+            row = db.session.get(User, created_id)
+            if row is not None:
+                from models.user import ActivityLog
+                ActivityLog.query.filter_by(user_id=created_id).delete(synchronize_session=False)
+                db.session.delete(row)
+                db.session.commit()
 
 @pytest.fixture
 def client(test_app, admin_id):
@@ -402,6 +412,9 @@ class TestCombinedPayment:
 
     def test_cash_part_reaches_box_only(self, client, test_app, tuition):
         before = _rows(test_app, tuition)
+        # قبل از اولین پرداخت، هیچ ردیفی به صندوق وصل نیست ⇒ before['box'] برابر
+        # None است؛ پس مبنای مقایسه باید موجودی اولیه‌ای باشد که fixture گرفته.
+        box0 = (tuition['box_before'][1] or 0)
         client.post('/finance/payments/add', data={
             'student_id': tuition['student'], 'registration_id': tuition['registration'],
             'installment_id': tuition['installment'], 'amount': '5200000',
@@ -415,7 +428,7 @@ class TestCombinedPayment:
             assert payment.card_amount == pytest.approx(4_000_000)
             assert payment.cashbox_id is not None
         after = _rows(test_app, tuition)
-        assert after['box'] == pytest.approx((before['box'] or 0) + 1_200_000), \
+        assert after['box'] == pytest.approx(box0 + 1_200_000), \
             'صندوق باید فقط سهم نقدی را بگیرد'
         assert after['reg_paid'] == pytest.approx(5_200_000)
         assert after['inst_status'] == 'paid'
@@ -425,7 +438,7 @@ class TestCombinedPayment:
                     data={'reason': 'مرجوعی ترکیبی', 'refund': 'on'})
         final = _rows(test_app, tuition)
         assert final['refunded'] == pytest.approx(1_200_000)
-        assert final['box'] == pytest.approx(before['box'] or 0), 'صندوق باید به حالت اول برگردد'
+        assert final['box'] == pytest.approx(box0), 'صندوق باید به حالت اول برگردد'
         assert final['reg_paid'] == pytest.approx(0)
 
     def test_parts_must_sum_to_amount(self, client, test_app, tuition):
@@ -506,9 +519,23 @@ class TestJalaliWindows:
                     offenders.append((name, line.strip()[:70]))
         assert not offenders, f'پنجره میلادی باقی مانده: {offenders}'
 
+    INCOME_RE = re.compile(
+        r'درآمد ماه</div>\s*<div class="stat-value"[^>]*>\s*([0-9\u06F0-\u06F9,]+)')
+
+    def _month_income(self, client):
+        """عدد کارت «درآمد ماه»؛ رقم‌های فارسی و جداکننده هزارگان نرمال می‌شوند."""
+        html = client.get('/finance/dashboard').get_data(as_text=True)
+        match = self.INCOME_RE.search(html)
+        assert match, 'کارت «درآمد ماه» در داشبورد مالی رندر نشد'
+        text = ''.join(
+            str(int(ch)) if '\u06F0' <= ch <= '\u06F9' else ch for ch in match.group(1))
+        return int(text.replace(',', '').replace('\u066B', '') or 0)
+
     def test_finance_dashboard_counts_first_day_of_jalali_month(self, client, test_app, tuition):
+        """اختلافِ عدد داشبورد، نه مبلغ مطلق — دیتابیس توسعه داده واقعی دارد."""
         from utils.jalali import jalali_month_bounds
         start, _end = jalali_month_bounds()
+        before_total = self._month_income(client)
         with test_app.app_context():
             payment = Payment(
                 receipt_no='PAY-FINTEST-B1', student_id=tuition['student'],
@@ -519,8 +546,7 @@ class TestJalaliWindows:
             db.session.commit()
             payment_id = payment.id
         try:
-            html = client.get('/finance/dashboard').get_data(as_text=True)
-            assert '7,000,000' in html or '7000000' in html, \
+            assert self._month_income(client) - before_total == 7_000_000, \
                 'پرداخت اول ماه شمسی در داشبورد مالی حساب نمی‌شود'
         finally:
             with test_app.app_context():

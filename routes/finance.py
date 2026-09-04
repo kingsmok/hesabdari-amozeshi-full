@@ -4,7 +4,6 @@ from flask_login import login_required, current_user
 from license_client import license_required, licensed_section
 from extensions import db
 from utils.form_helpers import get_jalali_date, safe_float, safe_int
-from utils.jalali import current_jalali_year
 from models.finance import (
     Payment, Cashbox, CashboxTransaction, BankAccount, BankTransaction,
     Check, Expense, ExpenseCategory, DiscountCode, SalaryContract, Payslip,

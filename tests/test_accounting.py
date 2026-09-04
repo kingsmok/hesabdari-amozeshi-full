@@ -55,29 +55,37 @@ def licensed_state(test_app):
 @pytest.fixture(scope='module')
 def admin_id(test_app):
     """شناسه یک حساب مدیر کل — در دیتابیس تازه‌نصب مدیری نیست (ویزارد /setup
-    آن را می‌سازد)، پس در صورت نبود موقتاً ساخته و در پایان پاک می‌شود."""
+    آن را می‌سازد)، پس در صورت نبود موقتاً ساخته و در پایان پاک می‌شود.
+
+    نکته‌ای که ارزش دانستن دارد: `yield` باید بیرون از `app_context()` باشد.
+    اگر context باز بماند، همان SELECT اول یک تراکنشِ خواندن SQLite را باز
+    نگه می‌دارد و نوشتنِ بقیهٔ تست‌ها (با اتصال دیگر) تا انقضای مهلت شلوغی،
+    «database is locked» می‌شود — فقط روی دیتابیسی که مدیر دارد، چون شاخهٔ
+    «ساخت کاربر جدید» با commit اتصال را آزاد می‌کند.
+    """
     from models.user import User, Role
     with test_app.app_context():
         admin = User.query.filter_by(is_admin=True, is_active=True).first()
-        if admin is not None:
-            yield admin.id
-            return
-        role = Role.query.filter_by(is_admin=True).first() or Role.query.first()
-        created = User(username='test_root_admin', full_name='مدیر آزمون',
-                       is_admin=True, is_active=True,
-                       role_id=role.id if role else None)
-        created.set_password('Test-Only-Strong-123!')
-        db.session.add(created)
-        db.session.commit()
-        new_id = created.id
-    yield new_id
-    with test_app.app_context():
-        row = db.session.get(User, new_id)
-        if row is not None:
-            from models.user import ActivityLog
-            ActivityLog.query.filter_by(user_id=new_id).delete(synchronize_session=False)
-            db.session.delete(row)
+        existing_id = admin.id if admin is not None else None
+        created_id = None
+        if existing_id is None:
+            role = Role.query.filter_by(is_admin=True).first() or Role.query.first()
+            created = User(username='test_root_admin', full_name='مدیر آزمون',
+                           is_admin=True, is_active=True,
+                           role_id=role.id if role else None)
+            created.set_password('Test-Only-Strong-123!')
+            db.session.add(created)
             db.session.commit()
+            created_id = created.id
+    yield existing_id or created_id
+    if created_id is not None:
+        with test_app.app_context():
+            row = db.session.get(User, created_id)
+            if row is not None:
+                from models.user import ActivityLog
+                ActivityLog.query.filter_by(user_id=created_id).delete(synchronize_session=False)
+                db.session.delete(row)
+                db.session.commit()
 
 @pytest.fixture
 def scratch(test_app):

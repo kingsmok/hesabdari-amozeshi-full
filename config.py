@@ -125,8 +125,17 @@ def get_engine_options(config=None):
             'pool_pre_ping': True,
         }
     else:  # sqlite
+        # `timeout` = چند ثانیه انتظار برای قفل (به‌جای خطای «database is locked»).
+        # با SQLite، نوشتن همزمان (درخواست‌های threaded + ترد زمان‌بندی + اسکریپت‌های
+        # پشتیبان‌گیری) بدون این مقدار بلافاصله خطا می‌دهد.
+        busy_wait = 10.0
+        try:
+            busy_wait = float(os.environ.get('ACADEMY_SQLITE_BUSY_TIMEOUT')
+                             or db.get('busy_timeout_seconds', 10) or 10)
+        except (TypeError, ValueError):
+            busy_wait = 10.0
         options = {
-            'connect_args': {'check_same_thread': False},
+            'connect_args': {'check_same_thread': False, 'timeout': busy_wait},
         }
     
     return options

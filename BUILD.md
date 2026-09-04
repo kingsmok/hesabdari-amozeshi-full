@@ -132,7 +132,23 @@ installer_note = apply_installer_config()
 
 ```bash
 pytest tests/test_installer_config.py -q      # ۱۰ آزمون
+pytest tests -q                               # کل پوشش (۳۱۴ آزمون، ~۱۲ ثانیه)
 ```
+
+بخش زیادی از آزمون‌ها روی همان `instance/academy.db` (دیتابیس توسعه) کار می‌کنند و
+ردیف‌های آزمونی را در پایان پاک می‌کنند؛ برای همین دو متغیر محیطی در
+`tests/conftest.py` تنظیم می‌شود:
+
+- `ACADEMY_DISABLE_SCHEDULER=1` — ترد زمان‌بندی پشتیبان‌گیری خودکار خاموش می‌شود.
+  هر ماژول آزمون یک `create_app()` می‌سازد و اگر تردهای همه آن اپ‌ها زنده بمانند،
+  روی یک فایل SQLite با هم می‌جنگند.
+- `ACADEMY_SQLITE_BUSY_TIMEOUT=2` — مهلت انتظار برای قفل؛ در production مقدار
+  پیش‌فرض ۱۰ ثانیه است (`config.py`، با `busy_timeout_seconds` در `settings.json`
+  قابل تغییر). چون دیتابیس روی WAL رفته، خوانندهٔ طولانی دیگر نوشتن را قفل نمی‌کند.
+
+اگر جایی `database is locked` دیدید، اول شک کنید یک `app_context()` باز مانده است
+(مثلاً `yield` داخل `with app.app_context()` در یک fixture)؛ آن context یک
+تراکنش خواندن را تا آخر ماژول باز نگه می‌دارد.
 
 ## نکته‌های مهم `app.spec`
 

@@ -155,7 +155,10 @@ def create_app():
     # ══ پشتیبان‌گیری خودکار (Backup Scheduler) ══
     # هر ساعت بررسی می‌شود؛ خودِ سرویس بر اساس تنظیمات سیستم
     # (auto_backup / backup_interval_hours / max_backups) تصمیم می‌گیرد.
-    try:
+    _scheduler_off = (os.environ.get('ACADEMY_DISABLE_SCHEDULER') == '1'
+                      or app.config.get('DISABLE_SCHEDULER'))
+    if not _scheduler_off:
+      try:
         from apscheduler.schedulers.background import BackgroundScheduler
 
         def _scheduled_backup():
@@ -176,8 +179,10 @@ def create_app():
                           id='auto_backup', replace_existing=True)
         scheduler.start()
         print('[SCHEDULER] Auto-backup scheduler started.')
-    except Exception as exc:
+      except Exception as exc:
         print('[SCHEDULER] Scheduler not started:', exc)
+    else:
+        print('[SCHEDULER] Skipped (DISABLE_SCHEDULER) — مناسب آزمون‌ها')
     
     # فقط خود endpoint تلگرام از CSRF معاف است؛ فرم‌های مالی و مدیریتی
     # داخل new_features باید همچنان محافظت شوند.
@@ -306,7 +311,7 @@ def create_app():
                     return date
             j = jdatetime.date.fromgregorian(date=date)
             return f'{j.year}/{j.month:02d}/{j.day:02d}'
-        except Exception as e:
+        except Exception:
             return str(date) if date else ''
     
     @app.template_filter('jalali_period')
