@@ -77,6 +77,7 @@ FEATURE_LABELS = {item['key']: item['label'] for item in AVAILABLE_FEATURES}
 LICENSE_EXEMPT_ENDPOINTS = frozenset({
     'static',
     'favicon',
+    'healthz',
     'auth.login',
     'auth.logout',
     # پوسته PWA باید پیش از فعال‌سازی لایسنس هم بارگذاری شود (نصب/آفلاین بودن

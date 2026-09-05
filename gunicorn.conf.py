@@ -7,19 +7,31 @@
     اجرای پشتیبان به CRON هاست سپرده می‌شود.
   • `timeout=120` برای گزارش‌های سنگین (PDF/Excel) — زیر آن ورکر کُشته می‌شود.
 """
-import multiprocessing
 import os
 
 bind = '0.0.0.0:5000'
-# SQLite ⇒ ۲ ورکر؛ برای MySQL/PostgreSQL می‌توانید تا (CPU×2)+1 بالا ببرید
-workers = int(os.environ.get('GUNICORN_WORKERS', 2))
+
+
+def _default_workers():
+    """SQLite ⇒ حداکثر ۲؛ روی RAM کم فقط ۱ تا OOM/۵۰۰ ندهد."""
+    try:
+        from utils.runtime_profile import is_low_resource
+        if is_low_resource():
+            return 1
+    except Exception:
+        pass
+    return 2
+
+
+workers = int(os.environ.get('GUNICORN_WORKERS', _default_workers()))
 worker_class = 'gthread'
-threads = int(os.environ.get('GUNICORN_THREADS', 4))
+_default_threads = 2 if workers == 1 else 4
+threads = int(os.environ.get('GUNICORN_THREADS', _default_threads))
 timeout = int(os.environ.get('GUNICORN_TIMEOUT', 120))
 graceful_timeout = 30
 keepalive = 5
-max_requests = 1000          # راه‌اندازی مجدد تدریجی (جلوگیری از نشت تدریجی)
-max_requests_jitter = 100
+max_requests = int(os.environ.get('GUNICORN_MAX_REQUESTS', 400 if workers == 1 else 1000))
+max_requests_jitter = 50
 accesslog = '-'              # در Docker به stdout (لاگ متمرکز)
 errorlog = '-'
 loglevel = os.environ.get('GUNICORN_LOG_LEVEL', 'info')

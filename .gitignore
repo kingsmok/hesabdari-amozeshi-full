@@ -71,6 +71,7 @@ host_deploy_*.zip
 !instance/.gitkeep
 # مهر زمانیِ نگهداری نشست‌ها (utils/session_maintenance.py — state runtime)
 instance/.session_cleanup_stamp
+instance/.jalali_repair_stamp
 
 # لاگ و قفل پوسته دسکتاپ (logs/desktop-*.log، single-instance.lock)
 logs/

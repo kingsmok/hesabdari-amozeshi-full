@@ -9,6 +9,64 @@ from sqlalchemy import inspect, text
 from extensions import db
 
 
+def _existing_columns(table: str) -> set[str]:
+    """نام ستون‌های موجود — تا ALTER ناموفق (و rollback گران) نزنیم."""
+    try:
+        inspector = inspect(db.engine)
+        if table not in inspector.get_table_names():
+            return set()
+        return {col['name'] for col in inspector.get_columns(table)}
+    except Exception:
+        return set()
+
+
+def _add_missing_columns(table: str, specs: dict[str, str]) -> int:
+    """specs: نام ستون → قطعه SQL نوع برای ALTER TABLE ... ADD COLUMN."""
+    existing = _existing_columns(table)
+    added = 0
+    for name, ddl in specs.items():
+        if name in existing:
+            continue
+        try:
+            db.session.execute(text(f'ALTER TABLE {table} ADD COLUMN {name} {ddl}'))
+            db.session.commit()
+            added += 1
+        except Exception:
+            db.session.rollback()
+    return added
+
+
+def ensure_hot_indexes() -> int:
+    """ایندکس صفحات پربازدید (داشبورد/لیست) — IF NOT EXISTS، اجرای دوباره بی‌ضرر."""
+    statements = (
+        'CREATE INDEX IF NOT EXISTS ix_students_status ON students (status)',
+        'CREATE INDEX IF NOT EXISTS ix_teachers_is_active ON teachers (is_active)',
+        'CREATE INDEX IF NOT EXISTS ix_class_groups_status ON class_groups (status)',
+        'CREATE INDEX IF NOT EXISTS ix_registrations_status ON registrations (status)',
+        'CREATE INDEX IF NOT EXISTS ix_registrations_created_at ON registrations (created_at)',
+        'CREATE INDEX IF NOT EXISTS ix_payments_status_date ON payments (status, payment_date)',
+        'CREATE INDEX IF NOT EXISTS ix_expenses_status_date ON expenses (status, expense_date)',
+        'CREATE INDEX IF NOT EXISTS ix_installments_status_due ON installments (status, due_date)',
+        'CREATE INDEX IF NOT EXISTS ix_class_sessions_class_status ON class_sessions (class_id, status)',
+        'CREATE INDEX IF NOT EXISTS ix_role_permissions_role ON role_permissions (role_id)',
+        'CREATE INDEX IF NOT EXISTS ix_permissions_mod_act ON permissions (module, action)',
+    )
+    created = 0
+    backend = database_backend()
+    for sql in statements:
+        try:
+            if backend == 'mysql':
+                # MySQL IF NOT EXISTS برای INDEX از ۸.۰؛ شکست = از قبل هست
+                db.session.execute(text(sql.replace(' IF NOT EXISTS', '')))
+            else:
+                db.session.execute(text(sql))
+            db.session.commit()
+            created += 1
+        except Exception:
+            db.session.rollback()
+    return created
+
+
 def database_backend() -> str:
     return db.engine.url.get_backend_name()
 
@@ -82,7 +140,19 @@ def repair_legacy_jalali_dates() -> int:
 
     SQLAlchemy تمام ستون‌های Date را میلادی نگه می‌دارد. نسخه‌های قدیمی داده نمونه،
     سال‌هایی مثل ۱۴۰۵ را مستقیماً ذخیره می‌کردند که گزارش‌ها و سررسیدها را خراب می‌کرد.
+
+    اسکن همهٔ جداول روی هاست ضعیف در هر بوت ورکر، spawn را از مهلت Passenger
+    رد می‌کند → ۵۰۰. مهر فایل یعنی «یک‌بار انجام شد».
     """
+    stamp = None
+    try:
+        from flask import current_app
+        base = current_app.config.get('BASE_DIR') or current_app.root_path
+        stamp = os.path.join(base, 'instance', '.jalali_repair_stamp')
+        if os.path.exists(stamp):
+            return 0
+    except Exception:
+        stamp = None
     from datetime import date
     from sqlalchemy import Date, extract, select, update
     from utils.jalali import jalali_to_gregorian
@@ -117,6 +187,13 @@ def repair_legacy_jalali_dates() -> int:
                     repaired += 1
     if repaired:
         db.session.commit()
+    if stamp:
+        try:
+            os.makedirs(os.path.dirname(stamp), exist_ok=True)
+            with open(stamp, 'w', encoding='utf-8'):
+                pass
+        except OSError:
+            pass
     return repaired
 
 
@@ -144,21 +221,12 @@ def ensure_settings_columns() -> int:
     (SQLite با create_all ستون جدید به جدول موجود اضافه نمی‌کند.)
     خروجی: تعداد ستون‌هایی که واقعاً اضافه شدند.
     """
-    alters = [
-        "ALTER TABLE system_settings ADD COLUMN backup_bot_enabled BOOLEAN DEFAULT 0",
-        "ALTER TABLE system_settings ADD COLUMN backup_bot_chat_id VARCHAR(200)",
-        "ALTER TABLE system_settings ADD COLUMN backup_bot_max_mb INTEGER DEFAULT 45",
-        "ALTER TABLE system_settings ADD COLUMN backup_bot_kind VARCHAR(20) DEFAULT 'database'",
-    ]
-    added = 0
-    for sql in alters:
-        try:
-            db.session.execute(text(sql))
-            db.session.commit()
-            added += 1
-        except Exception:
-            db.session.rollback()          # ستون از قبل وجود دارد
-    return added
+    return _add_missing_columns('system_settings', {
+        'backup_bot_enabled': 'BOOLEAN DEFAULT 0',
+        'backup_bot_chat_id': 'VARCHAR(200)',
+        'backup_bot_max_mb': 'INTEGER DEFAULT 45',
+        'backup_bot_kind': "VARCHAR(20) DEFAULT 'database'",
+    })
 
 
 def ensure_payroll_columns() -> dict:
@@ -170,21 +238,14 @@ def ensure_payroll_columns() -> dict:
     داشته می‌شود و بقیه «ابطال» می‌خورند (حذف فیزیکی نمی‌شوند تا سابقه بماند).
     """
     result = {'added': 0, 'cancelled_duplicates': 0, 'unique_index': False, 'error': None}
-    alters = [
-        "ALTER TABLE payslips ADD COLUMN approved_at DATETIME",
-        "ALTER TABLE payslips ADD COLUMN paid_by INTEGER REFERENCES users (id)",
-        "ALTER TABLE payslips ADD COLUMN cashbox_id INTEGER REFERENCES cashboxes (id)",
-        "ALTER TABLE payslips ADD COLUMN cancel_reason VARCHAR(255)",
-        "ALTER TABLE payslips ADD COLUMN cancelled_at DATETIME",
-        "ALTER TABLE payslips ADD COLUMN cancelled_by INTEGER REFERENCES users (id)",
-    ]
-    for sql in alters:
-        try:
-            db.session.execute(text(sql))
-            db.session.commit()
-            result['added'] += 1
-        except Exception:
-            db.session.rollback()          # ستون از قبل وجود دارد
+    result['added'] = _add_missing_columns('payslips', {
+        'approved_at': 'DATETIME',
+        'paid_by': 'INTEGER REFERENCES users (id)',
+        'cashbox_id': 'INTEGER REFERENCES cashboxes (id)',
+        'cancel_reason': 'VARCHAR(255)',
+        'cancelled_at': 'DATETIME',
+        'cancelled_by': 'INTEGER REFERENCES users (id)',
+    })
 
     # ۱) لغو فیش‌های تکراریِ همان شخص و همان دوره (به‌جز نسخه‌ای که نگه داشته می‌شود)
     try:
@@ -237,19 +298,13 @@ def ensure_payroll_columns() -> dict:
 
 def ensure_accounting_columns() -> int:
     """ستون‌های تازه جدول دوره مالی (قفل شدن واقعی دوره بسته)."""
-    alters = [
-        "ALTER TABLE fiscal_periods ADD COLUMN closed_by_user BOOLEAN DEFAULT 0",
-        "ALTER TABLE journal_entries ADD COLUMN confirmed_at DATETIME",
-        "ALTER TABLE journal_entries ADD COLUMN approved_at DATETIME",
-    ]
-    added = 0
-    for sql in alters:
-        try:
-            db.session.execute(text(sql))
-            db.session.commit()
-            added += 1
-        except Exception:
-            db.session.rollback()
+    added = _add_missing_columns('fiscal_periods', {
+        'closed_by_user': 'BOOLEAN DEFAULT 0',
+    })
+    added += _add_missing_columns('journal_entries', {
+        'confirmed_at': 'DATETIME',
+        'approved_at': 'DATETIME',
+    })
     return added
 
 
@@ -261,16 +316,7 @@ def ensure_finance_columns() -> int:
     درست را به صندوق برمی‌گرداند. مثل بقیه مهاجرت‌ها: فقط ADD COLUMN، هیچ
     داده‌ای بازنویسی/حذف نمی‌شود و اجرای دوباره بی‌ضرر است.
     """
-    alters = [
-        "ALTER TABLE payments ADD COLUMN cancel_reason TEXT",
-        "ALTER TABLE payments ADD COLUMN refunded_amount FLOAT DEFAULT 0",
-    ]
-    added = 0
-    for sql in alters:
-        try:
-            db.session.execute(text(sql))
-            db.session.commit()
-            added += 1
-        except Exception:
-            db.session.rollback()
-    return added
+    return _add_missing_columns('payments', {
+        'cancel_reason': 'TEXT',
+        'refunded_amount': 'FLOAT DEFAULT 0',
+    })

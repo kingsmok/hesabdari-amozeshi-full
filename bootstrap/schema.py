@@ -41,11 +41,16 @@ def _initialize_with_context(app) -> None:
 
     from utils.database_tools import (ensure_accounting_columns,
                                       ensure_finance_columns,
+                                      ensure_hot_indexes,
                                       ensure_payroll_columns,
                                       ensure_settings_columns)
     ensure_settings_columns()
     ensure_accounting_columns()
     ensure_finance_columns()
+    try:
+        ensure_hot_indexes()
+    except Exception as exc:                       # noqa: BLE001 — ایندکس بوت را نکشد
+        app.logger.warning('hot indexes skipped: %s', exc)
     payroll_patch = ensure_payroll_columns()
     if payroll_patch.get('added') or payroll_patch.get('cancelled_duplicates'):
         app.logger.warning(
@@ -68,11 +73,14 @@ def _initialize_with_context(app) -> None:
     if note:
         app.logger.info('installer config: %s', note)
 
-    # اصلاح تاریخ‌های شمسیِ ذخیره‌شده در ستون میلادی (idempotent)
-    from utils.database_tools import repair_legacy_jalali_dates
-    repaired = repair_legacy_jalali_dates()
-    if repaired:
-        app.logger.warning('%s legacy Jalali date values were repaired', repaired)
+    # اصلاح تاریخ‌های شمسیِ ذخیره‌شده در ستون میلادی (idempotent + مهر فایل)
+    try:
+        from utils.database_tools import repair_legacy_jalali_dates
+        repaired = repair_legacy_jalali_dates()
+        if repaired:
+            app.logger.warning('%s legacy Jalali date values were repaired', repaired)
+    except Exception as exc:                       # noqa: BLE001 — اسکن تاریخ بوت را نکشد
+        app.logger.warning('jalali date repair skipped: %s', exc)
 
     # نگهداری نشست‌ها/لاگ‌های کهنه (جلوگیری از رشد بی‌نهایت جداول)
     from utils.session_maintenance import run_session_maintenance

@@ -164,7 +164,7 @@ gunicorn --config gunicorn.conf.py wsgi:application
 
 | علامت | علت محتمل و راه‌حل |
 |------|---------------------|
-| خطای 500 یا «Internal Server Error» | `logs/passenger_error.log` و `logs/academy.log` را در File Manager بخوانید؛ علت دقیق آن‌جاست. سپس Restart کنید |
+| خطای 500 یا «Internal Server Error» | اول `/healthz` را باز کنید: اگر `{ok:true}` بود برنامه بالا آمده و خطا از یک صفحهٔ خاص است. وگرنه `logs/passenger_error.log` و `logs/academy.log` را بخوانید؛ علت دقیق آن‌جاست. سپس Restart کنید. روی هاست ضعیف، حالت `ACADEMY_LOW_RESOURCE=1` از قبل در `passenger_wsgi.py` روشن است |
 | «unable to open database file» | پوشه‌ی `instance/` قابل نوشتن نیست → `chmod 755 instance` و Restart |
 | نشست‌ها بعد از Restart می‌پرند | `settings.json` قابل نوشتن نیست و `SECRET_KEY` ذخیره نمی‌شود → `chmod 644 settings.json` و Restart |
 | صفحه‌ی سفید / 404 روی همه‌ی مسیرها | Application root یا startup file اشتباه است؛ باید `public_html/host_deploy` و `passenger_wsgi.py` باشد |
