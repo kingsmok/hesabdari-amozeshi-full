@@ -1018,7 +1018,13 @@ def main():
         print(f"  آدرس شبکه: http://{get_local_ip()}:{PORT}  (حالت --lan)")
     else:
         print("  دسترسی شبکه: خاموش (با --lan فعال می‌شود)")
-    print("  نام کاربری: admin / **رمز حذف شده برای امنیت**")
+    try:
+        from utils.constants import (default_admin_password,
+                                     default_admin_username)
+        _admin_hint = f'{default_admin_username()} / {default_admin_password()}'
+    except Exception:
+        _admin_hint = 'admin / admin123'
+    print(f'  نام کاربری: {_admin_hint}')
     print("=" * 60)
 
     # ── اپلیکیشن (یک‌بار) + اولین اجرا ──

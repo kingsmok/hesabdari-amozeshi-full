@@ -1,0 +1,39 @@
+{% extends "base/layout.html" %}
+{% block title %}پروفایل من{% endblock %}
+{% block breadcrumb %}<li class="active">پروفایل من</li>{% endblock %}
+{% block content %}
+<div class="anim-in">
+    <div class="page-head"><h1><i class="bi bi-person"></i> پروفایل من<small>{{ current_user.full_name }}</small></h1></div>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card mb-4">
+            <div class="card-head"><h5>مشخصات حساب</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-3"><label class="form-label">نام کاربری</label><input type="text" class="form-control" value="{{ current_user.username }}" disabled></div>
+                    <div class="col-md-3"><label class="form-label">نام کامل</label><input type="text" name="full_name" class="form-control" value="{{ current_user.full_name }}" required></div>
+                    <div class="col-md-3"><label class="form-label">نقش</label><input type="text" class="form-control" value="{{ current_user.role.name if current_user.role else ('مدیر کل' if current_user.is_admin else '—') }}" disabled></div>
+                    <div class="col-md-3"><label class="form-label">شعبه</label><input type="text" class="form-control" value="{{ current_user.branch.name if current_user.branch else 'همه شعب' }}" disabled></div>
+                    <div class="col-md-3"><label class="form-label">ایمیل</label><input type="email" name="email" class="form-control" value="{{ current_user.email or '' }}" dir="ltr"></div>
+                    <div class="col-md-3"><label class="form-label">تلفن</label><input type="text" name="phone" class="form-control" value="{{ current_user.phone or '' }}" dir="ltr"></div>
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-head"><h5>تغییر رمز عبور</h5></div>
+            <div class="card-body-padded">
+                <div class="row g-3">
+                    <div class="col-md-4"><label class="form-label">رمز فعلی</label><input type="password" name="current_password" class="form-control" autocomplete="current-password"></div>
+                    <div class="col-md-4"><label class="form-label">رمز جدید (حداقل ۸ نویسه)</label><input type="password" name="new_password" class="form-control" autocomplete="new-password"></div>
+                    <div class="col-md-4"><label class="form-label">تکرار رمز جدید</label><input type="password" name="confirm_password" class="form-control" autocomplete="new-password"></div>
+                </div>
+                <div class="alert alert-info mt-3" style="border-radius: 10px; font-size: 12px;">
+                    <i class="bi bi-info-circle me-1"></i> اگر قصد تغییر رمز ندارید، هر سه فیلد را خالی بگذارید.
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> ذخیره تغییرات</button>
+        <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">انصراف</a>
+    </form>
+</div>
+{% endblock %}

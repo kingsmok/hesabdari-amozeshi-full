@@ -1,22 +1,65 @@
-# .htaccess for shared hosting (Apache + mod_wsgi / Passenger / Flask)
-# Upload this + all project files to public_html / domain root.
+# ═══════════════════════════════════════════════════════════════
+# Academy Manager Pro — cPanel / Passenger (Python 3.11)
+# ═══════════════════════════════════════════════════════════════
+# این فایل فقط «امنیت + کش استاتیک» است؛ مسیریابی درخواست‌ها را خودِ
+# Passenger انجام می‌دهد، پس هیچ RewriteRule به wsgi.py نباید اینجا باشد
+# (ریدایرکت قدیمی، روی Passenger حلقه/خطای 404 می‌ساخت).
+#
+# تنظیمات پیشنهادی در cPanel → Setup Python App:
+#   Application root:         public_html/host_deploy
+#   Application startup file: passenger_wsgi.py
+#   Application Entry point:  application
+#   Python version:           3.11
+#
+# ری‌استارت سریع پس از هر تغییر (بدون ورود به پنل):
+#   touch tmp/restart.txt   (از Terminal همان اپلیکیشن)
+# ═══════════════════════════════════════════════════════════════
 
-Options +FollowSymLinks -Indexes
-RewriteEngine On
+Options -Indexes +FollowSymLinks
 
-# If request is not a real file or directory, pass to WSGI
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ wsgi.py/$1 [QSA,L]
-
-# Security: deny access to sensitive files
-<FilesMatch "\.(py|pyc|pyo|pyd|json|db|sqlite|sqlite3|log)$">
-    Require all denied
+# ── امنیت: هیچ‌وقت فایل حساس از طریق HTTP دیده نشود ──────────────
+# (اگر Passenger درست پیکربندی شده باشد، این درخواست‌ها اصلاً به Apache
+# نمی‌رسند؛ این بلوک برای وقتی است که فایل‌ها مستقیم سرو شوند.)
+<FilesMatch "^(settings\.json|config\.ini|\.env|.*\.(db|db-wal|db-shm|db-journal|sqlite3?|log|pem|key|pyc|pyo))$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
-# For mod_wsgi direct setup (uncomment if your host supports it):
-# <IfModule mod_wsgi.c>
-#     WSGIScriptAlias / /absolute/path/to/hesabdari-amozeshi-full/wsgi.py
-#     WSGIPythonPath /absolute/path/to/hesabdari-amozeshi-full
-#     WSGIApplicationGroup %{GLOBAL}
-# </IfModule>
+# سورس پایتون نباید از وب خوانده شود (Passenger از روی دیسک می‌خواند، نه HTTP)
+<FilesMatch "\.py$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# پوشه‌های داده/سرویس نباید مستقیم باز شوند
+RedirectMatch 404 ^/(instance|backups|logs|\.git)(/|$)
+RedirectMatch 404 ^/host_deploy_v.*\.zip$
+
+# ── کش استاتیک (CSS/JS/فونت/تصویر) ───────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 7 days"
+    ExpiresByType application/javascript "access plus 7 days"
+    ExpiresByType font/woff2 "access plus 30 days"
+    ExpiresByType font/woff "access plus 30 days"
+    ExpiresByType image/png "access plus 30 days"
+    ExpiresByType image/jpeg "access plus 30 days"
+    ExpiresByType image/svg+xml "access plus 30 days"
+    ExpiresByType image/x-icon "access plus 30 days"
+</IfModule>
+
+# ── هدرهای امنیتی پایه (اگر mod_headers فعال باشد) ────────────────
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

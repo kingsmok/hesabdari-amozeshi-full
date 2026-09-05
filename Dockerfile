@@ -16,8 +16,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # اول requirements: لایهٔ کش داکر تا با هر تغییر کد، پکیج‌ها دوباره نصب نشوند
-COPY requirements.txt requirements-build.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# (requirements-prod همان اصلی + gunicorn است؛ CMD به gunicorn نیاز دارد)
+COPY requirements.txt requirements-prod.txt ./
+RUN pip install --no-cache-dir -r requirements-prod.txt
 
 COPY . .
 # پوشه‌های داده؛ به‌عنوان volume در compose می‌مانند

@@ -17,7 +17,7 @@
 
 ```
 نام کاربری: admin
-رمز عبور:   **رمز حذف شده برای امنیت**
+رمز عبور:   admin123
 ```
 
 > ⚠ حتماً پس از اولین ورود، رمز عبور را تغییر دهید!
@@ -140,6 +140,8 @@ lint (ruff) + `compileall` + کل تست‌ها (`pytest -q`).
 | `ACADEMY_COOKIE_SECURE` | `0` | کوکی امن (فقط HTTPS) |
 | `ACADEMY_SQLITE_BUSY_TIMEOUT` | `10` | ثانیه‌های انتظار برای قفل SQLite |
 | `ACADEMY_RATE_LIMIT` / `ACADEMY_RATE_PERIOD` | `120` / `60` | سقف درخواست‌های API به ازای IP+مسیر |
+| `ACADEMY_ADMIN_USER` / `ACADEMY_ADMIN_PASSWORD` | `admin` / `admin123` | مشخصات مدیر پیش‌فرض در نصب تازه (فقط وقتی هیچ کاربری نیست) |
+| `ACADEMY_DISABLE_BALE` | `0` | خاموش‌کردن دریافت خودکار پیام‌های بله (روی هاست اشتراکی خودکار خاموش است) |
 | `GUNICORN_WORKERS` | `2` | تعداد ورکرها (SQLite ⇒ کم) |
 
 ### اطلاعات فنی

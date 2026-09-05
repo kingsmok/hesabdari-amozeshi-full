@@ -61,6 +61,15 @@ def login():
             
             login_guard.reset(username, ip)     # ورود موفق ⇒ شمارش پاک می‌شود
             login_user(user, remember=bool(remember))
+            # هشدار رمز پیش‌فرض: اگر هنوز با مشخصات کارخانه وارد می‌شود، در
+            # داشبورد یادآوری می‌شود تا حتماً عوضش کند (امنیت نصب تازه).
+            try:
+                from utils.constants import is_default_admin_password
+                if is_default_admin_password(username, password):
+                    flash('شما با رمز پیش‌فرض وارد شده‌اید؛ حتماً از بخش کاربران، '
+                          'رمز عبور را تغییر دهید', 'warning')
+            except Exception:
+                pass
             next_page = request.args.get('next')
             if next_page and next_page.startswith('/') and not next_page.startswith('//'):
                 return redirect(next_page)
@@ -108,3 +117,45 @@ def logout():
     logout_user()
     flash('با موفقیت خارج شدید', 'success')
     return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    """پروفایل من: مشاهده مشخصات + ویرایش + تغییر رمز عبور خودم.
+
+    برای همهٔ نقش‌ها آزاد است (گارد دسترسی مسیر profile را مقید نکرده و
+    در UNLOCKED_ENDPOINTS لایسنس هم ثبت شده) تا هر کاربری — از جمله مدیری
+    که با رمز پیش‌فرض وارد شده — بتواند رمزش را عوض کند.
+    """
+    user = current_user
+    if request.method == 'POST':
+        user.full_name = request.form.get('full_name', user.full_name).strip() or user.full_name
+        user.email = request.form.get('email', '') or None
+        user.phone = request.form.get('phone', '') or None
+
+        current = request.form.get('current_password', '')
+        new_pass = request.form.get('new_password', '')
+        confirm = request.form.get('confirm_password', '')
+        if new_pass or confirm:
+            if not user.check_password(current):
+                flash('رمز فعلی اشتباه است', 'error')
+                return render_template('auth/profile.html')
+            if len(new_pass) < 8:
+                flash('رمز جدید باید حداقل ۸ نویسه باشد', 'error')
+                return render_template('auth/profile.html')
+            if new_pass != confirm:
+                flash('تکرار رمز جدید با آن مطابقت ندارد', 'error')
+                return render_template('auth/profile.html')
+            user.set_password(new_pass)
+            from utils.activity_log import log_activity
+            log_activity('change_password', 'تغییر رمز عبور توسط خود کاربر',
+                         module='system', user_id=user.id,
+                         ip_address=request.remote_addr)
+            db.session.commit()
+            flash('مشخصات و رمز عبور با موفقیت به‌روز شد', 'success')
+            return redirect(url_for('auth.profile'))
+        db.session.commit()
+        flash('مشخصات با موفقیت ذخیره شد', 'success')
+        return redirect(url_for('auth.profile'))
+    return render_template('auth/profile.html')

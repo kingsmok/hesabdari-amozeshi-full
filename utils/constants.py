@@ -44,3 +44,36 @@ CONTRACT_TYPES = {
 
 #: نوع شخصِ حقوق‌بگیر (کلید → برچسب فارسی)
 PERSON_TYPES = {'teacher': 'مدرس', 'employee': 'کارمند', 'manager': 'مدیر'}
+
+# ══════════════════════════════════════════════════════════════
+#  حساب پیش‌فرض نصب تازه
+# ══════════════════════════════════════════════════════════════
+# در نصب تازه (هیچ کاربری وجود ندارد) این حساب مدیر خودکار ساخته می‌شود تا
+# کاربر بدون ویزارد هم بتواند وارد شود. با متغیر محیطی قابل بازتعریف است:
+#   ACADEMY_ADMIN_USER / ACADEMY_ADMIN_PASSWORD
+# اگر نصب‌کننده (config.ini) مدیر خودش را داشته باشد، آن مدیر ساخته می‌شود و
+# این پیش‌فرض نادیده گرفته می‌شود (bootstrap/defaults.py).
+#: نام کاربری پیش‌فرض
+FALLBACK_ADMIN_USERNAME = 'admin'
+#: رمز پیش‌فرض — ۸ نویسه (حداقل سیاست رمز سیستم)؛ پس از ورود عوض شود
+FALLBACK_ADMIN_PASSWORD = 'admin123'
+
+
+def default_admin_username() -> str:
+    """نام کاربری پیش‌فرض مدیر (قابل بازتعریف با ACADEMY_ADMIN_USER)."""
+    return (os.environ.get('ACADEMY_ADMIN_USER') or FALLBACK_ADMIN_USERNAME).strip() \
+        or FALLBACK_ADMIN_USERNAME
+
+
+def default_admin_password() -> str:
+    """رمز پیش‌فرض مدیر (قابل بازتعریف با ACADEMY_ADMIN_PASSWORD)."""
+    return os.environ.get('ACADEMY_ADMIN_PASSWORD') or FALLBACK_ADMIN_PASSWORD
+
+
+def is_default_admin_password(username: str, password: str) -> bool:
+    """آیا این مشخصات همان پیش‌فرض کارخانه است؟ (برای هشدار امنیتی پس از ورود)."""
+    try:
+        return (username or '') == default_admin_username() \
+            and (password or '') == default_admin_password()
+    except Exception:
+        return False

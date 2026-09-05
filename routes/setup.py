@@ -80,6 +80,9 @@ def wizard():
                 if db_type == 'mysql':
                     create_database_if_not_exists(config)
                 flash(f'اتصال دیتابیس: {msg}', 'success')
+                if db_type != 'sqlite':
+                    flash('پس از پایان ویزارد، برنامه را ری‌استارت کنید تا دیتابیس جدید اعمال شود '
+                          '(روی هاست: Restart در Setup Python App)', 'warning')
             else:
                 flash(f'خطا: {msg}', 'error')
             
