@@ -96,6 +96,8 @@ LICENSE_BLUEPRINT_PREFIX = 'license.'
 # ══════════════════════════════════════════════════════════════
 UNLOCKED_ENDPOINTS = frozenset({
     'dashboard.index',
+    # پروفایل و تغییر رمز خودم — برای همهٔ نقش‌ها، بدون قفل بخش
+    'auth.profile',
     # ویزارد نصب و پیکربندی دیتابیس
     'setup.wizard',
     'setup.database_settings',

@@ -65,6 +65,8 @@ RUNTIME_DIRS = [
     "instance",
     "backups",
     "logs",
+    # قرارداد Passenger برای ری‌استارت بدون پنل: touch tmp/restart.txt
+    "tmp",
     os.path.join("static", "uploads"),
     os.path.join("static", "uploads", "students"),
     os.path.join("static", "uploads", "teachers"),

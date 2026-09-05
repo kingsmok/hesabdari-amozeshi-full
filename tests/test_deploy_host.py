@@ -69,6 +69,10 @@ class TestRequiredHostFiles:
         """لاگ چرخشی در logs/ نوشته می‌شود؛ باید از قبل ساخته و writable باشد."""
         assert "logs" in deploy_host.RUNTIME_DIRS
 
+    def test_tmp_dir_exists_for_passenger_restart(self):
+        """قرارداد ری‌استارت Passenger (touch tmp/restart.txt) به پوشه tmp نیاز دارد."""
+        assert "tmp" in deploy_host.RUNTIME_DIRS
+
     def test_local_settings_are_never_copied(self):
         """settings.json محلی (راز/مسیر مطلق) نباید به هاست برود؛ نسخه‌ی تمیز
         درجای آن ساخته می‌شود."""

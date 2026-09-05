@@ -174,7 +174,13 @@ def main():
     print('  DONE!')
     print('  Run: python app.py')
     print('  URL: http://localhost:5000  (برای شبکه از آدرس IP سیستم استفاده کنید)')
-    print('  User: admin / **رمز حذف شده برای امنیت**')
+    try:
+        from utils.constants import (default_admin_password,
+                                     default_admin_username)
+        _admin_hint = f'{default_admin_username()} / {default_admin_password()}'
+    except Exception:
+        _admin_hint = 'admin / admin123'
+    print(f'  User: {_admin_hint}')
     print('=' * 55)
     print()
 

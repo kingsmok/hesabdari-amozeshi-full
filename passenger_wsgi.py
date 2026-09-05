@@ -31,6 +31,7 @@ _RUNTIME_DIRS = (
     "instance",
     "backups",
     "logs",
+    "tmp",  # قرارداد Passenger: touch tmp/restart.txt
     os.path.join("static", "uploads"),
     os.path.join("static", "uploads", "students"),
     os.path.join("static", "uploads", "teachers"),
