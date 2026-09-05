@@ -22,10 +22,18 @@ echo      Recommended: Python 3.11 or 3.12
 echo      Python 3.13/3.14 needs SQLAlchemy 2.0.31 or newer.
 echo.
 echo [2/3] Install packages (pinned versions from requirements.txt)...
-python -m pip install --upgrade pip
-pip install -r requirements.txt --upgrade
-python -m pip install --upgrade "SQLAlchemy>=2.0.31"
-pip install PyQt6 PyQt6-WebEngine
+python -m pip install --upgrade pip setuptools wheel
+python tools\install_deps.py --no-upgrade-pip --desktop
+if errorlevel 1 (
+    echo.
+    echo  ERROR: Package install failed.
+    echo  If you saw "Failed building wheel for greenlet", try:
+    echo     python tools\install_deps.py --skip-greenlet
+    echo  greenlet is only needed for SQLAlchemy async - this app does not use it.
+    echo.
+    pause
+    exit /b 1
+)
 python -c "import sys; from importlib.metadata import version; print('Python', sys.version.split()[0]); print('SQLAlchemy', version('sqlalchemy'))" 2>nul
 echo.
 echo [3/3] Setup (download fonts + create database)...

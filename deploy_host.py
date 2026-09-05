@@ -58,7 +58,9 @@ OPTIONAL_FILES = []
 
 # ── پوشه‌های کد و قالب‌ها ──
 # bootstrap/ (جداسازی create_app به ماژول‌های مستقل — app.py از آن import می‌کند)
-DIRS = ["routes", "models", "utils", "bootstrap", "templates", "static"]
+# tools/ (اسکریپت نصب هوشمند وابستگی‌ها؛ روی هاستِ بدون کامپایلر برای رفع خطای
+#         «Failed building wheel for greenlet» لازم می‌شود)
+DIRS = ["routes", "models", "utils", "bootstrap", "tools", "templates", "static"]
 
 # ── پوشه‌های خالی که اپ در زمان اجرا نیاز دارد (قابل نوشتن باشند) ──
 RUNTIME_DIRS = [
@@ -453,7 +455,9 @@ def main():
     print("       • Application startup file:  passenger_wsgi.py")
     print("       • Application Entry point:   application")
     print("  ۳. دکمه‌ی pip install را بزنید یا در Terminal همان اپلیکیشن:")
-    print("       pip install -r requirements.txt")
+    print("       pip install --prefer-binary -r requirements.txt")
+    print("     اگر خطای «Failed building wheel for greenlet» گرفتید (هاست کامپایلر ندارد):")
+    print("       python tools/install_deps.py")
     print("  ۴. مطمئن شوید پوشه‌های instance/ و backups/ و logs/ و static/uploads/")
     print("     قابل نوشتن‌اند (در Terminal همان اپلیکیشن):")
     print("       chmod 755 instance backups logs static/uploads")

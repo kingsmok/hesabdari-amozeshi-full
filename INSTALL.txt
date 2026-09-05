@@ -28,8 +28,20 @@
 ۲. "Open in Terminal" یا "Open PowerShell here" را بزنید
 ۳. این دستور را تایپ کنید (نسخه‌های دقیق و سازگار را نصب می‌کند):
 
-   pip install -r requirements.txt --upgrade
-   pip install PyQt6 PyQt6-WebEngine
+   python tools/install_deps.py --desktop
+
+   (روش قدیمی هم کار می‌کند:
+      pip install -r requirements.txt --upgrade
+      pip install PyQt6 PyQt6-WebEngine   )
+
+   ⚠ اگر خطای «Failed building wheel for greenlet» دیدید:
+   greenlet وابسته‌ی SQLAlchemy است و باید کامپایل شود مگر wheel آماده داشته باشد.
+   دستور بالا (tools/install_deps.py) خودش سه راه‌حل را به ترتیب امتحان می‌کند:
+      ۱) ارتقای pip / setuptools / wheel
+      ۲) نصب greenlet فقط از wheel آماده:
+         python -m pip install --only-binary=:all: --upgrade greenlet
+      ۳) نصب کامل بدون greenlet (برنامه sync است و به آن نیاز ندارد):
+         python tools/install_deps.py --skip-greenlet
 
    ⚠ نکته: نسخه SQLAlchemy باید ۲.۰.۳۱ به بالا باشد (در requirements.txt قفل شده است).
    اگر قبلاً برنامه را نصب کرده‌اید و هنگام اجرا خطای «TypingOnly» یا
