@@ -89,6 +89,37 @@ python -m pip install --upgrade "SQLAlchemy>=2.0.31"
 
 سپس `start_desktop.bat` را دوباره اجرا کنید. پایدارترین نسخه پایتون برای این برنامه ۳.۱۱ یا ۳.۱۲ است.
 
+**مشکل:** خطای `Failed building wheel for greenlet` هنگام `pip install`
+
+```
+× Building wheel for greenlet (pyproject.toml) did not run successfully.
+ERROR: Failed building wheel for greenlet
+```
+
+- علت: `greenlet` وابسته‌ی SQLAlchemy است و یک افزونه‌ی C دارد. اگر برای نسخه‌ی
+  پایتون شما wheel آماده نباشد (معمولاً پایتون ۳.۱۳/۳.۱۴ به بالا یا پلتفرم غیرمعمول)،
+  pip سعی می‌کند آن را کامپایل کند و بدون کامپایلر شکست می‌خورد.
+- راه‌حل یک‌خطی (خودش هر سه راه‌حل را به ترتیب امتحان می‌کند):
+
+```
+python tools/install_deps.py
+```
+
+- راه‌حل‌های دستی، به ترتیب:
+
+```
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install --only-binary=:all: --upgrade greenlet
+pip install --prefer-binary -r requirements.txt
+```
+
+- اگر برای پلتفرم شما اصلاً wheel وجود ندارد، بدون `greenlet` نصب کنید؛
+  برنامه sync است و `greenlet` فقط برای SQLAlchemy async لازم است:
+
+```
+python tools/install_deps.py --skip-greenlet
+```
+
 **مشکل:** فونت‌ها نمایش داده نمی‌شوند
 - فایل‌های فونت در `static/fonts/` باید موجود باشند
 
