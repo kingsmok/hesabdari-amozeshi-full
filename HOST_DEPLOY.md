@@ -46,16 +46,34 @@
 
 ### ۳. نصب پکیج‌ها
 
-در همان صفحه‌ی اپلیکیشن، یا دکمه‌ی نصب را بزنید یا در **Terminal** همان
-اپلیکیشن (آدرس فعال‌سازی venv بالای صفحه نوشته شده) اجرا کنید:
+#### ۳-الف) بدون SSH/Terminal — فقط با دکمه‌ی **Run Pip Install**
+
+اگر دسترسی Terminal/SSH ندارید، فقط دکمه‌ی نصب را بزنید. لازم نیست فایل
+جداگانه‌ای بسازید؛ **هم `requirements.txt` و هم `requirements-nobuild.txt`**
+از قبل `--only-binary=:all:` دارند و برای هاست امن‌اند:
+
+1. در صفحه‌ی اپلیکیشن → **Configuration files**، اگر `requirements-nobuild.txt`
+   را دیدید همان را انتخاب کنید؛ وگرنه `requirements.txt` را انتخاب کنید.
+2. **Run Pip Install** را بزنید.
+
+چرا دیگر خطا نمی‌دهد؟ خطِ `--only-binary=:all:` یعنی pip فقط از **wheel آماده**
+نصب می‌کند و **هرگز از سورس کامپایل نمی‌کند**. چون خطای شما مثل
+`Failed building wheel for greenlet` دقیقاً از کامپایل `greenlet` (یا سایر
+پکیج‌های C مثل `cryptography` و `Pillow`) است، این روش بدون کامپایلر هم تمام
+می‌شود.
+
+> اگر نصب `cryptography` طول کشید طبیعی است؛ فقط یک‌بار انجام می‌شود.
+> درایور MySQL (`PyMySQL`) هم داخل همین فایل است.
+
+#### ۳-ب) با Terminal (اختیاری)
+
+اگر در همان صفحه‌ی اپلیکیشن **Terminal** دارید (آدرس فعال‌سازی venv بالای
+صفحه نوشته شده)، اجرا کنید:
 
 ```bash
 pip install --prefer-binary -r requirements.txt
 ```
 
-> اگر نصب `cryptography` طول کشید طبیعی است؛ فقط یک‌بار انجام می‌شود.
-> درایور MySQL (`PyMySQL`) هم داخل همین فایل است.
->
 > روی هاست اشتراکی معمولاً کامپایلر C وجود ندارد. اگر خطای
 > `Failed building wheel for greenlet` گرفتید، به‌جای دستور بالا این را اجرا کنید:
 >
@@ -151,7 +169,7 @@ gunicorn --config gunicorn.conf.py wsgi:application
 | نشست‌ها بعد از Restart می‌پرند | `settings.json` قابل نوشتن نیست و `SECRET_KEY` ذخیره نمی‌شود → `chmod 644 settings.json` و Restart |
 | صفحه‌ی سفید / 404 روی همه‌ی مسیرها | Application root یا startup file اشتباه است؛ باید `public_html/host_deploy` و `passenger_wsgi.py` باشد |
 | `ModuleNotFoundError` | `pip install -r requirements.txt` کامل اجرا نشده؛ در Terminal همان اپلیکیشن دوباره اجرا و Restart کنید |
-| `Failed building wheel for greenlet` | هاست کامپایلر C ندارد. `python tools/install_deps.py` را اجرا کنید (خودکار wheel آماده را نصب می‌کند و در نبود آن، بدون greenlet ادامه می‌دهد) |
+| `Failed building wheel for greenlet` | هاست کامپایلر C ندارد. اگر فقط دکمه‌ی **Run Pip Install** دارید، روی `requirements.txt` یا `requirements-nobuild.txt` نصب کنید (هر دو wheel-only هستند و کامپایل نمی‌کنند)؛ اگر **Terminal** دارید `python tools/install_deps.py` را اجرا کنید (خودکار wheel آماده را نصب می‌کند و در نبود آن، بدون greenlet ادامه می‌دهد) |
 | تغییر دیتابیس به MySQL اعمال نشد | پس از ذخیره در `/setup/database` حتماً اپلیکیشن را Restart کنید |
 | فراموشی رمز مدیر | در Terminal همان اپلیکیشن (داخل `public_html/host_deploy` با venv فعال): `ACADEMY_DISABLE_SCHEDULER=1 python -c "from app import create_app; from extensions import db; from models.user import User; a=create_app(); a.app_context().push(); u=User.query.filter_by(username='admin').first(); u.set_password('admin123'); db.session.commit(); print('done: admin password reset')"` — سپس Restart کنید و با `admin123` وارد شوید |
 

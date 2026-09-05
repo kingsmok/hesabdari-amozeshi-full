@@ -1,0 +1,19 @@
+# ═══════════════════════════════════════════════════════════════
+# Academy Manager Pro — نصب روی هاست بدون کامپایلر
+#
+# این فایل یک نامِ واضح برای همان نسخه‌ی نصبِ «فقط wheel» است.
+# از این به بعد `requirements.txt` خودش هم خط `--only-binary=:all:` دارد،
+# بنابراین در cPanel — حتی اگر روی همان requirements.txt دکمه‌ی
+# «Run Pip Install» را بزنید — pip هرگز greenlet (و سایر پکیج‌های C)
+# را از سورس کامپایل نمی‌کند.
+#
+# روش نصب در cPanel:
+#   Setup Python App → اپلیکیشن → Configuration files → این فایل را Add کنید
+#   → Run Pip Install → نصب کامل می‌شود (یا مستقیماً روی requirements.txt)
+#
+# اگر باز هم خطا گرفتید (مثلاً پایتون‌ی انتخاب کرده‌اید که برای آن wheel
+# آماده وجود ندارد):
+#   python tools/install_deps.py --skip-greenlet
+# ═══════════════════════════════════════════════════════════════
+--only-binary=:all:
+-r requirements.txt

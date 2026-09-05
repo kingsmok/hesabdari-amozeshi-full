@@ -102,6 +102,22 @@ class TestRequiredHostFiles:
                             encoding="utf-8").read()
         assert "PyMySQL" in requirements
 
+    def test_nobuild_requirements_is_packed_and_wheel_only(self):
+        """فایل نصب بدون کامپایل (cPanel / Run Pip Install) باید در بسته باشد و
+        greenlet را هرگز از سورس نسازد."""
+        assert "requirements-nobuild.txt" in deploy_host.REQUIRED_FILES
+        nb = open(os.path.join(ROOT, "requirements-nobuild.txt"),
+                  encoding="utf-8").read()
+        assert "--only-binary=:all:" in nb
+        assert "-r requirements.txt" in nb
+
+    def test_requirements_txt_itself_is_wheel_only_for_hosts(self):
+        """`requirements.txt` (فایلی که cPanel به‌صورت پیش‌فرض می‌بیند) هم باید
+        wheel-only باشد تا بدون SSH و بدون کامپایلر C نصب شود."""
+        req = open(os.path.join(ROOT, "requirements.txt"),
+                   encoding="utf-8").read()
+        assert "--only-binary=:all:" in req
+
     def test_all_local_imports_are_available_on_host(self):
         """همه‌ی importهای محلیِ همه‌ی فایل‌ها (نه فقط app.py) باید در بسته باشند."""
         problems = deploy_host._verify_staged_imports(ROOT)

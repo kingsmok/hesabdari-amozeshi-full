@@ -120,6 +120,16 @@ pip install --prefer-binary -r requirements.txt
 python tools/install_deps.py --skip-greenlet
 ```
 
+- **روی هاست اشتراکی بدون SSH/Terminal** (فقط دکمه‌ی **Run Pip Install** در
+  cPanel): دیگر لازم نیست کاری انجام دهید — خود `requirements.txt` خط
+  `--only-binary=:all:` دارد، بنابراین pip هرگز پکیج‌های C (`greenlet` و ...)
+  را از سورس کامپایل نمی‌کند و همان خطا پیش نمی‌آید:
+
+  ```
+  # cPanel → Setup Python App → Configuration files
+  # → Run Pip Install روی requirements.txt (یا requirements-nobuild.txt)
+  ```
+
 **مشکل:** فونت‌ها نمایش داده نمی‌شوند
 - فایل‌های فونت در `static/fonts/` باید موجود باشند
 

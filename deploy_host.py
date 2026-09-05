@@ -34,6 +34,9 @@ REQUIRED_FILES = [
     ".htaccess",
     "VERSION",
     "requirements.txt",
+    # نصب فقط-با-wheel برای هاستِ بدون کامپایلر/بدون SSH:
+    # cPanel → Setup Python App → Run Pip Install روی این فایل
+    "requirements-nobuild.txt",
     # مسیر VPS (Gunicorn + Nginx) — روی هاست اشتراکی لازم نیست ولی بودن ضرری ندارد
     "requirements-prod.txt",
     "gunicorn.conf.py",
@@ -454,9 +457,16 @@ def main():
     print("       • Application root:          public_html/host_deploy")
     print("       • Application startup file:  passenger_wsgi.py")
     print("       • Application Entry point:   application")
-    print("  ۳. دکمه‌ی pip install را بزنید یا در Terminal همان اپلیکیشن:")
+    print("  ۳. نصب پکیج‌ها — بدون SSH فقط با دکمه‌ی Run Pip Install:")
+    print("       • Setup Python App → اپلیکیشن → Configuration files")
+    print("       • اگر فایل requirements-nobuild.txt را دیدید همان را انتخاب کنید؛")
+    print("         وگرنه همان requirements.txt را انتخاب کنید — هر دو امن‌اند")
+    print("       • دکمه‌ی Run Pip Install را بزنید")
+    print("     (هر دو فایل `--only-binary=:all:` دارند؛ پس greenlet و پکیج‌های C")
+    print("     هرگز از سورس کامپایل نمی‌شوند و خطای Failed building wheel نمی‌دهند)")
+    print("     اگر Terminal دارید، به‌جای آن می‌توانید:")
     print("       pip install --prefer-binary -r requirements.txt")
-    print("     اگر خطای «Failed building wheel for greenlet» گرفتید (هاست کامپایلر ندارد):")
+    print("     یا برای حل خودکار خطای greenlet:")
     print("       python tools/install_deps.py")
     print("  ۴. مطمئن شوید پوشه‌های instance/ و backups/ و logs/ و static/uploads/")
     print("     قابل نوشتن‌اند (در Terminal همان اپلیکیشن):")
