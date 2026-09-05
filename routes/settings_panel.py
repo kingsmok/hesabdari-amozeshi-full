@@ -92,15 +92,8 @@ def telegram_config():
     webhook_info = None
     
     if settings and settings.telegram_bot_token:
-        try:
-            resp = requests.get(
-                f'https://api.telegram.org/bot{settings.telegram_bot_token}/getMe',
-                timeout=10
-            ).json()
-            if resp.get('ok'):
-                bot_info = resp.get('result', {})
-        except:
-            pass
+        from utils.bot_services import get_bot_info
+        bot_info = get_bot_info('telegram', settings.telegram_bot_token)
         
         try:
             resp = requests.get(
@@ -199,7 +192,7 @@ def test_telegram_message():
 def bale_config():
     """تنظیمات ربات بله با Long Polling و بدون وب‌هوک."""
     from models.system import SystemSettings
-    from utils.bot_services import bale_polling_manager
+    from utils.bot_services import bale_polling_manager, get_bot_info
 
     settings = SystemSettings.query.first()
     if request.method == 'POST':
@@ -208,33 +201,22 @@ def bale_config():
         settings.bale_webhook_url = None
         db.session.commit()
 
+        from utils.bot_services import clear_bot_info_cache
+        clear_bot_info_cache()          # توکن عوض شد؛ کش getMe بی‌اعتبار است
         if token:
-            try:
-                response = requests.get(f'https://tapi.bale.ai/bot{token}/getMe', timeout=10)
-                result = response.json()
-                if result.get('ok'):
-                    bot_info = result.get('result', {})
-                    started, message = bale_polling_manager.start(current_app._get_current_object(), token)
-                    flash(f'اتصال موفق به @{bot_info.get("username", "?")} — {message}', 'success' if started else 'warning')
-                else:
-                    flash(f'توکن ذخیره شد اما اتصال ناموفق بود: {result.get("description", "نامشخص")}', 'danger')
-            except (requests.RequestException, ValueError) as exc:
-                flash(f'توکن ذخیره شد؛ ارتباط با بله برقرار نشد: {exc}', 'warning')
+            bot_info = get_bot_info('bale', token, ttl=0)
+            if bot_info:
+                started, message = bale_polling_manager.start(current_app._get_current_object(), token)
+                flash(f'اتصال موفق به @{bot_info.get("username", "?")} — {message}', 'success' if started else 'warning')
+            else:
+                flash('توکن ذخیره شد اما اتصال به بله برقرار نشد (توکن یا شبکه را بررسی کنید)', 'danger')
         else:
             bale_polling_manager.stop()
             flash('توکن بله پاک و دریافت خودکار متوقف شد', 'success')
         return redirect(url_for('settings_panel.bale_config'))
 
-    bot_info = None
-    if settings and settings.bale_bot_token:
-        try:
-            result = requests.get(
-                f'https://tapi.bale.ai/bot{settings.bale_bot_token}/getMe', timeout=10
-            ).json()
-            if result.get('ok'):
-                bot_info = result.get('result', {})
-        except (requests.RequestException, ValueError):
-            pass
+    # getMe با کش — باز کردن این صفحه هر بار ۱۰ ثانیه تایم‌اوت شبکه نمی‌خورد
+    bot_info = get_bot_info('bale', settings.bale_bot_token) if settings else None
 
     return render_template(
         'settings_panel/bale.html',
@@ -306,19 +288,12 @@ def test_bale_message():
         flash('شناسه چت را وارد کنید', 'error')
         return redirect(url_for('settings_panel.bale_config'))
     
-    try:
-        result = requests.post(
-            f'https://tapi.bale.ai/bot{settings.bale_bot_token}/sendMessage',
-            json={'chat_id': chat_id, 'text': message},
-            timeout=10
-        ).json()
-        
-        if result.get('ok'):
-            flash('پیام با موفقیت ارسال شد ✓', 'success')
-        else:
-            flash(f'خطا: {result.get("description", "نامشخص")}', 'error')
-    except Exception as e:
-        flash(f'خطا: {str(e)}', 'error')
+    from utils.bot_services import send_bot_message
+    result = send_bot_message('bale', settings.bale_bot_token, chat_id, message)
+    if result.get('ok'):
+        flash('پیام با موفقیت ارسال شد ✓', 'success')
+    else:
+        flash(f'خطا: {result.get("description", "نامشخص")}', 'error')
     
     return redirect(url_for('settings_panel.bale_config'))
 

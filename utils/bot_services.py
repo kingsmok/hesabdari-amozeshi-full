@@ -3,11 +3,22 @@
 - ثبت‌نام با شماره تلفن (جلوگیری از استفاده شماره دیگران)
 - کیبوردهای شیشه‌ای (Reply Keyboard + Inline Keyboard)
 - منوی اصلی ربات
+
+عملکرد روی هاست (چرا این ماژول این‌طور نوشته شده):
+  سرور بله/تلگرام بیرون از هاست است، پس هر فراخوانی API یک RTT کامل هزینه
+  دارد. دو چیز قبلاً ربات را روی هاست «خیلی کند» می‌کرد:
+    ۱) هر sendMessage یک اتصال TCP+TLS تازه می‌ساخت (handshake دوباره).
+    ۲) پردازش همهٔ پیام‌ها پشت‌سرهم در یک ترد انجام می‌شد و اگر ارسال پاسخِ
+       حتی یک کاربر شکست می‌خورد (کاربر block کرده / ۴۲۹ flood) کل دسته
+       رها می‌شد، ۵ ثانیه خواب می‌رفت و بقیهٔ پیام‌ها هرگز جواب نمی‌گرفتند.
+  حالا: Session با pool اتصال، پردازش موازی به تفکیک کاربر، و جداسازی خطای
+  هر پیام از بقیه.
 """
 from __future__ import annotations
 
-import json
 import logging
+import os
+import queue
 import re
 import threading
 import time
@@ -16,6 +27,128 @@ from datetime import datetime
 import requests
 
 logger = logging.getLogger('bot.services')
+
+# ═══════════════════════════════════════════════════════════════
+#  لایهٔ HTTP مشترک — اتصال پایدار به‌جای handshake برای هر پیام
+# ═══════════════════════════════════════════════════════════════
+
+#: (اتصال, خواندن) — اتصال باید کوتاه باشد تا هاستِ با مسیر بد سریع شکست بخورد
+DEFAULT_TIMEOUT = (7, 20)
+
+_SESSIONS = threading.local()
+
+
+def _http_session() -> requests.Session:
+    """یک `Session` برای هر ترد، با pool اتصال.
+
+    `requests.post(...)` هر بار اتصال تازه می‌سازد ⇒ روی هاست، به‌ازای هر
+    پیام یک TLS handshake اضافه. `Session` اتصال را نگه می‌دارد و پیام‌های
+    بعدی روی همان اتصال می‌روند. چون `Session` تضمین thread-safe بودن ندارد،
+    به‌جای یک نمونهٔ مشترک، هر ترد نمونهٔ خودش را دارد.
+    """
+    session = getattr(_SESSIONS, 'session', None)
+    if session is None:
+        session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=2, pool_maxsize=4, max_retries=0,
+        )
+        session.mount('https://', adapter)
+        session.mount('http://', adapter)
+        _SESSIONS.session = session
+    return session
+
+
+def _base_url(provider: str) -> str:
+    return 'https://tapi.bale.ai' if provider == 'bale' else 'https://api.telegram.org'
+
+
+def _call_api(method: str, provider: str, token: str, *,
+              json_body: dict = None, data: dict = None, files: dict = None,
+              params: dict = None,
+              timeout=DEFAULT_TIMEOUT, retry_connect: bool = True) -> dict:
+    """فراخوانی یک متد Bot API و برگرداندن پاسخ JSON (همیشه dict با کلید ok).
+
+    تنها در خطای *اتصال* یک بار تلاش مجدد می‌کند؛ خطای خواندن تکرار نمی‌شود
+    تا پیام دوباره (دوبار) ارسال نشود.
+    """
+    url = f'{_base_url(provider)}/bot{token}/{method}'
+    attempts = 2 if retry_connect else 1
+    for attempt in range(attempts):
+        try:
+            response = _http_session().request(
+                'POST' if (json_body is not None or data or files) else 'GET',
+                url, json=json_body, data=data, files=files, params=params,
+                timeout=timeout,
+            )
+        except (requests.ConnectionError, requests.ConnectTimeout) as exc:
+            if attempt + 1 < attempts:
+                time.sleep(0.4 * (attempt + 1))
+                continue
+            return {'ok': False, 'description': f'خطای شبکه: {type(exc).__name__}'}
+        except requests.RequestException as exc:
+            return {'ok': False, 'description': f'خطای شبکه: {type(exc).__name__}'}
+
+        try:
+            result = response.json()
+        except ValueError:
+            result = {'ok': False,
+                      'description': f'پاسخ نامعتبر از سرور (HTTP {response.status_code})'}
+        if not response.ok:
+            result['ok'] = False
+            result.setdefault('description', f'HTTP {response.status_code}')
+        if not isinstance(result, dict):
+            result = {'ok': False, 'description': 'پاسخ نامعتبر از سرور'}
+        return result
+    return {'ok': False, 'description': 'تلاش برای ارتباط با سرور ناموفق بود'}
+
+
+def retry_after_seconds(result: dict) -> float:
+    """ثانیهٔ درخواستی سرور در پاسخ ۴۲۹ (محدودیت نرخ) — ۰ اگر نبود."""
+    try:
+        if int(result.get('error_code') or 0) == 429:
+            return float((result.get('parameters') or {}).get('retry_after') or 1)
+    except (TypeError, ValueError):
+        pass
+    return 0.0
+
+
+# ═══════════════════════════════════════════════════════════════
+#  اطلاعات ربات (getMe) — با کش کوتاه
+# ═══════════════════════════════════════════════════════════════
+
+_BOT_INFO_TTL = 300                       # ثانیه
+_BOT_INFO_CACHE: dict = {}
+_BOT_INFO_LOCK = threading.Lock()
+
+
+def get_bot_info(provider: str, token: str, ttl: int = _BOT_INFO_TTL) -> dict | None:
+    """اطلاعات ربات با کش؛ صفحهٔ تنظیمات با هر بار باز شدن به شبکه نمی‌رود.
+
+    پیش از این هر بار که صفحهٔ «ربات بله» باز می‌شد یک getMe با تایم‌اوت ۱۰
+    ثانیه روی اتصال تازه زده می‌شد؛ روی هاستی که مسیرش تا سرور بله کند است،
+    خودِ صفحه چند ثانیه طول می‌کشید.
+    """
+    token = (token or '').strip()
+    if not token:
+        return None
+    key = f'{provider}:{token}'
+    now = time.monotonic()
+    with _BOT_INFO_LOCK:
+        cached = _BOT_INFO_CACHE.get(key)
+        if cached and now - cached[0] < ttl:
+            return cached[1]
+
+    result = _call_api('getMe', provider, token, timeout=(7, 10), retry_connect=False)
+    info = result.get('result') if result.get('ok') and isinstance(result.get('result'), dict) else None
+    with _BOT_INFO_LOCK:
+        _BOT_INFO_CACHE[key] = (now, info)
+    return info
+
+
+def clear_bot_info_cache() -> None:
+    """پاک‌کردن کش getMe — بعد از تغییر توکن."""
+    with _BOT_INFO_LOCK:
+        _BOT_INFO_CACHE.clear()
 
 
 def _normalize_phone(value: str) -> str | None:
@@ -169,48 +302,32 @@ def build_inline_course_buttons(courses: list, provider: str = 'bale') -> dict:
 
 def send_bot_message(provider: str, token: str, chat_id, text: str,
                      reply_markup: dict = None, parse_mode: str = None) -> dict:
-    """ارسال پیام به ربات بله یا تلگرام"""
-    base_url = 'https://tapi.bale.ai' if provider == 'bale' else 'https://api.telegram.org'
+    """ارسال پیام به ربات بله یا تلگرام (روی اتصال پایدار مشترک)."""
     payload = {'chat_id': chat_id, 'text': text}
     if reply_markup:
         payload['reply_markup'] = reply_markup
     if parse_mode:
         payload['parse_mode'] = parse_mode
 
-    response = requests.post(
-        f'{base_url}/bot{token}/sendMessage',
-        json=payload,
-        timeout=15,
-    )
-    try:
-        result = response.json()
-    except ValueError:
-        result = {'ok': False, 'description': f'HTTP {response.status_code}'}
-    if not response.ok:
-        result['ok'] = False
+    result = _call_api('sendMessage', provider, token, json_body=payload)
+    wait = retry_after_seconds(result)
+    if wait:                        # محدودیت نرخ سرور: صبر و یک تلاش دیگر
+        time.sleep(min(wait, 10))
+        result = _call_api('sendMessage', provider, token, json_body=payload,
+                           retry_connect=False)
     return result
 
 
 def send_bot_photo(provider: str, token: str, chat_id, photo_url: str,
                    caption: str = '', reply_markup: dict = None) -> dict:
     """ارسال عکس با کیبورد"""
-    base_url = 'https://tapi.bale.ai' if provider == 'bale' else 'https://api.telegram.org'
     payload = {'chat_id': chat_id, 'photo': photo_url}
     if caption:
         payload['caption'] = caption
     if reply_markup:
         payload['reply_markup'] = reply_markup
 
-    response = requests.post(
-        f'{base_url}/bot{token}/sendPhoto',
-        json=payload,
-        timeout=15,
-    )
-    try:
-        result = response.json()
-    except ValueError:
-        result = {'ok': False, 'description': f'HTTP {response.status_code}'}
-    return result
+    return _call_api('sendPhoto', provider, token, json_body=payload)
 
 
 def send_bot_document(provider: str, token: str, chat_id, file_path: str,
@@ -220,9 +337,6 @@ def send_bot_document(provider: str, token: str, chat_id, file_path: str,
     ارسال فایل (سند) به ربات بله یا تلگرام با multipart/form-data.
     سقف حجم در هر دو سرویس ۵۰ مگابایت است.
     """
-    import os
-
-    base_url = 'https://tapi.bale.ai' if provider == 'bale' else 'https://api.telegram.org'
     if not os.path.isfile(file_path):
         return {'ok': False, 'description': 'فایل موردنظر پیدا نشد'}
 
@@ -234,21 +348,10 @@ def send_bot_document(provider: str, token: str, chat_id, file_path: str,
         with open(file_path, 'rb') as handle:
             files = {'document': (filename or os.path.basename(file_path), handle,
                                   'application/octet-stream')}
-            response = requests.post(
-                f'{base_url}/bot{token}/sendDocument',
-                data=data, files=files, timeout=timeout,
-            )
-    except requests.RequestException as exc:
-        return {'ok': False, 'description': f'خطای شبکه: {type(exc).__name__}'}
-
-    try:
-        result = response.json()
-    except ValueError:
-        result = {'ok': False, 'description': f'HTTP {response.status_code}'}
-    if not response.ok:
-        result['ok'] = False
-        result.setdefault('description', f'HTTP {response.status_code}')
-    return result
+            return _call_api('sendDocument', provider, token, data=data, files=files,
+                             timeout=(7, timeout))
+    except OSError as exc:
+        return {'ok': False, 'description': f'خواندن فایل ممکن نشد: {type(exc).__name__}'}
 
 
 def is_backup_admin(bot_user, chat_id) -> bool:
@@ -318,28 +421,25 @@ def process_bot_message(text: str, chat_info: dict, contact: dict = None,
     chat_id = chat_info.get('id')
     text = (text or '').strip()
 
-    # تضمین وجود کاربر
+    # تضمین وجود کاربر + لاگ پیام، در یک کامیت (کامیت روی SQLite یعنی fsync؛
+    # دو کامیت برای هر پیام روی هاست با دیسک کند دو برابر زمان می‌برد)
     bot_user = _ensure_bot_user(chat_info, provider)
-    if bot_user:
-        try:
-            db_session_commit()
-        except Exception:
-            pass
-
-    # لاگ پیام
     try:
-        msg_log = BotMessage(
+        from extensions import db
+        db.session.add(BotMessage(
             chat_id=chat_id,
             text=text[:500] if text else '(contact)',
             direction='incoming',
             msg_type='contact' if contact else ('command' if text.startswith('/') else 'text'),
             provider=provider,
-        )
-        from extensions import db
-        db.session.add(msg_log)
+        ))
         db.session.commit()
     except Exception:
-        pass
+        try:
+            from extensions import db
+            db.session.rollback()
+        except Exception:
+            pass
 
     # ── اگر شماره تلفن (contact) ارسال شده باشد ──
     if contact:
@@ -611,10 +711,29 @@ def build_academy_bot_response(text: str) -> str:
 # ═══════════════════════════════════════════════════════════════
 
 class BalePollingManager:
-    """مدیر تک‌نمونه برای Long Polling بله در نسخه وب و دسکتاپ."""
+    """مدیر تک‌نمونه برای Long Polling بله در نسخه وب و دسکتاپ.
+
+    معماری:
+      یک ترد «دریافت» فقط getUpdates را صدا می‌زند و پیام‌ها را بین چند ترد
+      «پردازش» تقسیم می‌کند. تقسیم بر اساس chat_id است تا ترتیب پیام‌های هر
+      کاربر حفظ شود، ولی کاربرهای مختلف هم‌زمان سرویس بگیرند. پیش از این همه
+      چیز در یک ترد پشت‌سرهم بود: با ۵۰ پیامِ تلنبارشده، آخرین کاربر تا
+      پایان کارِ ۴۹ نفر قبلی منتظر می‌ماند.
+    """
+
+    #: تعداد تردهای پردازش؛ با ACADEMY_BALE_WORKERS قابل تغییر (۱ = پشت‌سرهم)
+    DEFAULT_WORKERS = 3
+    #: سقف پیام در هر getUpdates
+    BATCH_LIMIT = 50
+    #: ثانیه‌های long-poll سمت سرور و تایم‌اوت خواندن سمت ما
+    LONG_POLL = 20
+    LONG_POLL_TIMEOUT = (7, 30)
+    #: بیشترین فاصلهٔ بین تلاش‌ها پس از خطای پیاپی getUpdates
+    MAX_BACKOFF = 30
 
     def __init__(self):
         self._lock = threading.Lock()
+        self._pending_lock = threading.Lock()
         self._thread: threading.Thread | None = None
         self._stop_event: threading.Event | None = None
         self._token = ''
@@ -622,7 +741,14 @@ class BalePollingManager:
         self._last_update_at: datetime | None = None
         self._last_error = ''
         self._offset = 0
+        # آمار — برای دیدن وضعیت واقعی روی هاست از همان پنل
+        self._processed = 0
+        self._failed = 0
+        self._latency_sum = 0.0
+        self._latency_count = 0
+        self._pending = 0
 
+    # ── چرخهٔ زندگی ────────────────────────────────────────────────
     def start(self, app, token: str) -> tuple[bool, str]:
         token = (token or '').strip()
         if not token:
@@ -641,6 +767,9 @@ class BalePollingManager:
             self._offset = 0
             self._state = 'starting'
             self._last_error = ''
+            # صف‌های اجرا قبلی با آن ترد مرده‌اند؛ شمارندهٔ انتظار صفر می‌شود
+            with self._pending_lock:
+                self._pending = 0
             self._thread = threading.Thread(
                 target=self._poll_loop,
                 args=(app, token, stop_event),
@@ -665,62 +794,175 @@ class BalePollingManager:
             'last_update_at': self._last_update_at,
             'last_error': self._last_error,
             'offset': self._offset,
+            'workers': self.worker_count(),
+            'processed': self._processed,
+            'failed': self._failed,
+            'pending': self._pending,
+            'avg_latency_ms': (int(self._latency_sum / self._latency_count * 1000)
+                               if self._latency_count else 0),
         }
 
-    def _poll_loop(self, app, token: str, stop_event: threading.Event) -> None:
-        base_url = f'https://tapi.bale.ai/bot{token}'
+    @classmethod
+    def worker_count(cls) -> int:
+        """تعداد تردهای پردازش (از محیط؛ حداقل ۱)."""
+        raw = os.environ.get('ACADEMY_BALE_WORKERS', '').strip()
         try:
-            requests.post(f'{base_url}/deleteWebhook', timeout=10)
-        except requests.RequestException:
-            pass
+            return max(1, int(raw)) if raw else cls.DEFAULT_WORKERS
+        except ValueError:
+            return cls.DEFAULT_WORKERS
+
+    # ── آمار داخلی ─────────────────────────────────────────────────
+    def _note_result(self, ok: bool, elapsed: float) -> None:
+        with self._pending_lock:
+            self._pending -= 1
+        if ok:
+            self._processed += 1
+            self._latency_sum += elapsed
+            self._latency_count += 1
+            self._last_update_at = datetime.utcnow()
+        else:
+            self._failed += 1
+
+    def _note_error(self, message: str) -> None:
+        """ثبت خطا بدون متوقف‌کردن حلقهٔ دریافت."""
+        self._last_error = message
+        logger.warning('bale: %s', message)
+
+    # ── ترد دریافت ─────────────────────────────────────────────────
+    def _poll_loop(self, app, token: str, stop_event: threading.Event) -> None:
+        workers = self._spawn_workers(app, token, stop_event)
+        try:
+            self._fetch_loop(app, token, stop_event, workers)
+        finally:
+            self._shutdown_workers(workers, stop_event)
+            if self._stop_event is stop_event:
+                self._state = 'stopped'
+
+    def _fetch_loop(self, app, token: str, stop_event: threading.Event,
+                    workers: list) -> None:
+        """فقط دریافت؛ پردازش را به تردهای کارگر می‌سپارد."""
+        _call_api('deleteWebhook', 'bale', token, timeout=(7, 10), retry_connect=False)
 
         self._state = 'running'
         offset = 0
+        failures = 0
         while not stop_event.is_set():
-            try:
-                response = requests.get(
-                    f'{base_url}/getUpdates',
-                    params={'offset': offset, 'limit': 50, 'timeout': 20},
-                    timeout=27,
-                )
-                response.raise_for_status()
-                payload = response.json()
-                if not payload.get('ok'):
-                    raise RuntimeError(payload.get('description') or 'پاسخ نامعتبر از API بله')
-
-                for update in payload.get('result') or []:
-                    update_id = int(update.get('update_id', 0))
-                    offset = max(offset, update_id + 1)
-                    self._offset = offset
-                    message = update.get('message') or update.get('edited_message')
-                    if not message or not message.get('chat'):
-                        continue
-
-                    with app.app_context():
-                        chat_info = message.get('chat', {})
-                        text = message.get('text', '')
-                        contact = message.get('contact')
-
-                        reply_text, reply_markup = process_bot_message(
-                            text, chat_info, contact=contact, provider='bale'
-                        )
-
-                    result = send_bot_message('bale', token, chat_info['id'],
-                                              reply_text, reply_markup=reply_markup)
-                    if not result.get('ok'):
-                        raise RuntimeError(result.get('description') or 'ارسال پاسخ بله ناموفق بود')
-                    self._last_update_at = datetime.utcnow()
-
-                self._last_error = ''
-            except (requests.RequestException, ValueError, RuntimeError, KeyError) as exc:
-                self._last_error = str(exc)
+            payload = _call_api(
+                'getUpdates', 'bale', token,
+                params={'offset': offset, 'limit': self.BATCH_LIMIT,
+                        'timeout': self.LONG_POLL},
+                timeout=self.LONG_POLL_TIMEOUT,
+            )
+            if not payload.get('ok'):
+                failures += 1
+                self._note_error(payload.get('description') or 'پاسخ نامعتبر از API بله')
                 self._state = 'error'
-                if stop_event.wait(5):
+                # backoff نمایی: خطای گذرای شبکه نباید هر ۵ ثانیه تکرار شود و
+                # خطای ماندگار هم نباید CPU/پهنای باند هاست را بسوزاند
+                if stop_event.wait(min(self.MAX_BACKOFF, 1.5 ** failures)):
                     break
                 self._state = 'running'
+                continue
 
-        if self._stop_event is stop_event:
-            self._state = 'stopped'
+            failures = 0
+            self._last_error = ''
+            updates = payload.get('result') or []
+            if not updates:
+                continue
+
+            # تأیید دسته پیش از پردازش: اگر پردازش یک پیام بمیرد، کل دسته
+            # دوباره از سر گرفته نمی‌شود (پیام تکراری/گم‌شده نمی‌دهد)
+            try:
+                offset = max(offset, max(int(u.get('update_id', 0)) for u in updates) + 1)
+            except (TypeError, ValueError):
+                offset = max(offset, len(updates))
+            self._offset = offset
+
+            for update in updates:
+                self._dispatch(update, workers)
+
+    def _dispatch(self, update: dict, workers: list) -> None:
+        """سپردن یک پیام به کارگرِ همان کاربر (ترتیب هر کاربر حفظ می‌شود)."""
+        message = update.get('message') or update.get('edited_message') or {}
+        chat_id = (message.get('chat') or {}).get('id')
+        if chat_id is None:
+            return
+        with self._pending_lock:
+            self._pending += 1
+        workers[abs(hash(chat_id)) % len(workers)].put(update)
+
+    # ── تردهای پردازش ──────────────────────────────────────────────
+    def _spawn_workers(self, app, token: str,
+                       stop_event: threading.Event) -> list:
+        workers = []
+        for index in range(self.worker_count()):
+            work_queue: queue.Queue = queue.Queue()
+            thread = threading.Thread(
+                target=self._worker_loop,
+                args=(app, token, stop_event, work_queue),
+                name=f'bale-handler-{index}',
+                daemon=True,
+            )
+            thread.start()
+            workers.append(work_queue)
+        return workers
+
+    def _worker_loop(self, app, token: str, stop_event: threading.Event,
+                     work_queue: queue.Queue) -> None:
+        while not stop_event.is_set():
+            try:
+                update = work_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            self._handle_update(app, token, update)
+        # هنگام توقف، پیام‌های مانده در صف دور ریخته می‌شوند تا شمارندهٔ
+        # «در انتظار» بادکرده باقی نماند
+        while True:
+            try:
+                work_queue.get_nowait()
+            except queue.Empty:
+                return
+            with self._pending_lock:
+                self._pending -= 1
+
+    def _shutdown_workers(self, workers: list, stop_event: threading.Event) -> None:
+        stop_event.set()
+        for work_queue in workers:
+            work_queue.put(None)
+
+    def _handle_update(self, app, token: str, update: dict) -> None:
+        """پردازش یک پیام؛ هر خطا فقط همان پیام را از کار می‌اندازد."""
+        if update is None:
+            return
+        started = time.monotonic()
+        message = update.get('message') or update.get('edited_message') or {}
+        chat_info = message.get('chat') or {}
+        chat_id = chat_info.get('id')
+        if chat_id is None:
+            with self._pending_lock:
+                self._pending -= 1
+            return
+
+        ok = False
+        try:
+            with app.app_context():
+                reply_text, reply_markup = process_bot_message(
+                    message.get('text', ''), chat_info,
+                    contact=message.get('contact'), provider='bale',
+                )
+            result = send_bot_message('bale', token, chat_id, reply_text,
+                                      reply_markup=reply_markup)
+            ok = bool(result.get('ok'))
+            if not ok:
+                # کاربر block کرده، چت وجود ندارد، flood و … — هیچ‌کدام نباید
+                # بقیهٔ صف را متوقف کند
+                self._note_error(f'ارسال پاسخ به {chat_id} ناموفق: '
+                                 f'{result.get("description") or "نامشخص"}')
+        except Exception as exc:                          # noqa: BLE001
+            self._note_error(f'پردازش پیام {chat_id} ناموفق: {type(exc).__name__}: {exc}')
+            logger.exception('bale: update handling failed for chat %s', chat_id)
+        finally:
+            self._note_result(ok, time.monotonic() - started)
 
 
 bale_polling_manager = BalePollingManager()

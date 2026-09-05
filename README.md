@@ -183,6 +183,7 @@ lint (ruff) + `compileall` + کل تست‌ها (`pytest -q`).
 | `ACADEMY_RATE_LIMIT` / `ACADEMY_RATE_PERIOD` | `120` / `60` | سقف درخواست‌های API به ازای IP+مسیر |
 | `ACADEMY_ADMIN_USER` / `ACADEMY_ADMIN_PASSWORD` | `admin` / `admin123` | مشخصات مدیر پیش‌فرض در نصب تازه (فقط وقتی هیچ کاربری نیست) |
 | `ACADEMY_DISABLE_BALE` | `0` | خاموش‌کردن دریافت خودکار پیام‌های بله (روی هاست اشتراکی خودکار خاموش است) |
+| `ACADEMY_BALE_WORKERS` | `3` | تعداد تردهای پردازش پیام بله — روی هاست کند یا با کاربر زیاد بیشترش کنید (ترتیب پیام‌های هر کاربر حفظ می‌شود) |
 | `ACADEMY_LOW_RESOURCE` | خودکار روی Passenger | حالت کم‌مصرف: ۱ ورکر، لایسنس بدون بلاک درخواست، کش SQLite کوچک |
 | `GUNICORN_WORKERS` | `2` (یا `1` در حالت کم‌مصرف) | تعداد ورکرها (SQLite ⇒ کم) |
 

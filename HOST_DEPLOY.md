@@ -160,6 +160,44 @@ gunicorn --config gunicorn.conf.py wsgi:application
 در Setup Python App → همان اپلیکیشن → Environment variables مقدار
 `ACADEMY_DISABLE_SCHEDULER` یا `ACADEMY_DISABLE_BALE` را `0` بگذارید و Restart کنید.
 
+### سرعت ربات بله روی هاست
+
+سرور بله (`tapi.bale.ai`) بیرون از هاست است، پس هزینهٔ اصلی هر پاسخ یک
+رفت‌وبرگشت شبکه است — نه CPU هاست. poller برای همین این‌طور کار می‌کند:
+
+- **اتصال پایدار:** همهٔ فراخوانی‌های API روی یک `requests.Session` با pool
+  اتصال می‌روند؛ TLS handshake برای هر پیام تکرار نمی‌شود.
+- **پردازش موازی به تفکیک کاربر:** پیام‌ها بین چند ترد کارگر تقسیم می‌شوند
+  (پیش‌فرض ۳). ترتیب پیام‌های هر کاربر حفظ می‌شود ولی کاربرهای مختلف
+  هم‌زمان سرویس می‌گیرند؛ با ۵۰ پیام تلنبارشده، نفر آخر پشت سر ۴۹ نفر
+  قبلی نمی‌ماند.
+- **جداسازی خطا:** اگر ارسال پاسخ به یک کاربر شکست بخورد (کاربر ربات را
+  block کرده، چت وجود ندارد، محدودیت نرخ ۴۲۹ و…) فقط همان پیام از کار
+  می‌افتد؛ بقیهٔ صف متوقف نمی‌شود و پاسخ کسی گم نمی‌رود.
+
+تنظیم تعداد تردهای پردازش با متغیر محیطی `ACADEMY_BALE_WORKERS`:
+
+```bash
+# روی VPS با gunicorn
+export ACADEMY_BALE_WORKERS=6
+gunicorn --config gunicorn.conf.py wsgi:application
+```
+
+| مقدار | مناسب برای |
+|-------|------------|
+| `1` | پردازش کاملاً پشت‌سرهم (کم‌مصرف‌ترین حالت؛ فقط برای عیب‌یابی) |
+| `3` | پیش‌فرض — هاست اشتراکی و VPS کوچک |
+| `6` تا `8` | VPS با رم کافی و تعداد کاربر بالا |
+
+وضعیت زندهٔ poller (تعداد کارگرها، پیام‌های پاسخ‌داده‌شده، ناموفق‌ها، صف
+انتظار و **میانگین زمان پاسخ** به میلی‌ثانیه) در صفحهٔ
+`تنظیمات → ربات بله` نمایش داده می‌شود. اگر «میانگین زمان پاسخ» بزرگ است
+(بیش از ۱۵۰۰ میلی‌ثانیه)، گلوگاه مسیر شبکهٔ هاست تا `tapi.bale.ai` است؛ اگر
+«در صف انتظار» بزرگ می‌ماند، `ACADEMY_BALE_WORKERS` را بالا ببرید.
+
+> پیام گروهی (Broadcast) هم در پس‌زمینه ارسال می‌شود و صفحهٔ وب را معطل
+> نمی‌کند؛ پیشرفت آن در «تاریخچهٔ پیام‌های گروهی» دیده می‌شود.
+
 ## عیب‌یابی
 
 | علامت | علت محتمل و راه‌حل |
@@ -171,6 +209,8 @@ gunicorn --config gunicorn.conf.py wsgi:application
 | `ModuleNotFoundError` | `pip install -r requirements.txt` کامل اجرا نشده؛ در Terminal همان اپلیکیشن دوباره اجرا و Restart کنید |
 | `Failed building wheel for greenlet` | هاست کامپایلر C ندارد. اگر فقط دکمه‌ی **Run Pip Install** دارید، روی `requirements.txt` یا `requirements-nobuild.txt` نصب کنید (هر دو wheel-only هستند و کامپایل نمی‌کنند)؛ اگر **Terminal** دارید `python tools/install_deps.py` را اجرا کنید (خودکار wheel آماده را نصب می‌کند و در نبود آن، بدون greenlet ادامه می‌دهد) |
 | تغییر دیتابیس به MySQL اعمال نشد | پس از ذخیره در `/setup/database` حتماً اپلیکیشن را Restart کنید |
+| ربات بله کند جواب می‌دهد | صفحهٔ `تنظیمات → ربات بله` را ببینید: اگر «در صف انتظار» بالا است `ACADEMY_BALE_WORKERS` را بیشتر کنید؛ اگر «میانگین زمان پاسخ» بالا است مسیر شبکهٔ هاست تا `tapi.bale.ai` کند است (با `curl -w '%{time_total}' https://tapi.bale.ai` از Terminal هاست اندازه بگیرید). روی هاست اشتراکی یادتان باشد `ACADEMY_DISABLE_BALE=1` پیش‌فرض است و poller اصلاً اجرا نمی‌شود |
+| ربات بله جواب نمی‌دهد | در صفحهٔ `تنظیمات → ربات بله` باید «دریافت خودکار فعال» باشد. روی VPS با چند ورکر، فقط یک ورکر poller را نگه می‌دارد (`instance/.bale_poll.lock`)؛ اگر آن ورکر ری‌استارت شد چند ثانیه طول می‌کشد تا ورکر جدید جای آن را بگیرد |
 | فراموشی رمز مدیر | در Terminal همان اپلیکیشن (داخل `public_html/host_deploy` با venv فعال): `ACADEMY_DISABLE_SCHEDULER=1 python -c "from app import create_app; from extensions import db; from models.user import User; a=create_app(); a.app_context().push(); u=User.query.filter_by(username='admin').first(); u.set_password('admin123'); db.session.commit(); print('done: admin password reset')"` — سپس Restart کنید و با `admin123` وارد شوید |
 
 ## نکات امنیتی

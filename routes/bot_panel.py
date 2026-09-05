@@ -6,8 +6,8 @@
 - کیبوردهای شیشه‌ای
 """
 import json
+import threading
 import time
-import requests
 from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
@@ -187,10 +187,63 @@ def link_student(id):
 #  ارسال پیام گروهی (Broadcast)
 # ═══════════════════════════════════════════════════════════════
 
+#: فاصلهٔ بین دو ارسال در پیام گروهی — برای نخوردن به محدودیت نرخ سرور
+BROADCAST_INTERVAL = 0.05
+#: هر چند گیرنده، شمارنده‌ها در دیتابیس به‌روز شود (پیشرفت در تاریخچه دیده می‌شود)
+BROADCAST_FLUSH_EVERY = 10
+
+
+def _run_broadcast(app, broadcast_id: int, recipients: list, message_text: str,
+                   provider: str, tokens: dict) -> None:
+    """ارسال پیام گروهی در پس‌زمینه.
+
+    پیش از این کل حلقهٔ ارسال داخل درخواست وب اجرا می‌شد: با ۵۰۰ گیرنده و
+    تأخیر شبکهٔ هاست، درخواست چند دقیقه باز می‌ماند و gunicorn/Nginx آن را با
+    timeout می‌کشت — یعنی پیام گروهی «خیلی کند» یا نیمه‌کاره. حالا درخواست
+    بلافاصله برمی‌گردد و پیشرفت در صفحهٔ تاریخچه دیده می‌شود.
+    """
+    from utils.bot_services import send_bot_message
+
+    with app.app_context():
+        from models.bot import BotBroadcast
+
+        record = db.session.get(BotBroadcast, broadcast_id)
+        if record is None:
+            return
+
+        sent_count = failed_count = 0
+        for index, (chat_id, prov) in enumerate(recipients, start=1):
+            token = tokens.get(prov) or tokens.get(provider if provider != 'both' else prov)
+            if not token:
+                failed_count += 1
+                continue
+
+            result = send_bot_message(prov, token, chat_id, message_text)
+            if result.get('ok'):
+                sent_count += 1
+            else:
+                failed_count += 1
+
+            if index % BROADCAST_FLUSH_EVERY == 0:
+                record.sent_count = sent_count
+                record.failed_count = failed_count
+                try:
+                    db.session.commit()
+                except Exception:                       # noqa: BLE001
+                    db.session.rollback()
+            time.sleep(BROADCAST_INTERVAL)
+
+        record.sent_count = sent_count
+        record.failed_count = failed_count
+        record.status = 'completed'
+        record.completed_at = datetime.utcnow()
+        db.session.commit()
+
+
 @bot_panel_bp.route('/bot-panel/broadcast', methods=['GET', 'POST'])
 @login_required
 def broadcast():
-    """ارسال پیام گروهی به کاربران ربات"""
+    """ارسال پیام گروهی به کاربران ربات (غیرهمزمان — صفحه معطل نمی‌شود)"""
     from models.bot import BotUser, BotBroadcast
 
     if request.method == 'POST':
@@ -203,18 +256,6 @@ def broadcast():
             flash('متن پیام را وارد کنید', 'danger')
             return redirect(url_for('bot_panel.broadcast'))
 
-        # ساخت broadcast record
-        broadcast_rec = BotBroadcast(
-            title=title,
-            message_text=message_text,
-            target_type=target_type,
-            provider=provider,
-            status='sending',
-            created_by=current_user.id
-        )
-        db.session.add(broadcast_rec)
-        db.session.flush()
-
         # ساخت query کاربران هدف
         query = BotUser.query.filter_by(is_blocked=False)
         if target_type == 'verified':
@@ -224,63 +265,42 @@ def broadcast():
         if provider != 'both':
             query = query.filter_by(provider=provider)
 
-        recipients = query.all()
-        broadcast_rec.total_recipients = len(recipients)
-        db.session.flush()
+        # فقط دادهٔ خام به ترد پس‌زمینه داده می‌شود (آبجکت ORM به context دیگر نمی‌رود)
+        recipients = [(user.chat_id, user.provider) for user in query.all()]
+        if not recipients:
+            flash('گیرنده‌ای برای این فیلتر پیدا نشد', 'warning')
+            return redirect(url_for('bot_panel.broadcast'))
 
-        sent_count = 0
-        failed_count = 0
-        errors = []
+        # ساخت broadcast record
+        broadcast_rec = BotBroadcast(
+            title=title,
+            message_text=message_text,
+            target_type=target_type,
+            provider=provider,
+            status='sending',
+            total_recipients=len(recipients),
+            created_by=current_user.id
+        )
+        db.session.add(broadcast_rec)
+        db.session.commit()
 
         from models.system import SystemSettings
         settings = SystemSettings.query.first()
+        tokens = {
+            'bale': getattr(settings, 'bale_bot_token', None),
+            'telegram': getattr(settings, 'telegram_bot_token', None),
+        }
 
-        for bot_user in recipients:
-            token = None
-            prov = bot_user.provider
-            if prov == 'bale' and settings and settings.bale_bot_token:
-                token = settings.bale_bot_token
-            elif prov == 'telegram' and settings and settings.telegram_bot_token:
-                token = settings.telegram_bot_token
-            elif provider == 'bale' and settings and settings.bale_bot_token:
-                token = settings.bale_bot_token
-            elif provider == 'telegram' and settings and settings.telegram_bot_token:
-                token = settings.telegram_bot_token
+        threading.Thread(
+            target=_run_broadcast,
+            args=(current_app._get_current_object(), broadcast_rec.id,
+                  recipients, message_text, provider, tokens),
+            name=f'bot-broadcast-{broadcast_rec.id}',
+            daemon=True,
+        ).start()
 
-            if not token:
-                failed_count += 1
-                continue
-
-            base_url = 'https://tapi.bale.ai' if prov == 'bale' else 'https://api.telegram.org'
-            try:
-                resp = requests.post(
-                    f'{base_url}/bot{token}/sendMessage',
-                    json={'chat_id': bot_user.chat_id, 'text': message_text},
-                    timeout=15
-                )
-                result = resp.json()
-                if result.get('ok'):
-                    sent_count += 1
-                else:
-                    failed_count += 1
-                    errors.append(f"chat_id={bot_user.chat_id}: {result.get('description', 'نامشخص')}")
-            except Exception as e:
-                failed_count += 1
-                errors.append(f"chat_id={bot_user.chat_id}: {str(e)[:100]}")
-
-            # محدودیت rate
-            time.sleep(0.05)
-
-        broadcast_rec.sent_count = sent_count
-        broadcast_rec.failed_count = failed_count
-        broadcast_rec.status = 'completed'
-        broadcast_rec.completed_at = datetime.utcnow()
-        db.session.commit()
-
-        if errors:
-            flash(f'ارسال شد: {sent_count} | ناموفق: {failed_count} | خطاها: {" | ".join(errors[:3])}', 'warning')
-        else:
-            flash(f'پیام گروهی ارسال شد: {sent_count} موفق', 'success')
+        flash(f'ارسال به {len(recipients)} گیرنده در پس‌زمینه آغاز شد؛ '
+              f'پیشرفت را در تاریخچهٔ پیام‌های گروهی ببینید.', 'success')
         return redirect(url_for('bot_panel.broadcast_history'))
 
     # GET: نمایش فرم
@@ -468,20 +488,16 @@ def send_test():
         flash('توکن ربات تنظیم نشده', 'danger')
         return redirect(url_for('bot_panel.dashboard'))
 
-    base_url = 'https://tapi.bale.ai' if provider == 'bale' else 'https://api.telegram.org'
+    # از لایهٔ مشترک bot_services استفاده می‌شود: اتصال پایدار + مدیریت ۴۲۹
+    from utils.bot_services import send_bot_message
     try:
-        resp = requests.post(
-            f'{base_url}/bot{token}/sendMessage',
-            json={'chat_id': int(chat_id), 'text': message},
-            timeout=15
-        )
-        result = resp.json()
+        result = send_bot_message(provider, token, int(chat_id), message)
         if result.get('ok'):
             flash('پیام با موفقیت ارسال شد ✓', 'success')
         else:
             flash(f'خطا: {result.get("description", "نامشخص")}', 'danger')
-    except Exception as e:
-        flash(f'خطا: {str(e)}', 'danger')
+    except ValueError:
+        flash('شناسه چت باید عدد باشد', 'danger')
 
     return redirect(url_for('bot_panel.dashboard'))
 
