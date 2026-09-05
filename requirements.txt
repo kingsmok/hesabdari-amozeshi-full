@@ -17,7 +17,10 @@ SQLAlchemy==2.0.52
 #   «Building wheel for greenlet ... did not run successfully»
 # این حداقلِ نسخه، pip را به سراغ نسخه‌ای می‌برد که wheel آماده دارد.
 # اگر باز هم خطای ساخت greenlet گرفتید:  python tools/install_deps.py
-# (برنامه sync است؛ greenlet فقط برای SQLAlchemy asyncio لازم است.)
+#   (برنامه sync است؛ greenlet فقط برای SQLAlchemy asyncio لازم است.)
+# روی هاستِ cPanel که SSH/Terminal ندارد (فقط دکمه‌ی Run Pip Install):
+#   دقیقاً همین مشکل را دارد → به‌جای این فایل، روی requirements-nobuild.txt
+#   نصب کنید (خط اول آن `--only-binary=:all:` است و هیچ چیزی را کامپایل نمی‌کند).
 greenlet>=3.2.4; python_version >= "3.13"
 Flask-Login==0.6.3
 Flask-WTF==1.2.1
