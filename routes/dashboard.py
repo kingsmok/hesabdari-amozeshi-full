@@ -116,7 +116,16 @@ def teacher_dashboard():
     today_classes = [c for c in my_classes if c.days_of_week and str(today_weekday) in c.days_of_week]
     
     total_students = sum(c.current_count or 0 for c in my_classes)
-    total_sessions = sum(c.completed_sessions_count for c in my_classes)
+    # completed_sessions_count برای هر کلاس یک COUNT جدا می‌زد (N+1)
+    total_sessions = 0
+    if my_classes:
+        from sqlalchemy import func
+        from models.classes import ClassSession
+        class_ids = [c.id for c in my_classes]
+        total_sessions = db.session.query(func.count(ClassSession.id)).filter(
+            ClassSession.class_id.in_(class_ids),
+            ClassSession.status == 'completed',
+        ).scalar() or 0
     
     return render_template('dashboard/teacher.html',
                          teacher=teacher, my_classes=my_classes,

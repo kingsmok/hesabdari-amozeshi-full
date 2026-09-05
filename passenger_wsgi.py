@@ -25,6 +25,8 @@ os.environ.setdefault("PASSENGER_APP_ENV", os.environ.get("PASSENGER_APP_ENV", "
 # Environment variables همان اپلیکیشن در Setup Python App).
 os.environ.setdefault("ACADEMY_DISABLE_SCHEDULER", "1")
 os.environ.setdefault("ACADEMY_DISABLE_BALE", "1")
+# RAM/CPU محدود ⇒ لایسنس بدون بلاک، کش SQLite کوچک، بدون ضربان
+os.environ.setdefault("ACADEMY_LOW_RESOURCE", "1")
 
 # پوشه‌هایی که برنامه در زمان اجرا داخلشان می‌نویسد
 _RUNTIME_DIRS = (

@@ -64,7 +64,10 @@ def register_global_handlers(app) -> None:
         if app.debug:
             # در توسعه، پاسخ پیش‌فرض Werkzeug مفیدتر است
             raise error
-        return render_template('errors/500.html', reference_code=_reference_code()), 500
+        try:
+            return render_template('errors/500.html', reference_code=_reference_code()), 500
+        except Exception:                      # noqa: BLE001 — قالب ۵۰۰ خودش نباید ۵۰۰ بسازد
+            return ('خطای داخلی سرور', 500)
 
     # CSRF ناموفق تقریباً همیشه یعنی «نشست منقضی شده»؛ به‌جای صفحهٔ ترسناک
     # ۵۰۰، کاربر با یک پیام روشن به همان صفحه برمی‌گردد و دوباره تلاش می‌کند.
@@ -105,8 +108,11 @@ def register_global_handlers(app) -> None:
                          _request_id(), _request_path(), error, exc_info=error)
         if app.debug:
             raise error
-        return render_template('errors/500.html',
-                               reference_code=_reference_code()), 500
+        try:
+            return render_template('errors/500.html',
+                                   reference_code=_reference_code()), 500
+        except Exception:                      # noqa: BLE001
+            return ('خطای داخلی سرور', 500)
 
 
 def _http_error_page(app, error, code: int):

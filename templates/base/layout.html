@@ -44,8 +44,8 @@
     <!-- ریسپانسیو موبایل / تبلت -->
     <link rel="stylesheet" href="{{ asset('css/responsive.css') }}">
 
-    <!-- قوانین چاپ (منبع یکتا؛ قبلاً در layout و responsive.css تکرار شده بود) -->
-    <link rel="stylesheet" href="{{ asset('css/print.css') }}">
+    <!-- قوانین چاپ فقط هنگام چاپ دانلود/اعمال می‌شوند -->
+    <link rel="stylesheet" href="{{ asset('css/print.css') }}" media="print">
 
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <link rel="stylesheet" href="{{ asset('css/theme-dark.css') }}">

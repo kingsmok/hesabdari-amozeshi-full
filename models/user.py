@@ -97,27 +97,45 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
+    def _role_perm_pairs(self):
+        """مجموعه (module, action) نقش — یک کوئری در هر درخواست."""
+        if not self.role_id:
+            return set()
+        cache_attr = f'_role_perms_{self.role_id}'
+        try:
+            from flask import g, has_request_context
+            if has_request_context():
+                cached = getattr(g, cache_attr, None)
+                if cached is not None:
+                    return cached
+        except Exception:
+            pass
+        from models.user import Permission, RolePermission
+        pairs = {
+            (module, action)
+            for module, action in db.session.query(Permission.module, Permission.action)
+            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .filter(RolePermission.role_id == self.role_id)
+            .all()
+        }
+        try:
+            from flask import g, has_request_context
+            if has_request_context():
+                setattr(g, cache_attr, pairs)
+        except Exception:
+            pass
+        return pairs
+
     def has_permission(self, module, action):
         if self.is_admin:
             return True
-        from models.user import RolePermission, Permission
-        perm = db.session.query(RolePermission).join(Permission).filter(
-            RolePermission.role_id == self.role_id,
-            Permission.module == module,
-            Permission.action == action
-        ).first()
-        return perm is not None
+        return (module, action) in self._role_perm_pairs()
     
     def has_module_access(self, module):
         """بررسی دسترسی به یک ماژول (هر عملیاتی)"""
         if self.is_admin:
             return True
-        from models.user import RolePermission, Permission
-        perm = db.session.query(RolePermission).join(Permission).filter(
-            RolePermission.role_id == self.role_id,
-            Permission.module == module
-        ).first()
-        return perm is not None
+        return any(mod == module for mod, _action in self._role_perm_pairs())
     
     def __repr__(self):
         return f'<User {self.username}>'

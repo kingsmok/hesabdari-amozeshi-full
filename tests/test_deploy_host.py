@@ -95,6 +95,7 @@ class TestRequiredHostFiles:
         assert "application" in src
         assert "ACADEMY_DISABLE_SCHEDULER" in src
         assert "ACADEMY_DISABLE_BALE" in src
+        assert "ACADEMY_LOW_RESOURCE" in src
 
     def test_mysql_driver_is_in_requirements(self):
         """انتخاب MySQL در ویزارد بدون PyMySQL روی هاست خطا می‌داد."""

@@ -92,7 +92,7 @@ ADMIN_ONLY_PATHS = {
 #: همیشه آزاد برای کاربر واردشده (تخصصی/ابزاری/عمومی)
 EXEMPT_PREFIXES = {
     'static', 'login', 'logout', 'favicon.ico', 'manifest.webmanifest', 'sw.js',
-    'offline', 'apple-touch-icon.png',
+    'offline', 'apple-touch-icon.png', 'healthz',
     'my',           # پورتال مدرس — خودش داده را به کاربر جاری مقید می‌کند
     'webhook',      # تلگرام/بله — با توکن اعتبارسنجی می‌شوند
     'api',          # api/* پایین‌تر بررسی می‌شود (network مدیریتی است)

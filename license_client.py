@@ -621,11 +621,28 @@ def _check_server_clock(data):
         )
 
 
-def _call(path, payload, timeout=REQUEST_TIMEOUT, attempts=3):
+def _license_timeout_and_attempts():
+    """روی هاست ضعیف ۳×۱۰ثانیه یعنی ۳۷ثانیه قفل و ۵۰۴/۵۰۰ از Passenger."""
+    try:
+        from utils.runtime_profile import is_low_resource
+        if is_low_resource():
+            return 3, 1
+    except Exception:
+        pass
+    return REQUEST_TIMEOUT, 3
+
+
+def _call(path, payload, timeout=None, attempts=None):
     """
     یک درخواست امضاشده به سرور لایسنس.
     خروجی: پاکت کامل (envelope) — فقط پس از تایید امضا و تطبیق nonce.
     """
+    if timeout is None or attempts is None:
+        fast_timeout, fast_attempts = _license_timeout_and_attempts()
+        if timeout is None:
+            timeout = fast_timeout
+        if attempts is None:
+            attempts = fast_attempts
     nonce = secrets.token_hex(16)
     body = dict(payload)
     body['nonce'] = nonce
@@ -665,8 +682,10 @@ def _call(path, payload, timeout=REQUEST_TIMEOUT, attempts=3):
 
             last_error = f'پاسخ نامعتبر سرور (HTTP {response.status_code})'
 
-        if index < len(RETRY_DELAYS):
-            time.sleep(RETRY_DELAYS[index])
+        # فقط بین تلاش‌ها بخواب، نه بعد از تلاش آخر (وگرنه attempts=1 هم ۱ثانیه تلف می‌شود)
+        if index + 1 < attempts:
+            delay = RETRY_DELAYS[index] if index < len(RETRY_DELAYS) else 1
+            time.sleep(delay)
 
     raise ServerUnreachable(last_error or 'ارتباط با سرور لایسنس برقرار نشد')
 
@@ -1040,17 +1059,25 @@ def get_state(force=False):
     with _state_lock:
         state = _state
 
-    if state is None:
-        return refresh_state()
-
     if force:
         return refresh_state()
 
-    if _needs_revalidation(state):
-        if state.valid:
-            _spawn_background_refresh()   # stale-while-revalidate
-        else:
+    if state is None:
+        # درخواست وب هرگز نباید روی DNS/TLS سرور لایسنس معطل بماند
+        # (۱۰ثانیه × ۳ تلاش + خواب ۱+۲+۴ = تا ۳۷ثانیه → ۵۰۰ Passenger).
+        # بدون کلید شبکه نمی‌رود؛ با کلید از کش محلی می‌خوانیم و تازه کردن
+        # آنلاین در پس‌زمینه انجام می‌شود.
+        if not load_license_key():
             return refresh_state()
+        cached = _state_from_cache(get_device_identifier())
+        _store_state(cached)
+        _spawn_background_refresh()
+        return cached
+
+    if _needs_revalidation(state):
+        # حتی وضعیت نامعتبر هم نباید درخواست وب را روی شبکه قفل کند؛
+        # تازه کردن آنلاین همیشه پس‌زمینه است (activate_with_key جداست).
+        _spawn_background_refresh()
 
     # دستکاری تشخیص داده شده → قفل با تأخیر و بی‌صدا
     if state.valid and _tamper_locked():
@@ -1200,6 +1227,13 @@ def _heartbeat_loop():
 
 
 def start_heartbeat():
+    try:
+        from utils.runtime_profile import is_low_resource
+        if is_low_resource():
+            logger.info('license: heartbeat skipped on low-resource host')
+            return None
+    except Exception:
+        pass
     thread = threading.Thread(target=_heartbeat_loop, name='license-heartbeat', daemon=True)
     thread.start()
     return thread

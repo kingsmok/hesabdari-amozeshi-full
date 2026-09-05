@@ -223,24 +223,55 @@ MENU_MAP = {
 
 def get_user_menu_items():
     """منوی مجاز — یک کوئری (قبلاً ۱۵ کوئری در هر صفحه)."""
-    if not current_user.is_authenticated:
-        return []
-    if current_user.is_admin:
-        return list(MENU_MAP.keys())
+    from flask import g, has_request_context
 
-    from models.user import Permission, RolePermission
-    allowed_modules = {
-        row[0]
-        for row in db.session.query(Permission.module)
-        .join(RolePermission, RolePermission.permission_id == Permission.id)
-        .filter(RolePermission.role_id == current_user.role_id)
-        .distinct().all()
-    }
-    return [key for key, module in MENU_MAP.items()
-            if module is None or module in allowed_modules]
+    if has_request_context():
+        cached = getattr(g, '_user_menu_items', None)
+        if cached is not None:
+            return cached
+
+    if not current_user.is_authenticated:
+        result = []
+    elif current_user.is_admin:
+        result = list(MENU_MAP.keys())
+    else:
+        from models.user import Permission, RolePermission
+        allowed_modules = {
+            row[0]
+            for row in db.session.query(Permission.module)
+            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .filter(RolePermission.role_id == current_user.role_id)
+            .distinct().all()
+        }
+        result = [key for key, module in MENU_MAP.items()
+                  if module is None or module in allowed_modules]
+
+    if has_request_context():
+        g._user_menu_items = result
+    return result
 
 
 # ── ثبت همه روی اپ ─────────────────────────────────────────────────────
+def healthz():
+    """سلامت سبک برای Passenger/Docker/مانیتور — بدون لایسنس، بدون ورود.
+
+    SELECT 1 فقط اتصال دیتابیس را می‌سنجد؛ اگر دیتابیس خواب باشد ۵۰۳ می‌دهیم
+    تا reverse-proxy نسخهٔ قبلی را نگه دارد، نه اینکه ۵۰۰ مبهم نشان دهد.
+    """
+    payload = {'ok': True, 'db': 'ok'}
+    status = 200
+    try:
+        from sqlalchemy import text
+        db.session.execute(text('SELECT 1'))
+    except Exception as exc:                     # noqa: BLE001
+        current_app.logger.warning('healthz db failed: %s', exc)
+        payload = {'ok': False, 'db': 'error'}
+        status = 503
+    response = jsonify(payload)
+    response.headers['Cache-Control'] = 'no-store'
+    return response, status
+
+
 def setup(app) -> None:
     """ثبت مسیرهای ایستا، فیلترها، context processor و هندلرهای خطا."""
     # مسیرهای ایستا
@@ -248,6 +279,7 @@ def setup(app) -> None:
     app.add_url_rule('/manifest.webmanifest', 'manifest', manifest)
     app.add_url_rule('/offline', 'offline', offline)
     app.add_url_rule('/sw.js', 'service_worker', service_worker)
+    app.add_url_rule('/healthz', 'healthz', healthz)
 
     # استاتیک نسخه‌دهی‌شده
     app.template_global()(asset)
