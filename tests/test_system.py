@@ -71,10 +71,8 @@ def test_client(test_app):
 
 @pytest.fixture
 def admin_user(test_app):
-    """حساب مدیر کل — در نصب تازه هیچ مدیری وجود ندارد (ویزارد `/setup` آن را
-    می‌سازد)؛ اگر نبود موقتاً ساخته و در پایان حذف می‌شود تا دیتابیس توسعه با
-    ردیف آزمونی آلوده نماند. (پیش‌تر تست‌ها فرض می‌کردند مدیر هست و روی دیتابیس
-    تازه با `NoneType.id` می‌شکستند.)"""
+    """حساب مدیر کل — اگر نبود موقتاً ساخته و در پایان حذف می‌شود تا دیتابیس
+    توسعه با ردیف آزمونی آلوده نماند."""
     with test_app.app_context():
         admin = User.query.filter_by(is_admin=True, is_active=True).first()
         created_id = None

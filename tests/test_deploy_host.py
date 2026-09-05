@@ -59,6 +59,81 @@ class TestRequiredHostFiles:
         assert "css/responsive.css" in layout
         assert os.path.isfile(os.path.join(ROOT, "static", "css", "responsive.css"))
 
+    def test_vps_files_are_packed(self):
+        """مسیر VPS (Gunicorn) هم باید از همان بسته قابل اجرا باشد."""
+        packed = set(deploy_host.REQUIRED_FILES)
+        assert "requirements-prod.txt" in packed
+        assert "gunicorn.conf.py" in packed
+
+    def test_logs_dir_is_a_runtime_dir(self):
+        """لاگ چرخشی در logs/ نوشته می‌شود؛ باید از قبل ساخته و writable باشد."""
+        assert "logs" in deploy_host.RUNTIME_DIRS
+
+    def test_local_settings_are_never_copied(self):
+        """settings.json محلی (راز/مسیر مطلق) نباید به هاست برود؛ نسخه‌ی تمیز
+        درجای آن ساخته می‌شود."""
+        assert "settings.json" not in deploy_host.REQUIRED_FILES
+        assert "settings.json" not in deploy_host.OPTIONAL_FILES
+        assert deploy_host.HOST_SETTINGS["database"]["type"] == "sqlite"
+        assert "secret_key" not in deploy_host.HOST_SETTINGS.get("app", {})
+
+    def test_htaccess_does_not_break_passenger(self):
+        """ریدایرکت قدیمی به wsgi.py روی Passenger حلقه/404 می‌ساخت."""
+        htaccess = open(os.path.join(ROOT, ".htaccess"), encoding="utf-8").read()
+        assert "wsgi.py/$1" not in htaccess
+        assert "wsgi.py/" not in htaccess
+        # ولی سد امنیتی باید بماند
+        assert "settings\\.json" in htaccess or "settings.json" in htaccess
+
+    def test_passenger_entry_is_host_safe(self):
+        """entry point باید application را صادر و تردهای پس‌زمینه را خاموش کند."""
+        src = open(os.path.join(ROOT, "passenger_wsgi.py"), encoding="utf-8").read()
+        assert "application" in src
+        assert "ACADEMY_DISABLE_SCHEDULER" in src
+        assert "ACADEMY_DISABLE_BALE" in src
+
+    def test_mysql_driver_is_in_requirements(self):
+        """انتخاب MySQL در ویزارد بدون PyMySQL روی هاست خطا می‌داد."""
+        requirements = open(os.path.join(ROOT, "requirements.txt"),
+                            encoding="utf-8").read()
+        assert "PyMySQL" in requirements
+
+    def test_all_local_imports_are_available_on_host(self):
+        """همه‌ی importهای محلیِ همه‌ی فایل‌ها (نه فقط app.py) باید در بسته باشند."""
+        problems = deploy_host._verify_staged_imports(ROOT)
+        # روی خود ریپو همیشه باید سالم باشد (بسته زیرمجموعه‌ی ریپوست)
+        assert problems == [], f"importهای گمشده: {problems[:5]}"
+
+    def test_packaging_list_covers_codebase_imports(self):
+        """هر ماژول ریشه‌ای که کدی در routes/models/utils/bootstrap به آن نیاز
+        دارد باید در REQUIRED_FILES باشد (وگرنه هاست 500 می‌دهد)."""
+        repo_modules = deploy_host._repo_root_modules()
+        packed = {
+            os.path.splitext(f)[0] for f in deploy_host.REQUIRED_FILES if f.endswith(".py")
+        } | set(deploy_host.DIRS)
+        needed = set()
+        for package in ("routes", "models", "utils", "bootstrap"):
+            folder = os.path.join(ROOT, package)
+            for dirpath, _dirs, files in os.walk(folder):
+                for name in files:
+                    if not name.endswith(".py"):
+                        continue
+                    with open(os.path.join(dirpath, name), encoding="utf-8") as handle:
+                        try:
+                            tree = ast.parse(handle.read())
+                        except SyntaxError:
+                            continue
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.ImportFrom) and node.module \
+                                and node.level == 0:
+                            needed.add(node.module.split(".")[0])
+                        elif isinstance(node, ast.Import):
+                            for alias in node.names:
+                                needed.add(alias.name.split(".")[0])
+        missing = sorted(mod for mod in needed
+                         if mod in repo_modules and mod not in packed)
+        assert missing == [], f"ماژول‌هایی که بسته‌بندی نشده‌اند: {missing}"
+
     def test_app_py_local_imports_are_available_on_host(self):
         """importهای سطح بالای app.py که مال خود پروژه‌اند باید در بسته هاست باشند."""
         src = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()

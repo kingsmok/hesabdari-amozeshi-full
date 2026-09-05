@@ -61,6 +61,15 @@ def login():
             
             login_guard.reset(username, ip)     # ورود موفق ⇒ شمارش پاک می‌شود
             login_user(user, remember=bool(remember))
+            # هشدار رمز پیش‌فرض: اگر هنوز با مشخصات کارخانه وارد می‌شود، در
+            # داشبورد یادآوری می‌شود تا حتماً عوضش کند (امنیت نصب تازه).
+            try:
+                from utils.constants import is_default_admin_password
+                if is_default_admin_password(username, password):
+                    flash('شما با رمز پیش‌فرض وارد شده‌اید؛ حتماً از بخش کاربران، '
+                          'رمز عبور را تغییر دهید', 'warning')
+            except Exception:
+                pass
             next_page = request.args.get('next')
             if next_page and next_page.startswith('/') and not next_page.startswith('//'):
                 return redirect(next_page)

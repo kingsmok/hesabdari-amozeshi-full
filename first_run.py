@@ -72,12 +72,19 @@ def setup():
         except Exception as e:
             print(f"    ⚠ خطا: {e}")
 
+    try:
+        from utils.constants import (default_admin_password,
+                                     default_admin_username)
+        _user, _pass = default_admin_username(), default_admin_password()
+    except Exception:
+        _user, _pass = 'admin', 'admin123'
+
     print("\n" + "=" * 60)
     print("  ✅ راه‌اندازی اولیه کامل شد!")
     print("=" * 60)
-    print("\n  نام کاربری: admin")
-    print("  رمز عبور:   **رمز حذف شده برای امنیت**")
-    print("\n  ⚠ حتماً رمز عبور را تغییر دهید!")
+    print(f"\n  نام کاربری: {_user}")
+    print(f"  رمز عبور:   {_pass}")
+    print("\n  ⚠ حتماً پس از اولین ورود، رمز عبور را تغییر دهید!")
     print("=" * 60)
 
 

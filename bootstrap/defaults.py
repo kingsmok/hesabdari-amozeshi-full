@@ -1,10 +1,71 @@
 """
-داده‌های پیش‌فرض نصب تازه — نقش‌ها، دسترسی‌ها، تنظیمات، شعبه، دسته‌های هزینه.
+داده‌های پیش‌فرض نصب تازه — نقش‌ها، دسترسی‌ها، مدیر پیش‌فرض، تنظیمات،
+شعبه، دسته‌های هزینه.
 (انتقال مستقیم از app.py؛ رفتار بدون تغییر، فقط مسئولیت جدا شد.)
 """
 from __future__ import annotations
 
 from extensions import db
+
+
+def _installer_admin_pending() -> bool:
+    """آیا نصب‌کننده (config.ini) یک مدیر مصرف‌نشده دارد؟
+
+    در این حالت ساخت مدیر پیش‌فرض به تعویق می‌افتد تا قدم بعدی بوت
+    (utils.installer_config.apply_installer_config) همان مدیر انتخابی
+    اپراتور را بسازد. روی هاست/سرور که config.ini نیست، همیشه False.
+    """
+    try:
+        from utils.installer_config import read_installer_config
+        admin = (read_installer_config().get('admin') or {})
+        if admin.get('consumed'):
+            return False
+        return bool((admin.get('username') or '').strip() and (admin.get('password') or ''))
+    except Exception:
+        return False
+
+
+def _ensure_default_admin() -> str:
+    """ساخت مدیر پیش‌فرض فقط وقتی هیچ کاربری وجود ندارد (idempotent).
+
+    خروجی: نام کاربری ساخته‌شده یا رشته خالی (وقتی نیازی نبود).
+    حساب موجود هرگز بازنویسی/حذف نمی‌شود.
+    """
+    from models.user import Role, User
+
+    if User.query.count() > 0:
+        return ''
+    if _installer_admin_pending():
+        return ''
+    try:
+        from utils.constants import default_admin_password, default_admin_username
+        username = default_admin_username()
+        password = default_admin_password()
+    except Exception:
+        username, password = 'admin', 'admin123'
+    if not username or not password:
+        return ''
+    if User.query.filter_by(username=username).first():
+        return ''
+    admin_role = Role.query.filter_by(is_admin=True).first() or Role.query.first()
+    admin = User(
+        username=username,
+        full_name='مدیر سیستم',
+        is_admin=True,
+        is_active=True,
+        role_id=admin_role.id if admin_role else None,
+    )
+    admin.set_password(password)
+    db.session.add(admin)
+    db.session.commit()
+    try:
+        from flask import current_app, has_app_context
+        if has_app_context():
+            current_app.logger.warning(
+                'default admin "%s" created — change its password immediately', username)
+    except Exception:
+        pass
+    return username
 
 
 def create_default_data() -> None:
@@ -95,8 +156,12 @@ def create_default_data() -> None:
                                                   permission_id=perm.id))
         db.session.commit()
 
-    # NOTE: مدیر پیش‌فرض عمداً ساخته نمی‌شود (امنیت)؛ ویزارد /setup یا
-    # config.ini نصب‌کننده حساب مدیر را می‌سازند.
+    # ── مدیر پیش‌فرض نصب تازه ───────────────────────────────────────────
+    # اگر هیچ کاربری نیست، حساب admin ساخته می‌شود تا ورود بدون ویزارد ممکن
+    # باشد (مشخصات در utils/constants.py + متغیر محیطی ACADEMY_ADMIN_*).
+    # استثنا: وقتی نصب‌کننده (config.ini) مدیر خودش را دارد، نوبت با اوست و
+    # این پیش‌فرض ساخته نمی‌شود تا رمز انتخابی اپراتور نادیده گرفته نشود.
+    _ensure_default_admin()
 
     # ── تنظیمات سیستم ──────────────────────────────────────────────────
     if SystemSettings.query.count() == 0:

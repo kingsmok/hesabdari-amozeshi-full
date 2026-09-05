@@ -65,7 +65,15 @@ def _shutdown_scheduler(scheduler) -> None:
 #  Poller ربات بله (Long Polling) — تک‌نمونه بین‌ورکری
 # ══════════════════════════════════════════════════════════════
 def start_bale(app) -> None:
-    """شروع poller فقط وقتی لایسنس «اتصالات» باز است و قفل در دست ماست."""
+    """شروع poller فقط وقتی لایسنس «اتصالات» باز است و قفل در دست ماست.
+
+    روی هاست اشتراکی (passenger_wsgi.py) با ACADEMY_DISABLE_BALE=1 خاموش
+    است؛ Long Polling آن‌جا توسط میزبان کشته می‌شود و منابع هدر می‌دهد.
+    """
+    if (os.environ.get('ACADEMY_DISABLE_BALE') == '1'
+            or app.config.get('DISABLE_BALE')):
+        app.logger.info('[BALE] Skipped (DISABLE_BALE) — مناسب هاست اشتراکی/آزمون‌ها')
+        return
 
     def _boot():
         try:

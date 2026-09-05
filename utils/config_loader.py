@@ -60,8 +60,13 @@ def apply_to_app(app, config: dict, paths: dict) -> None:
             import config as app_config
             config.setdefault('app', {})['secret_key'] = secret
             app_config.save_config(config)
-        except Exception:                      # noqa: BLE001 — بوت متوقف نشود
-            pass
+        except Exception as exc:               # noqa: BLE001 — بوت متوقف نشود
+            # روی هاست اگر settings.json قابل نوشتن نباشد، هر ری‌استارت کلید
+            # عوض می‌شود و همهٔ نشست‌ها + توکن‌های CSRF می‌پرند؛ پس بلند هشدار
+            # می‌دهیم تا در لاگ Passenger دیده شود (لاگر هنوز ساخته نشده).
+            print(f'[CONFIG] WARNING: SECRET_KEY could not be saved ({exc}); '
+                  f'sessions will break on restart — make settings.json writable.',
+                  flush=True)
 
     app.config['SECRET_KEY'] = secret
     app.config['SQLALCHEMY_DATABASE_URI'] = __import__('config').get_database_uri(config)
