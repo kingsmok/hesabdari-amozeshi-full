@@ -285,11 +285,21 @@ def setup(app) -> None:
     app.template_global()(asset)
 
     # سرو /static با gzip و کش یک‌ساله — و بستهٔ ادغام‌شدهٔ CSS/JS
-    from bootstrap.static_assets import install as install_static_serving
+    import bootstrap.static_assets as static_assets
     from utils.asset_bundle import bundle_url, ensure_bundles
-    install_static_serving(app)
+    static_assets.install(app)
     ensure_bundles(app)
     app.template_global()(bundle_url)
+
+    # فشرده‌سازی بسته‌ها در زمان بوت، نه در اولین درخواست کاربر.
+    # وقتی بسته‌سازی خاموش یا ناموفق باشد مقدارها None‌اند و چیزی برای
+    # فشرده‌سازی وجود ندارد.
+    if app.static_folder:
+        static_assets.prime(
+            os.path.join(app.static_folder, rel.replace('/', os.sep))
+            for rel in (app.extensions.get('asset_bundles') or {}).values()
+            if rel
+        )
 
     # Context processor
     app.context_processor(inject_globals)

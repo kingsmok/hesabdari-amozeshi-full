@@ -19,10 +19,11 @@ from app import create_app  # noqa: E402
 # ── ابزارها ───────────────────────────────────────────────────────
 def _source(app, relative):
     """متن یک منبع استاتیک، با همان تبدیلی که بسته‌ساز رویش اعمال می‌کند."""
-    from utils.asset_bundle import _SOURCEMAP_RE
+    from utils.asset_bundle import _SOURCEMAP_RE, _rebase_urls
     path = os.path.join(app.static_folder, relative.replace('/', os.sep))
     with open(path, encoding='utf-8') as handle:
-        return _SOURCEMAP_RE.sub('', handle.read())
+        text = _SOURCEMAP_RE.sub('', handle.read())
+    return _rebase_urls(text, relative)
 
 
 def _wrapped(app, relative, wrap):
@@ -240,8 +241,15 @@ class TestBundleCanBeDisabled:
         def _boom(*_args, **_kwargs):
             raise OSError('read-only file system')
 
+        # `ensure_bundles` روی خودِ app می‌نویسد؛ این fixture بین تست‌های این
+        # ماژول مشترک است، پس مقدار اصلی را برمی‌گردانیم تا تست‌های بعدی
+        # بسته‌ها را None نبینند.
+        original = dict(app.extensions['asset_bundles'])
         monkeypatch.setattr(asset_bundle.os, 'makedirs', _boom)
-        assert asset_bundle.ensure_bundles(app) == {'css': None, 'js': None}
+        try:
+            assert asset_bundle.ensure_bundles(app) == {'css': None, 'js': None}
+        finally:
+            app.extensions['asset_bundles'] = original
 
 
 # ══════════════════════════════════════════════════════════════
@@ -284,3 +292,183 @@ class TestFileLock:
         from utils.file_lock import file_lock
         with file_lock('/proc/definitely-not-writable/x.lock') as acquired:
             assert acquired is False
+
+
+# ══════════════════════════════════════════════════════════════
+class TestBundleRelativeUrls:
+    """بسته در `static/gen/` است، یک سطح عمیق‌تر از جای اصلی منابع.
+
+    آدرس نسبیِ `url("fonts/bootstrap-icons.woff2")` که در `static/css/` درست
+    بود، از `static/gen/` به مسیری حل می‌شود که وجود ندارد — یعنی فونت
+    آیکون‌ها ۴۰۴ می‌داد و هر آیکون خالی نمایش داده می‌شد.
+    """
+
+    def test_every_relative_url_in_the_bundle_resolves(self, app):
+        import re
+        from urllib.parse import urljoin
+        relative = app.extensions['asset_bundles']['css']
+        bundle_url_path = f'/static/{relative}'
+        body = _bundle_body(app, 'css')
+        urls = re.findall(r'url\(\s*[\'"]?([^\'")]+)[\'"]?\s*\)', body)
+        relative_urls = [u for u in urls
+                         if not u.startswith(('/', 'http:', 'https:', 'data:', '#'))]
+        assert relative_urls, 'انتظار می‌رفت بسته آدرس نسبی داشته باشد'
+        for url in relative_urls:
+            resolved = urljoin(bundle_url_path, url.split('?')[0])
+            on_disk = os.path.join(app.static_folder,
+                                   resolved[len('/static/'):].replace('/', os.sep))
+            assert os.path.isfile(on_disk), \
+                f'{url} از دید بسته به {resolved} حل می‌شود که وجود ندارد'
+
+    def test_icon_font_is_served_at_the_url_the_bundle_points_to(self, client, app):
+        """همان کاری که مرورگر می‌کند: آدرس را از بسته بردار، حل کن، درخواست بده."""
+        import re
+        from urllib.parse import urljoin
+        bundle_url_path = f"/static/{app.extensions['asset_bundles']['css']}"
+        body = _bundle_body(app, 'css')
+        matches = re.findall(r'url\(\s*[\'"]?([^\'")]*bootstrap-icons\.woff2[^\'")]*'
+                             r')[\'"]?\s*\)', body)
+        assert matches, 'فونت آیکون‌ها در بسته پیدا نشد'
+        resolved = urljoin(bundle_url_path, matches[0])
+        response = _get(client, resolved)
+        assert response.status_code == 200, \
+            f'{resolved} → {response.status_code}؛ آیکون‌ها خالی نمایش داده می‌شدند'
+        assert len(response.data) > 100_000, 'فونت آیکون‌ها ناقص سرو شد'
+
+    def test_rebasing_leaves_absolute_and_data_urls_alone(self):
+        from utils.asset_bundle import _rebase_urls
+        source = ('a{background:url(/static/x.png)}\n'
+                  'b{background:url(https://e.com/y.png)}\n'
+                  'c{background:url(data:image/png;base64,AAA)}\n'
+                  'd{background:url(#frag)}')
+        assert _rebase_urls(source, 'css/z.css') == source
+
+    def test_rebasing_prefixes_the_source_directory(self):
+        from utils.asset_bundle import _rebase_urls
+        assert _rebase_urls("a{src:url('fonts/x.woff2')}", 'css/z.css') == \
+            "a{src:url('../css/fonts/x.woff2')}"
+        # پرس‌وجو (کوئری) باید سر جایش بماند
+        assert _rebase_urls('a{src:url(f.woff2?v=1)}', 'fonts/z.css') == \
+            'a{src:url(../fonts/f.woff2?v=1)}'
+
+
+# ══════════════════════════════════════════════════════════════
+class TestBrotli:
+    """`brotli` اختیاری است؛ نبودنش نباید چیزی را بشکند."""
+
+    def test_brotli_is_preferred_when_the_browser_supports_it(self, client):
+        from bootstrap import static_assets
+        if static_assets._brotli is None:
+            pytest.skip('بستهٔ اختیاری brotli نصب نیست')
+        response = _get(client, '/static/css/bootstrap.rtl.min.css',
+                        headers={'Accept-Encoding': 'gzip, deflate, br'})
+        assert response.headers.get('Content-Encoding') == 'br'
+
+    def test_brotli_payload_is_smaller_than_gzip(self, client):
+        import brotli as _brotli
+        import gzip as _gzip
+        path = '/static/css/bootstrap.rtl.min.css'
+        br = _get(client, path, headers={'Accept-Encoding': 'br'})
+        gz = _get(client, path, headers={'Accept-Encoding': 'gzip'})
+        assert len(br.data) < len(gz.data), \
+            f'brotli {len(br.data)} باید کوچک‌تر از gzip {len(gz.data)} باشد'
+        assert _brotli.decompress(br.data) == _gzip.decompress(gz.data), \
+            'بدنهٔ باز شده باید یکسان باشد'
+
+    def test_etag_separates_brotli_and_gzip(self, client):
+        from bootstrap import static_assets
+        if static_assets._brotli is None:
+            pytest.skip('بستهٔ اختیاری brotli نصب نیست')
+        path = '/static/css/main.css'
+        br = _get(client, path, headers={'Accept-Encoding': 'br'}).headers['ETag']
+        gz = _get(client, path, headers={'Accept-Encoding': 'gzip'}).headers['ETag']
+        assert br != gz, 'وگرنه مرورگر نسخهٔ gzip کش‌شده را برای br تایید می‌کند'
+
+    def test_without_the_package_it_falls_back_to_gzip(self, client, monkeypatch):
+        """مهم‌ترین تضمین: روی هاستی که brotli نصب نمی‌شود، برنامه کار می‌کند."""
+        from bootstrap import static_assets
+        monkeypatch.setattr(static_assets, '_brotli', None)
+        response = _get(client, '/static/css/bootstrap.rtl.min.css',
+                        headers={'Accept-Encoding': 'gzip, deflate, br'})
+        assert response.status_code == 200
+        assert response.headers.get('Content-Encoding') == 'gzip', \
+            'سرور نباید br بفرستد وقتی نمی‌تواند تولیدش کند'
+
+    def test_identity_is_never_brotli(self, client):
+        response = _get(client, '/static/css/main.css', gzip=False)
+        assert response.headers.get('Content-Encoding') is None
+
+
+# ══════════════════════════════════════════════════════════════
+class TestBootPriming:
+    def test_prime_warms_the_cache_before_any_request(self, tmp_path):
+        from bootstrap import static_assets
+        target = tmp_path / 'probe.css'
+        target.write_text('body{color:red;margin:0}\n' * 200, encoding='utf-8')
+        before = static_assets.cache_stats()['entries']
+        assert static_assets.prime([str(target)]) > 0
+        assert static_assets.cache_stats()['entries'] > before
+
+    def test_boot_precompresses_both_bundles(self):
+        """بستهٔ CSS با brotli نیم ثانیه CPU می‌برد؛ نباید سهم اولین کاربر باشد."""
+        from bootstrap import static_assets
+        with static_assets._CACHE_LOCK:
+            static_assets._CACHE.clear()
+        fresh = create_app()
+        fresh.config['TESTING'] = True
+        expected = 2 * (2 if static_assets._brotli else 1)
+        assert static_assets.cache_stats()['entries'] == expected, \
+            'انتظار gzip+br برای هر دو بسته بود'
+
+    def test_priming_is_idempotent(self, app):
+        from bootstrap import static_assets
+        paths = [os.path.join(app.static_folder, rel.replace('/', os.sep))
+                 for rel in app.extensions['asset_bundles'].values()]
+        first = static_assets.prime(paths)
+        entries = static_assets.cache_stats()['entries']
+        assert static_assets.prime(paths) == first
+        assert static_assets.cache_stats()['entries'] == entries
+
+    def test_missing_paths_are_ignored(self):
+        from bootstrap import static_assets
+        assert static_assets.prime(['/nope/absent.css', None] ) >= 0
+
+
+# ══════════════════════════════════════════════════════════════
+class TestFontPreload:
+    """۵ وزن فونت ≈ ۲۵۰KB، بزرگ‌ترین بخش بارِ هر صفحه.
+
+    این وزن‌ها را خودِ چیدمان پایه لازم دارد، پس هر صفحه‌ای به همه‌شان نیاز
+    دارد. preload باعث می‌شود دانلودشان با دانلود CSS موازی شود، نه بعدش.
+    """
+
+    WEIGHTS = ('Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold')
+    NUMERIC = {'Regular': 400, 'Medium': 500, 'SemiBold': 600,
+               'Bold': 700, 'ExtraBold': 800}
+
+    def test_layout_preloads_every_weight(self, app):
+        body = _render_layout(app)
+        for weight in self.WEIGHTS:
+            assert f'/static/fonts/Vazirmatn-{weight}.woff2' in body
+
+    def test_preloaded_files_exist(self, app):
+        for weight in self.WEIGHTS:
+            path = os.path.join(app.static_folder, 'fonts', f'Vazirmatn-{weight}.woff2')
+            assert os.path.isfile(path), f'{path} نیست'
+
+    def test_preload_urls_have_no_cache_busting_query(self, app):
+        """@font-face آدرس بدون ?v= اعلام می‌کند؛ با ?v= هر فایل دو بار دانلود می‌شد."""
+        import re
+        body = _render_layout(app)
+        found = re.findall(r'<link rel="preload" as="font"[^>]*?href="([^"]+)"', body)
+        assert len(found) == len(self.WEIGHTS), found
+        for href in found:
+            assert '?' not in href, f'{href} کوئری دارد و با @font-face یکی نمی‌شود'
+
+    def test_every_preloaded_weight_is_still_used_by_the_css(self, app):
+        import re
+        css = _bundle_body(app, 'css')
+        for name, number in self.NUMERIC.items():
+            assert re.search(rf'font-weight:\s*{number}\b', css), \
+                f'وزن {name} ({number}) دیگر در CSS استفاده نمی‌شود؛ ' \
+                f'preload آن ۵۰KB هدر است و باید از layout حذف شود'

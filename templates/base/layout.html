@@ -18,12 +18,16 @@
 
     <!-- فونت‌ها و CSS، محلی و نسخه‌دار (آفلاین هم کار می‌کند؛ CDN نبود) -->
     <link rel="stylesheet" href="{{ asset('fonts/Vazirmatn-font-face.css') }}">
-    <!-- preload برای دو وزن پراستفاده؛ بدون ?v= چون خودِ @font-face هم آدرس
-         بدون کوئری را اعلام می‌کند و وگرنه دو بار دانلود می‌شد -->
+    {# هر پنج وزن زیر روی «خودِ» چیدمان پایه لازم می‌شوند (نوار کنار، سرصفحه و
+       عنوان‌ها)؛ یعنی هر صفحه‌ای به همه‌شان نیاز دارد و اگر preload نشوند،
+       مرورگر تا پایان تجزیهٔ CSS منتظر می‌ماند و بعد تازه دانلود را شروع
+       می‌کند. با preload، دانلود فونت با دانلود CSS موازی می‌شود.
+       بدون ?v= چون خودِ @font-face هم آدرس بدون کوئری را اعلام می‌کند و وگرنه
+       هر فایل دو بار دانلود می‌شد. #}
+    {% for font_weight in ('Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold') %}
     <link rel="preload" as="font" type="font/woff2" crossorigin
-          href="{{ url_for('static', filename='fonts/Vazirmatn-Regular.woff2') }}">
-    <link rel="preload" as="font" type="font/woff2" crossorigin
-          href="{{ url_for('static', filename='fonts/Vazirmatn-Bold.woff2') }}">
+          href="{{ url_for('static', filename='fonts/Vazirmatn-' ~ font_weight ~ '.woff2') }}">
+    {% endfor %}
 
     {% set css_bundle = bundle_url('css') %}
     {% if css_bundle %}

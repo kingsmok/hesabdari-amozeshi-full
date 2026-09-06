@@ -50,6 +50,26 @@ JS_SOURCES = (
 
 _SOURCEMAP_RE = re.compile(r'^//[#@]\s*sourceMappingURL=.*$', re.MULTILINE)
 
+#: url(...) های نسبی. بسته در `static/gen/` می‌نشیند، یعنی یک سطح عمیق‌تر از
+#: جای اصلی هر منبع؛ پس `url("fonts/x.woff2")` که در `static/css/` درست بود،
+#: از `static/gen/` به `static/gen/fonts/x.woff2` حل می‌شود و ۴۰۴ می‌دهد
+#: (فونت آیکون‌ها گم می‌شد و همهٔ آیکون‌ها خالی نمایش داده می‌شدند).
+#: مقدارهای مطلق، پروتکل‌دار، data: و لنگر دست‌نخورده می‌مانند.
+_URL_RE = re.compile(
+    r"""url\(\s*(['"]?)(?!/|https?:|data:|#)(?P<path>[^'")]+?)\1\s*\)""",
+    re.IGNORECASE,
+)
+
+
+def _rebase_urls(text: str, source_relative: str) -> str:
+    """آدرس‌های نسبی را از دید `static/gen/` بازنویسی می‌کند."""
+    source_dir = os.path.dirname(source_relative.replace('\\', '/'))
+    if not source_dir:
+        return text
+    prefix = f'../{source_dir}/'
+    return _URL_RE.sub(
+        lambda m: f"url({m.group(1)}{prefix}{m.group('path')}{m.group(1)})", text)
+
 
 # ══════════════════════════════════════════════════════════════
 #  API عمومی
@@ -118,6 +138,7 @@ def _read(static_root: str, relative: str, wrap_print: bool) -> str:
         text = handle.read()
     # نقشهٔ منبعِ هر قطعه پس از الحاق بی‌معناست و در DevTools خطای ۴۰۴ می‌دهد
     text = _SOURCEMAP_RE.sub('', text)
+    text = _rebase_urls(text, relative)
     if wrap_print:
         text = '@media print {\n' + text + '\n}'
     return text
