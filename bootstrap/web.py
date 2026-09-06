@@ -284,6 +284,13 @@ def setup(app) -> None:
     # استاتیک نسخه‌دهی‌شده
     app.template_global()(asset)
 
+    # سرو /static با gzip و کش یک‌ساله — و بستهٔ ادغام‌شدهٔ CSS/JS
+    from bootstrap.static_assets import install as install_static_serving
+    from utils.asset_bundle import bundle_url, ensure_bundles
+    install_static_serving(app)
+    ensure_bundles(app)
+    app.template_global()(bundle_url)
+
     # Context processor
     app.context_processor(inject_globals)
 

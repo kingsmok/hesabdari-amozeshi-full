@@ -15,8 +15,9 @@ instance/*.db
 instance/*.db-wal
 instance/*.db-shm
 instance/*.db-journal
-# قفل زمان‌اجرای poller بله (تک‌نمونه بین ورکرها) — فقط روی هاست معنا دارد
+# قفل‌های زمان‌اجرا (تک‌نمونه بین ورکرها/پروسه‌ها) — فقط روی هاست معنا دارند
 instance/.bale_poll.lock
+instance/.schema_init.lock
 *.db-wal
 *.db-shm
 *.db-journal
@@ -77,3 +78,6 @@ instance/.jalali_repair_stamp
 
 # لاگ و قفل پوسته دسکتاپ (logs/desktop-*.log، single-instance.lock)
 logs/
+
+# بسته‌های ادغام‌شدهٔ CSS/JS (در زمان بوت ساخته می‌شوند)
+static/gen/

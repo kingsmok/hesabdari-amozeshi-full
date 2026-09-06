@@ -146,6 +146,71 @@ gunicorn --config gunicorn.conf.py wsgi:application
 
 ---
 
+## سرعت صفحه‌ها روی هاست
+
+همهٔ منابع ظاهر برنامه **محلی** هستند — هیچ CDN بیرونی (jsDelivr، Google Fonts،
+cdnjs و…) در کار نیست، بنابراین سرعت به تحریم/کندی سرویس خارجی وابسته نیست.
+`download_assets.py` فقط در زمان **ساخت بسته** یک‌بار از CDN دانلود می‌کند و
+فایل‌ها را داخل `static/` می‌گذارد.
+
+سه کار خودکار انجام می‌شود:
+
+| کار | اثر |
+|-----|-----|
+| **فشرده‌سازی gzip سمت برنامه** (`bootstrap/static_assets.py`) | بستهٔ CSS ۳۷۴KB → ۵۸KB و بستهٔ JS ۱۷۰KB → ۴۶KB. پیش‌تر استاتیک بدون هیچ فشرده‌سازی فرستاده می‌شد، چون `mod_deflate` آپاچی روی همهٔ هاست‌ها روشن نیست و روی VPS/Docker آپاچی اصلاً در کار نیست |
+| **کش یک‌سالهٔ `immutable`** | آدرس فایل‌ها با `?v=<mtime>-<size>` نسخه‌دار است، پس کش یک‌ساله امن است. پیش‌تر کش یک‌روزه بود ⇒ کاربر هر روز همه‌چیز را دوباره دانلود می‌کرد. بازدید دوم عملاً هیچ بایتی نمی‌گیرد |
+| **ادغام CSS/JS در یک فایل** (`utils/asset_bundle.py`) | ۲۰ منبع → ۸ منبع. روی HTTP/1.1 هر منبع یک رفت‌وبرگشت کامل است؛ این یعنی چند صد میلی‌ثانیه کمتر |
+
+بسته‌ها در `static/gen/` ساخته می‌شوند و **نیاز به بیلد دستی ندارند**: در هر بوت،
+اثر انگشت محتوا محاسبه می‌شود و با تغییر هر فایل منبع، بستهٔ تازه ساخته و
+قبلی پاک می‌شود. اگر `static/` قابل نوشتن نباشد، برنامه بی‌صدا به همان فایل‌های
+جدا برمی‌گردد (پس روی نصب دسکتاپ/PyInstaller هم درست کار می‌کند).
+
+خاموش‌کردن ادغام (فقط برای عیب‌یابی):
+
+```bash
+export ACADEMY_ASSET_BUNDLE=0
+```
+
+### اندازه‌گیری‌شده (صفحهٔ اصلی، روی سرور واقعی)
+
+| | قبل | بعد |
+|---|---|---|
+| تعداد درخواست | ۲۱ | **۹** |
+| بایت روی سیم | ۶۶۰٬۳۸۴ | **۲۱۸٬۱۹۳** (−۶۷٪) |
+| زمان تقریبی با RTT=۱۵۰ms و ۲Mbps | ۳٬۲۴۰ms | **۱٬۱۷۰ms** |
+| زمان تقریبی با RTT=۳۰۰ms و ۱Mbps | ۶٬۴۸۰ms | **۲٬۳۵۰ms** |
+
+### اگر روی VPS با Nginx هستید
+
+Nginx را جلوی gunicorn طوری بگذارید که استاتیک را **خودش** سرو کند؛ این از
+هر بهینه‌سازی سمت پایتون سریع‌تر است:
+
+```nginx
+location /static/ {
+    alias /path/to/app/static/;
+    gzip_static on;                 # اگر فایل .gz کنارش باشد
+    expires 1y;
+    add_header Cache-Control "public, max-age=31536000, immutable";
+    access_log off;
+}
+location / { proxy_pass http://127.0.0.1:5000; }
+gzip on;
+gzip_types text/css application/javascript application/json image/svg+xml;
+```
+
+### چند نکتهٔ باقی‌مانده
+
+- فونت `bootstrap-icons.woff2` حدود ۱۲۷KB است و ~۲۰۰۰ گلیف دارد، در حالی که
+  برنامه ~۲۲۶ آیکون استفاده می‌کند. زیرمجموعه‌کردن (subset) آن ~۱۱۰KB صرفه‌جویی
+  می‌دهد، ولی چون بعضی کلاس‌های آیکون **پویا** ساخته می‌شوند
+  (مثل `bi-{{ 'pause' if ... }}`) انجامش ریسک «آیکون خالی» دارد؛ عمداً دست
+  نخورده باقی مانده.
+- صفحهٔ ورود عمداً layout سبک خودش را دارد (۳ فایل CSS) تا اولین چیزی که
+  کاربر می‌بیند سریع بیاید.
+
+---
+
 ## نکات مهم رفتاری روی هاست
 
 | موضوع | رفتار |
@@ -209,6 +274,7 @@ gunicorn --config gunicorn.conf.py wsgi:application
 | `ModuleNotFoundError` | `pip install -r requirements.txt` کامل اجرا نشده؛ در Terminal همان اپلیکیشن دوباره اجرا و Restart کنید |
 | `Failed building wheel for greenlet` | هاست کامپایلر C ندارد. اگر فقط دکمه‌ی **Run Pip Install** دارید، روی `requirements.txt` یا `requirements-nobuild.txt` نصب کنید (هر دو wheel-only هستند و کامپایل نمی‌کنند)؛ اگر **Terminal** دارید `python tools/install_deps.py` را اجرا کنید (خودکار wheel آماده را نصب می‌کند و در نبود آن، بدون greenlet ادامه می‌دهد) |
 | تغییر دیتابیس به MySQL اعمال نشد | پس از ذخیره در `/setup/database` حتماً اپلیکیشن را Restart کنید |
+| صفحه‌ها روی هاست کند باز می‌شوند | اول `curl -sI -H 'Accept-Encoding: gzip' https://دامنه/static/css/main.css` را بزنید: باید `Content-Encoding: gzip` و `Cache-Control: …immutable` داشته باشد. اگر نداشت، استاتیک مستقیم توسط آپاچی سرو می‌شود و `mod_deflate`/`mod_headers` هاست خاموش است — در cPanel → Optimize Website گزینهٔ Compress All Content را روشن کنید. اگر `static/gen/` ساخته نشده، پوشهٔ `static` قابل نوشتن نیست (`chmod 755 static`) |
 | ربات بله کند جواب می‌دهد | صفحهٔ `تنظیمات → ربات بله` را ببینید: اگر «در صف انتظار» بالا است `ACADEMY_BALE_WORKERS` را بیشتر کنید؛ اگر «میانگین زمان پاسخ» بالا است مسیر شبکهٔ هاست تا `tapi.bale.ai` کند است (با `curl -w '%{time_total}' https://tapi.bale.ai` از Terminal هاست اندازه بگیرید). روی هاست اشتراکی یادتان باشد `ACADEMY_DISABLE_BALE=1` پیش‌فرض است و poller اصلاً اجرا نمی‌شود |
 | ربات بله جواب نمی‌دهد | در صفحهٔ `تنظیمات → ربات بله` باید «دریافت خودکار فعال» باشد. روی VPS با چند ورکر، فقط یک ورکر poller را نگه می‌دارد (`instance/.bale_poll.lock`)؛ اگر آن ورکر ری‌استارت شد چند ثانیه طول می‌کشد تا ورکر جدید جای آن را بگیرد |
 | فراموشی رمز مدیر | در Terminal همان اپلیکیشن (داخل `public_html/host_deploy` با venv فعال): `ACADEMY_DISABLE_SCHEDULER=1 python -c "from app import create_app; from extensions import db; from models.user import User; a=create_app(); a.app_context().push(); u=User.query.filter_by(username='admin').first(); u.set_password('admin123'); db.session.commit(); print('done: admin password reset')"` — سپس Restart کنید و با `admin123` وارد شوید |

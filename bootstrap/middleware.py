@@ -46,6 +46,12 @@ def _security_and_access_log(response):
     response.headers.setdefault('Permissions-Policy',
                                 'camera=(), microphone=(), geolocation=()')
 
+    # صفحات HTML بدون هدر کش، توسط مرورگر/پروکسی «کش ابتکاری» می‌شوند و
+    # دادهٔ مالی دیروز نشان داده می‌شود. no-cache = هر بار اعتبارسنجی کن.
+    # فایل‌های استاتیک هدر کش خودشان را از bootstrap.static_assets می‌گیرند.
+    if not request.path.startswith('/static/'):
+        response.headers.setdefault('Cache-Control', 'no-cache')
+
     from utils.request_id import request_id_header
     header = request_id_header()
     if header:
