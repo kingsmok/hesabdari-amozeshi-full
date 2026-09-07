@@ -365,6 +365,9 @@ class TestBrotli:
         assert response.headers.get('Content-Encoding') == 'br'
 
     def test_brotli_payload_is_smaller_than_gzip(self, client):
+        from bootstrap import static_assets
+        if static_assets._brotli is None:
+            pytest.skip('بستهٔ اختیاری brotli نصب نیست')
         import brotli as _brotli
         import gzip as _gzip
         path = '/static/css/bootstrap.rtl.min.css'
