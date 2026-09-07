@@ -22,12 +22,24 @@ from extensions import db
 
 
 def initialize(app) -> None:
-    """ساخت/ارتقای schema و دادهٔ پایه؛ فقط یک‌بار به‌ازای هر اپ (idempotent)."""
+    """ساخت/ارتقای schema و دادهٔ پایه؛ فقط یک‌بار به‌ازای هر اپ (idempotent).
+
+    با قفل فایل بین‌پروسه‌ای سریالی می‌شود: با چند ورکر Gunicorn (یا چند ترد
+    Passenger) همه هم‌زمان `create_all`/`create_default_data` را صدا می‌زدند و
+    روی نصب تازه یکی‌شان با `UNIQUE constraint failed: users.username` می‌مرد
+    ⇒ ورکر کرش می‌کرد و گانیکورن دوباره بالا می‌آوردش (شروع کند و لرزان).
+    """
     if getattr(app, '_db_initialized', False):
         return
 
-    with app.app_context():               # create_all و همهٔ اصلاحات داده نیازمند context
-        _initialize_with_context(app)
+    import os
+
+    from utils.file_lock import file_lock
+    base_dir = app.config.get('BASE_DIR') or app.root_path
+    lock_path = os.path.join(base_dir, 'instance', '.schema_init.lock')
+    with file_lock(lock_path):
+        with app.app_context():           # create_all و اصلاحات داده context می‌خواهند
+            _initialize_with_context(app)
 
     app._db_initialized = True
 

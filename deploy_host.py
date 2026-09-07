@@ -139,6 +139,15 @@ UPLOADS_HTACCESS = (
     "RemoveHandler .php .phtml .php3 .php4 .php5 .phps .cgi .pl\n"
     "RemoveType .php .phtml .php3 .php4 .php5 .phps .cgi .pl\n"
     "Options -ExecCGI -Indexes\n"
+    # فایل آپلودی آدرس نسخه‌دار ندارد؛ کش یک‌سالهٔ .htaccess ریشه این‌جا
+    # به یک ساعت برگردانده می‌شود تا عکس/لوگوی جایگزین‌شده دیده شود.
+    "<IfModule mod_headers.c>\n"
+    "    Header set Cache-Control \"public, max-age=3600\"\n"
+    "</IfModule>\n"
+    "<IfModule mod_expires.c>\n"
+    "    ExpiresActive On\n"
+    "    ExpiresDefault \"access plus 1 hour\"\n"
+    "</IfModule>\n"
 )
 
 

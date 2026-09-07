@@ -18,26 +18,34 @@
 
     <!-- فونت‌ها و CSS، محلی و نسخه‌دار (آفلاین هم کار می‌کند؛ CDN نبود) -->
     <link rel="stylesheet" href="{{ asset('fonts/Vazirmatn-font-face.css') }}">
-    <!-- preload برای دو وزن پراستفاده؛ بدون ?v= چون خودِ @font-face هم آدرس
-         بدون کوئری را اعلام می‌کند و وگرنه دو بار دانلود می‌شد -->
+    {# هر پنج وزن زیر روی «خودِ» چیدمان پایه لازم می‌شوند (نوار کنار، سرصفحه و
+       عنوان‌ها)؛ یعنی هر صفحه‌ای به همه‌شان نیاز دارد و اگر preload نشوند،
+       مرورگر تا پایان تجزیهٔ CSS منتظر می‌ماند و بعد تازه دانلود را شروع
+       می‌کند. با preload، دانلود فونت با دانلود CSS موازی می‌شود.
+       بدون ?v= چون خودِ @font-face هم آدرس بدون کوئری را اعلام می‌کند و وگرنه
+       هر فایل دو بار دانلود می‌شد. #}
+    {% for font_weight in ('Regular', 'Medium', 'SemiBold', 'Bold', 'ExtraBold') %}
     <link rel="preload" as="font" type="font/woff2" crossorigin
-          href="{{ url_for('static', filename='fonts/Vazirmatn-Regular.woff2') }}">
-    <link rel="preload" as="font" type="font/woff2" crossorigin
-          href="{{ url_for('static', filename='fonts/Vazirmatn-Bold.woff2') }}">
+          href="{{ url_for('static', filename='fonts/Vazirmatn-' ~ font_weight ~ '.woff2') }}">
+    {% endfor %}
 
+    {% set css_bundle = bundle_url('css') %}
+    {% if css_bundle %}
+    {# بستهٔ ادغام‌شده: همان فایل‌ها با همان ترتیب، در یک درخواست (bootstrap،
+       آیکون‌ها، انیمیشن، تقویم، جستجوپذیر، ریسپانسیو، چاپ، main، پوستهٔ تاریک).
+       print.css داخلش در بلوک «رسانهٔ چاپ» پیچیده شده تا فقط موقع چاپ اعمال
+       شود و جایگاهش در آبشار هم دقیقاً همان‌جا بماند. #}
+    <link rel="stylesheet" href="{{ asset(css_bundle) }}">
+    {% else %}
     <link rel="stylesheet" href="{{ asset('css/bootstrap.rtl.min.css') }}">
     <link rel="stylesheet" href="{{ asset('css/bootstrap-icons.min.css') }}">
 
-    <!-- Chart.js (۲۰۶KB) فقط در صفحات نموداردار بارگذاری می‌شود؛ آن‌ها بلوک
-         chart_assets را override می‌کنند. پیش‌تر روی هر ۲۴ صفحه لود می‌شد. -->
-    {% block chart_assets %}{% endblock %}
-
     <!-- انیمیشن‌های سفارشی -->
     <link rel="stylesheet" href="{{ asset('css/animations.css') }}">
-    
+
     <!-- تقویم شمسی -->
     <link rel="stylesheet" href="{{ asset('css/jalali-picker.css') }}">
-    
+
     <!-- انتخاب جستجوپذیر -->
     <link rel="stylesheet" href="{{ asset('css/searchable-select.css') }}">
 
@@ -49,6 +57,12 @@
 
     <link rel="stylesheet" href="{{ asset('css/main.css') }}">
     <link rel="stylesheet" href="{{ asset('css/theme-dark.css') }}">
+    {% endif %}
+
+    <!-- Chart.js (۲۰۶KB) فقط در صفحات نموداردار بارگذاری می‌شود؛ آن‌ها بلوک
+         chart_assets را override می‌کنند. پیش‌تر روی هر ۲۴ صفحه لود می‌شد. -->
+    {% block chart_assets %}{% endblock %}
+
     {% block extra_css %}{% endblock %}
 </head>
 <body{% if request.cookies.get('dark_mode') == 'on' %} class="dark-mode"{% endif %}>
@@ -156,7 +170,12 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS از jsDelivr -->
+    {% set js_bundle = bundle_url('js') %}
+    {% if js_bundle %}
+    {# همهٔ اسکریپت‌ها (محلی، بدون CDN) با همان ترتیب اجرا در یک درخواست #}
+    <script src="{{ asset(js_bundle) }}"></script>
+    {% else %}
+    <!-- Bootstrap JS (محلی) -->
     <script src="{{ asset('js/bootstrap.bundle.min.js') }}"></script>
 
     <!-- UI Core: state مرکزی (busy/CSRF/toast/fetch) — پیش از app.js -->
@@ -164,12 +183,13 @@
 
     <!-- فایل JS اصلی -->
     <script src="{{ asset('js/app.js') }}"></script>
-    
+
     <!-- تقویم شمسی -->
     <script src="{{ asset('js/jalali-picker.js') }}"></script>
-    
+
     <!-- انتخاب جستجوپذیر -->
     <script src="{{ asset('js/searchable-select.js') }}"></script>
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
 
